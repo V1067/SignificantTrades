@@ -6,15 +6,14 @@
 </template>
 
 <script>
-import SerieDialog from './SerieDialog'
-import { create } from 'vue-modal-dialogs'
+import SerieDialog from './SerieDialog.vue'
+import { showDialog } from '../../services/dialog'
 
 export default {
   props: ['id', 'legend'],
   methods: {
     edit() {
-      const dialog = create(SerieDialog, 'id')
-      dialog(this.id)
+      showDialog(SerieDialog, { id: this.id })
     }
   }
 }
@@ -24,6 +23,8 @@ export default {
 .serie {
   display: flex;
   align-items: center;
+  width: 0;
+  white-space: nowrap;
 
   &__name {
     position: relative;
@@ -45,6 +46,7 @@ export default {
     margin-left: 0.4em;
     font-family: monospace;
     text-shadow: 1px 1px black;
+    pointer-events: none;
   }
 
   &__control {

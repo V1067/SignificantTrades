@@ -41,20 +41,4 @@ if (MASTER_DOMAIN) {
   }
 }
 
-// 14/04/20 (2.5)
-// timeframe is now stored in seconds
-if (STORED.timeframe > 1000) {
-  STORED.timeframe /= 1000
-}
-// 22/04/20
-if (STORED.statsCounters) {
-  for (let counter of STORED.statsCounters) {
-    counter.output = counter.output
-      .replace(/buyCount/g, 'cbuy')
-      .replace(/sellCount/g, 'csell')
-      .replace(/buyAmount/g, 'vbuy')
-      .replace(/sellAmount/g, 'vsell')
-  }
-}
-
 export default Object.assign({}, DEFAULTS, EXTRA, STORED, QUERY_STRING)

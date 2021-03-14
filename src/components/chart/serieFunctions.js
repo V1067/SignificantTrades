@@ -5,7 +5,7 @@ import store from '../../store'
  * simple average
  * @param {Bar} bar
  */
-export function ohlc(bar) {
+export function ohlc_avg_price(bar) {
   let totalWeight = 0
   let setOpen = false
 
@@ -45,6 +45,25 @@ export function ohlc(bar) {
   bar.close /= totalWeight
 
   return { open: bar.open, high: bar.high, low: bar.low, close: bar.close }
+}
+
+/**
+ * get 1 ohlc bar out of actives exchanges in bar
+ * simple average
+ * @param {Bar} bar
+ */
+export function ohlc(value) {
+  if (typeof this.open === 'undefined') {
+    this.open = value
+    this.high = value
+    this.low = value
+  }
+
+  this.high = Math.max(this.high, value)
+  this.low = Math.min(this.low, value)
+  this.close = value
+
+  return { open: this.open, high: this.high, low: this.low, close: this.close }
 }
 
 /**

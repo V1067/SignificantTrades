@@ -1,5 +1,5 @@
 <template>
-  <div contenteditable="true" @keydown="onKeyDown" @input="changed = true" @focus="onFocus" @blur="onBlur" @click="onClick"></div>
+  <div contenteditable="true" @keydown="onKeyDown" @input="changed = true" @focus="onFocus" @blur="onBlur" @click="onClick" @wheel="onWheel"></div>
 </template>
 
 <script>
@@ -37,13 +37,13 @@ export default {
         }
       }, 1)
     },
-    onBlur($event) {
-      if ($event.which === 13) {
+    onBlur(event) {
+      if (event.which === 13) {
         event.preventDefault()
         return
       }
 
-      this.changed && this.$emit('output', $event.target.innerText)
+      this.changed && this.$emit('output', event.target.innerText)
       this.focused = false
 
       if (window.getSelection) {
@@ -52,8 +52,8 @@ export default {
         document.selection.empty()
       }
     },
-    onKeyDown($event) {
-      if ($event.which === 13) {
+    onKeyDown(event) {
+      if (event.which === 13) {
         event.preventDefault()
 
         this.$el.blur()
@@ -61,11 +61,11 @@ export default {
         return
       }
 
-      if (!isNaN($event.target.innerText)) {
-        if ($event.which === 38) {
-          this.$emit('output', +$event.target.innerText + 1)
-        } else if ($event.which === 40) {
-          this.$emit('output', +$event.target.innerText - 1)
+      if (!isNaN(event.target.innerText)) {
+        if (event.which === 38) {
+          this.$emit('output', +event.target.innerText + 1)
+        } else if (event.which === 40) {
+          this.$emit('output', +event.target.innerText - 1)
         }
       }
     },
@@ -83,6 +83,11 @@ export default {
       }
 
       this.clickAt = now
+    },
+    onWheel(event) {
+      if (!isNaN(event.target.innerText)) {
+        this.$emit('output', +event.target.innerText + Math.sign(event.deltaY) * -1)
+      }
     }
   }
 }

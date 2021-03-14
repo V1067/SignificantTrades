@@ -20,7 +20,7 @@ export const defaultChartOptions = {
   layout: {
     backgroundColor: 'transparent',
     textColor: 'white',
-    fontFamily: 'Roboto Condensed'
+    fontFamily: 'Barlow Semi Condensed'
   },
   grid: {
     horzLines: {
@@ -31,7 +31,7 @@ export const defaultChartOptions = {
     }
   },
   timeScale: {
-    barSpacing: 3,
+    barSpacing: 15,
     rightOffset: 12,
     lockVisibleTimeRangeOnResize: true,
     rightBarStaysOnScroll: true,
@@ -45,6 +45,12 @@ export const defaultChartOptions = {
     position: 'right',
     mode: 0,
     borderColor: 'rgba(255, 255, 255, .2)'
+  },
+  volumePriceScale: {
+    scaleMargins: {
+      top: 0.8,
+      bottom: 0
+    }
   }
 }
 

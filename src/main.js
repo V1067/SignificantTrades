@@ -34,10 +34,12 @@ Vue.component('verte', Verte)
 import Editable from './components/ui/Editable'
 import Dropdown from './components/ui/Dropdown'
 import Slider from './components/ui/Slider'
-
 Vue.component('dropdown', Dropdown)
 Vue.component('editable', Editable)
 Vue.component('slider', Slider)
+
+import backgroundDirective from './directives/backgroundDirective'
+Vue.directive('background', backgroundDirective)
 
 new Vue({
   el: '#app',

@@ -111,6 +111,12 @@ export function getHms(timestamp, round) {
   return output.trim()
 }
 
+export function randomString() {
+  return Math.random()
+    .toString(36)
+    .substring(7)
+}
+
 export function uniqueName(name, names) {
   let base = name.substr()
   let variante = 1
@@ -182,4 +188,20 @@ export const getVisibleRange = (chartInstance, timeframe) => {
 
     return { from: visibleRange.from, to: visibleRange.to, median: visibleRange.from + (visibleRange.to - visibleRange.from) / 2 }
   }
+}
+
+export const downloadJson = (json, filename) => {
+  var dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(json, null, 2))
+  var downloadAnchorNode = document.createElement('a')
+  downloadAnchorNode.setAttribute('href', dataStr)
+  downloadAnchorNode.setAttribute('download', filename + '.json')
+  document.body.appendChild(downloadAnchorNode) // required for firefox
+  downloadAnchorNode.click()
+  downloadAnchorNode.remove()
+}
+
+export function sleep(duration = 1000) {
+  return new Promise(resolve => {
+    setTimeout(() => resolve(), duration)
+  })
 }

@@ -245,7 +245,7 @@ export default {
     z-index: 10;
     font-size: 0.5em;
     font-weight: 600;
-    font-family: 'Roboto Condensed';
+    font-family: 'Barlow Semi Condensed';
 
     @keyframes fly-high {
       0% {

@@ -1,3 +1,5 @@
+import { getColorLuminance, splitRgba } from '../../utils/colors'
+
 export default {
   updateStat({ commit, state }, { index, prop, value }) {
     if (state.statsCounters[index][prop] === value) {
@@ -29,5 +31,19 @@ export default {
     }
 
     commit('SET_SERIE_OPTION', { id, key, value })
+  },
+  setBackgroundColor({ commit, state }, rgb) {
+    commit('SET_CHART_BACKGROUND_COLOR', rgb)
+
+    const backgroundLuminance = getColorLuminance(splitRgba(rgb))
+    const theme = backgroundLuminance > 175 ? 'light' : 'dark'
+
+    if (theme !== state.chartTheme) {
+      commit('SET_CHART_THEME', theme)
+    }
+
+    if (state.chartColor.length) {
+      commit('SET_CHART_COLOR', '')
+    }
   }
 }

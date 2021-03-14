@@ -1,10 +1,9 @@
 import Vue from 'vue'
 
-import { uniqueName } from '../../utils/helpers'
+import { randomString, uniqueName } from '../../utils/helpers'
 
 export default {
   SET_PAIR(state, value) {
-    console.log('SET_PAIR', value.toString().toUpperCase())
     state.pair = value.toString().toUpperCase()
 
     this.state.app.pairs = state.pair.split('+')
@@ -184,6 +183,7 @@ export default {
   },
   ADD_THRESHOLD(state) {
     state.thresholds.push({
+      id: randomString(8),
       amount: state.thresholds[state.thresholds.length - 1].amount * 2,
       buyColor: 'rgb(0, 255, 0)',
       sellColor: 'rgb(255, 0, 0)'
@@ -192,7 +192,7 @@ export default {
   SET_DECIMAL_PRECISION(state, value) {
     state.decimalPrecision = value
   },
-  DELETE_THREDELETE_THRESHOLD(state, index) {
+  DELETE_THRESHOLD(state, index) {
     state.thresholds.splice(index, 1)
   },
   ENABLE_EXCHANGE(state, exchange) {
@@ -252,6 +252,15 @@ export default {
   SET_CHART_REFRESH_RATE(state, value) {
     state.chartRefreshRate = +value || 0
   },
+  SET_CHART_BACKGROUND_COLOR(state, value) {
+    state.chartBackgroundColor = value
+  },
+  SET_CHART_THEME(state, value) {
+    state.chartTheme = value
+  },
+  SET_CHART_COLOR(state, value) {
+    state.chartColor = value
+  },
   SET_TIMEZONE_OFFSET(state, value) {
     state.timezoneOffset = +value || 0
   },
@@ -275,6 +284,13 @@ export default {
     }
 
     Vue.set(state.series[id], 'type', value)
+  },
+  SET_SERIE_INPUT(state, { id, value }) {
+    if (!state.series[id]) {
+      state.series[id] = {}
+    }
+
+    Vue.set(state.series[id], 'input', value)
   },
   SET_CHART_PRICE_MARGINS(state, value) {
     if (!state.series.price) {

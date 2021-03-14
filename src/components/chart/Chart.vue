@@ -77,7 +77,8 @@ export default {
       'chartRefreshRate',
       'showExchangesBar',
       'timezoneOffset',
-      'series'
+      'series',
+      'chartTheme'
     ]),
     availableSeries: function() {
       return Object.keys(seriesData).filter(id => this.activeSeries.indexOf(id) === -1)
@@ -113,7 +114,16 @@ export default {
           chart.setSerieOption(mutation.payload)
           break
         case 'settings/SET_SERIE_TYPE':
+        case 'settings/SET_SERIE_INPUT':
           chart.rebuildSerie(mutation.payload.id)
+          break
+        case 'settings/SET_CHART_COLOR':
+          if (mutation.payload) {
+            chart.setChartColor(mutation.payload)
+          }
+          break
+        case 'settings/SET_CHART_THEME':
+          chart.setChartColor(this.chartTheme === 'light' ? '#111111' : '#f6f6f6')
           break
         case 'settings/TOGGLE_SERIE':
           chart.toggleSerie(mutation.payload)
@@ -290,7 +300,7 @@ export default {
         }
       }
 
-      
+
       console.log('trades at bar', time, ':')
 
       console.log(trades)
@@ -321,14 +331,16 @@ export default {
             continue
           }
 
+          let formatFunction = serie.options.scaleAsVolume ? formatAmount : formatPrice
+
           if (data.close) {
             this.$set(
               this.legend,
               serie.id,
-              `O: ${formatPrice(data.open)} H: ${formatPrice(data.high)} L: ${formatPrice(data.low)} C: ${formatPrice(data.close)}`
+              `O: ${formatFunction(data.open)} H: ${formatFunction(data.high)} L: ${formatFunction(data.low)} C: ${formatFunction(data.close)}`
             )
           } else {
-            this.$set(this.legend, serie.id, serie.options.formatVolume ? formatAmount(data) : formatPrice(data))
+            this.$set(this.legend, serie.id, formatFunction(data))
           }
         }
       }
@@ -545,13 +557,13 @@ export default {
     bindChartEvents() {
       // chart.chartInstance.subscribeClick(this.onClick)
       chart.chartInstance.subscribeCrosshairMove(this.onCrosshair)
-      chart.chartInstance.subscribeVisibleTimeRangeChange(this.onPan)
+      chart.chartInstance.timeScale().subscribeVisibleLogicalRangeChange(this.onPan)
     },
 
     unbindChartEvents() {
       // chart.chartInstance.unsubscribeClick(this.onClick)
       chart.chartInstance.unsubscribeCrosshairMove(this.onCrosshair)
-      chart.chartInstance.unsubscribeVisibleTimeRangeChange(this.onPan)
+      chart.chartInstance.timeScale().unsubscribeVisibleLogicalRangeChange(this.onPan)
     },
 
     bindBrowserResize() {
@@ -610,7 +622,7 @@ export default {
   position: absolute;
   top: 1em;
   left: 1em;
-  font-family: Roboto Condensed;
+  font-family: 'Barlow Semi Condensed';
   z-index: 2;
   opacity: 0;
   transition: opacity 0.2s $easeOutExpo;
@@ -663,7 +675,7 @@ export default {
   position: absolute;
   top: 1em;
   right: 5em;
-  font-family: Roboto Condensed;
+  font-family: 'Barlow Semi Condensed';
   z-index: 2;
   opacity: 0;
   transition: opacity 0.2s $easeOutExpo;

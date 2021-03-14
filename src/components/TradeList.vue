@@ -1,5 +1,5 @@
 <template>
-  <div id="trades" :class="{ '-logos': this.showLogos, '-slippage': this.showSlippage }">
+  <div id="trades" class="custom-scrollbar" :class="{ '-logos': this.showLogos, '-slippage': this.showSlippage }">
     <ul ref="tradesContainer"></ul>
     <div v-if="!tradesCount" class="trade -empty">Nothing to show, yet.</div>
   </div>

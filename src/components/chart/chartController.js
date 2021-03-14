@@ -4,9 +4,14 @@ import seriesData from '../../data/series'
 import { cache, saveChunk, clearCache, cacheRange } from './chartCache'
 import { formatTime, getHms, setValueByDotNotation, slugify } from '../../utils/helpers'
 import { defaultChartOptions, defaultPlotsOptions } from './chartOptions'
-import * as serieFunctions from './serieFunctions'
+import * as _serieFunctions from './serieFunctions'
 
 import * as TV from 'lightweight-charts'
+import { showDialog } from '../../services/dialog'
+const serieFunctions = Object.keys(_serieFunctions).reduce((o, name) => {
+  o[name] = _serieFunctions[name]
+  return o
+}, {})
 
 const availableSerieFunctions = Object.keys(serieFunctions).reduce((obj, name) => {
   obj[name] = {
@@ -58,6 +63,18 @@ export default class ChartController {
     console.log(`[chart/controller] create chart`)
 
     const options = Object.assign({}, defaultChartOptions, chartDimensions)
+
+    let chartColor
+
+    if (store.state.settings.chartColor) {
+      chartColor = store.state.settings.chartColor
+    } else {
+      chartColor = store.state.settings.chartTheme === 'light' ? '#111111' : '#f6f6f6'
+    }
+
+    options.priceScale.borderColor = chartColor
+    options.timeScale.borderColor = chartColor
+    options.layout.textColor = chartColor
 
     if (store.state.settings.series.price && store.state.settings.series.price.scaleMargins) {
       options.priceScale.scaleMargins = store.state.settings.series.price.scaleMargins
@@ -200,20 +217,22 @@ export default class ChartController {
    * @param {ActiveSerie} serie
    */
   prepareSerie(serie) {
-    let input = serie.input.toString().replace(/\n/g, '')
-    const reg = new RegExp(`(${this.getAvailableSerieFunctions().join('|')})\\(([a-zA-Z0-9._,\\s]+)\\)`, 'g')
+    let input = (serie.options.input || serie.input).toString().replace(/\n/g, '')
+    // eslint-disable-next-line no-useless-escape
+    const reg = new RegExp(`(${this.getAvailableSerieFunctions().join('|')})\\(([^\S]+)\\)`, 'g')
 
     const memory = []
-    const helpers = []
+
+    if (/\b(this)\b/i.test(input)) {
+      memory.push({
+        id: null
+      })
+    }
 
     let match
 
     do {
       if ((match = reg.exec(input))) {
-        if (helpers.indexOf(match[1]) === -1) {
-          helpers.push(match[1])
-        }
-
         const args = match[2].split(',').map(a => a.trim())
 
         const id = slugify(match[2])
@@ -229,20 +248,24 @@ export default class ChartController {
           args.unshift(`bar.series.${serie.id}.memory[${memory.length - 1}]`)
         }
 
-        input = input.replace(match[0], `this.${match[1]}(${args.join(',')})`)
+        input = input.replace(match[0], `fn.${match[1]}.call(this, ${args.join(',')})`)
       }
     } while (match)
 
     serie.memory = memory
 
     try {
-      serie.adapter = this.buildSerieFunction(serie, input)
+      serie.serieFunctionDefinition = this.buildSerieFunction(serie, input)
     } catch (error) {
-      this.$store.dispatch('app/showNotice', {
+      store.dispatch('app/showNotice', {
         type: 'error',
         title: 'BUILD FAILED ' + error.message
       })
       console.error(error)
+
+      showDialog('chart/SerieDialog', {
+        id: serie.id
+      })
 
       return false
     }
@@ -267,7 +290,8 @@ export default class ChartController {
       lsell: 0,
       series: {
         [serie.id]: {
-          value: 0
+          value: 0,
+          memoryThis: {}
         }
       }
     }
@@ -285,26 +309,23 @@ export default class ChartController {
       }
     }
 
-    if (serie.memory) {
-      bar.series[serie.id]
-    }
-
     // test run
-    const value = new Function('bar', 'options', 'return ' + input.replace(/bar\.series\.[a-zA-Z0-9_]+\.point\.[a-z]+/g, 1)).apply(
-      {
-        cma: () => 1,
-        ema: () => 1,
-        sma: () => 1,
-        ohlc: () => ({ open: 1, high: 1, low: 1, close: 1 })
-      },
-      [bar, serie.options]
+    const value = new Function('fn', 'bar', 'options', 'return ' + input.replace(/bar\.series\.[a-zA-Z0-9_]+\.point\.[a-z]+/g, 1)).apply(
+      bar.series[serie.id].memoryThis,
+      [serieFunctions, bar, serie.options]
     )
+
+    const type = serie.options.type || serie.type
 
     if (value !== null && typeof value !== 'object') {
       input = `{ value: ${input} }`
+    } else if (typeof value.open !== 'undefined' && type !== 'candlestick' && type !== 'bars') {
+      input = `{ value: ${input}.close }`
+    } else if (typeof value.open === 'undefined' && (type === 'candlestick' || type === 'bars')) {
+      throw new Error('data is OHLC format but serie type is not')
     }
 
-    return new Function('bar', 'options', 'return ' + input).bind(serieFunctions)
+    return [null, 'fn', 'bar', 'options', 'return ' + input]
   }
 
   bindSerie(serie, renderer) {
@@ -323,14 +344,20 @@ export default class ChartController {
     for (let i = 0; i < serie.memory.length; i++) {
       const fn = serie.memory[i]
 
-      renderer.series[serie.id].memory.push({
-        output: null,
-        length: eval(fn.args[2].toString().replace(/^options/, 'serie.options')),
-        points: [],
-        count: 0,
-        sum: 0
-      })
+      if (fn.id) {
+        renderer.series[serie.id].memory.push({
+          output: null,
+          length: eval(fn.args[2].toString().replace(/^options/, 'serie.options')),
+          points: [],
+          count: 0,
+          sum: 0
+        })
+      } else {
+        renderer.series[serie.id].memoryThis = {}
+      }
     }
+
+    serie.adapter = (new (Function.prototype.bind.apply(Function, serie.serieFunctionDefinition))).bind(renderer.series[serie.id].memoryThis, serieFunctions) // prettier-ignore
   }
 
   /**
@@ -552,8 +579,10 @@ export default class ChartController {
    */
   getOptimalRangeLength() {
     return (
-      Math.floor(((this.chartElement.offsetWidth / 3) * store.state.settings.timeframe) / store.state.settings.timeframe) *
-      store.state.settings.timeframe
+      Math.floor(
+        ((this.chartElement.offsetWidth / this.chartInstance.options().timeScale.barSpacing) * store.state.settings.timeframe) /
+          store.state.settings.timeframe
+      ) * store.state.settings.timeframe
     )
   }
 
@@ -1266,6 +1295,14 @@ export default class ChartController {
             }
           }
         }
+
+        if (barSerieData.memoryThis) {
+          if (typeof barSerieData.memoryThis.open !== 'undefined') {
+            barSerieData.memoryThis.open = barSerieData.memoryThis.close
+            barSerieData.memoryThis.high = barSerieData.memoryThis.close
+            barSerieData.memoryThis.low = barSerieData.memoryThis.close
+          }
+        }
       }
     }
 
@@ -1294,5 +1331,20 @@ export default class ChartController {
         this.resetBar(bar.exchanges[exchange])
       }
     }
+  }
+
+  setChartColor(color) {
+    this.chartInstance.applyOptions({
+      layout: {
+        textColor: color,
+        borderColor: color
+      },
+      priceScale: {
+        borderColor: color
+      },
+      timeScale: {
+        borderColor: color
+      }
+    })
   }
 }

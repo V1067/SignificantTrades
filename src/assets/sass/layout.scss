@@ -15,7 +15,7 @@ body {
     height: 100vh;
   }
 
-  &.loading {
+  &.-loading {
     .app__layout {
       transition: opacity 5s $easeElastic;
       opacity: 0.9;
@@ -30,7 +30,7 @@ body {
 .stack__container {
   transform: none;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 14px;
   z-index: 2;
 }
 
@@ -59,8 +59,6 @@ body {
   position: relative;
 
   p {
-    margin: 0 0 2px;
-
     &:last-child {
       margin: 0;
     }
@@ -216,6 +214,10 @@ body {
 
   > .-center {
     align-self: center;
+  }
+
+  > .-nowrap {
+    white-space: nowrap;
   }
 
   > div {

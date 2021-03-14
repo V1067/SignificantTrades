@@ -1,5 +1,5 @@
 <template>
-  <header id="header" class="header">
+  <header id="header" class="header" v-background="60">
     <div class="header__wrapper">
       <div class="header__title">
         <span class="pair" v-if="pair">{{ pair }}</span>
@@ -98,6 +98,7 @@ header#header {
     .dropdown__selected {
       padding: 0.2em 0.4em;
       font-size: 1em;
+      line-height: 1;
 
       @media screen and (min-width: 480px) {
         padding: 0.2em 0.6em;
@@ -134,6 +135,7 @@ header#header {
   }
 
   .dropdown {
+    align-self: stretch;
     .options {
       position: absolute;
     }
@@ -144,7 +146,6 @@ header#header {
     background: none;
     color: inherit;
     position: relative;
-    color: white;
 
     align-self: stretch;
     cursor: pointer;
@@ -228,14 +229,14 @@ header#header {
   }
 }
 
-#app.loading header#header {
+#app.-loading header#header {
   &:before {
-    background-color: lighten($dark, 15%);
+    background-color: rgba(#f6f6f6, 0.1);
     animation: indeterminate-loading-bar-slow 2.1s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
   }
 
   &:after {
-    background-color: lighten($dark, 15%);
+    background-color: rgba(#111111, 0.1);
     animation: indeterminate-loading-bar-fast 2.1s cubic-bezier(0.165, 0.84, 0.44, 1) infinite;
     animation-delay: 1.15s;
   }

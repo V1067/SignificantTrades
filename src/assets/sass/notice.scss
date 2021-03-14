@@ -25,8 +25,8 @@
   margin-right: auto;
   margin-bottom: 10px;
   pointer-events: all;
-  font-family: Roboto Condensed;
-  animation: .33s $easeOutExpo appear-from-above;
+  font-family: 'Barlow Semi Condensed';
+  animation: 0.33s $easeOutExpo appear-from-above;
 
   &__message {
     flex-basis: 100%;
@@ -41,9 +41,8 @@
 
   &__icon {
     flex-basis: auto;
-    margin: 1px .5em 0 0;
+    margin: 1px 0.5em 0 0;
     font-size: 16px;
-    
   }
 
   &.-error {

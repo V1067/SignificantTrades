@@ -13,48 +13,50 @@
       @input="updateColor"
     ></verte>
     <table class="thresholds-table" v-if="showThresholdsAsTable">
-      <tr v-for="(threshold, index) in thresholds" :key="`threshold-${index}`">
-        <td class="thresholds-table__input">
-          <input
-            type="number"
-            placeholder="Amount*"
-            :value="thresholds[index].amount"
-            @change="
-              $store.commit('settings/SET_THRESHOLD_AMOUNT', {
-                index: index,
-                value: $event.target.value
-              })
-            "
-          />
-          <i class="icon icon-currency"></i>
-        </td>
-        <td class="thresholds-table__input">
-          <input
-            type="text"
-            placeholder="Giphy"
-            :value="thresholds[index].gif"
-            @change="
-              $store.commit('settings/SET_THRESHOLD_GIF', {
-                index: index,
-                value: $event.target.value
-              })
-            "
-          />
-        </td>
-        <td
-          class="thresholds-table__color"
-          :style="{ backgroundColor: thresholds[index].buyColor }"
-          @click="openPicker('buyColor', index, $event)"
-        ></td>
-        <td
-          class="thresholds-table__color"
-          :style="{ backgroundColor: thresholds[index].sellColor }"
-          @click="openPicker('sellColor', index, $event)"
-        ></td>
-        <td class="thresholds-table__delete" @click="deleteThreshold(index)">
-          <i class="icon-cross"></i>
-        </td>
-      </tr>
+      <transition-group name="flip-list" tag="tbody">
+        <tr v-for="(threshold, index) in indexedThresholds" :key="threshold.id">
+          <td class="thresholds-table__input">
+            <input
+              type="number"
+              placeholder="Amount*"
+              :value="thresholds[index].amount"
+              @change="
+                $store.commit('settings/SET_THRESHOLD_AMOUNT', {
+                  index: index,
+                  value: $event.target.value
+                })
+              "
+            />
+            <i class="icon icon-currency"></i>
+          </td>
+          <td class="thresholds-table__input">
+            <input
+              type="text"
+              placeholder="Giphy"
+              :value="thresholds[index].gif"
+              @change="
+                $store.commit('settings/SET_THRESHOLD_GIF', {
+                  index: index,
+                  value: $event.target.value
+                })
+              "
+            />
+          </td>
+          <td
+            class="thresholds-table__color"
+            :style="{ backgroundColor: thresholds[index].buyColor }"
+            @click="openPicker('buyColor', index, $event)"
+          ></td>
+          <td
+            class="thresholds-table__color"
+            :style="{ backgroundColor: thresholds[index].sellColor }"
+            @click="openPicker('sellColor', index, $event)"
+          ></td>
+          <td class="thresholds-table__delete" @click="deleteThreshold(index)">
+            <i class="icon-cross"></i>
+          </td>
+        </tr>
+      </transition-group>
     </table>
 
     <div class="thresholds-slider" v-else>
@@ -169,8 +171,10 @@
 import { mapState } from 'vuex'
 
 import { TOUCH_SUPPORTED } from '../utils/constants'
-import { formatPrice } from '../utils/helpers'
+import { formatPrice, sleep } from '../utils/helpers'
 import { PALETTE } from '../utils/colors'
+
+let thresholdIndex = 0
 
 export default {
   data() {
@@ -188,7 +192,10 @@ export default {
 
   computed: {
     ...mapState('settings', ['thresholds', 'showThresholdsAsTable', 'preferQuoteCurrencySize']),
-    colors: () => PALETTE
+    colors: () => PALETTE,
+    indexedThresholds() {
+      return this.thresholds.map(threshold => (threshold.id ? threshold : { ...threshold, id: ++thresholdIndex }))
+    }
   },
 
   created() {
@@ -206,10 +213,8 @@ export default {
           ) {
             this.rendering = true
 
-            setTimeout(() => {
-              this.refreshHandlers()
-              this.refreshGradients()
-            }, 100)
+            this.refreshHandlers()
+            this.refreshGradients()
           }
           break
         case 'settings/SET_THRESHOLD_AMOUNT':
@@ -348,7 +353,8 @@ export default {
       this.dragging = false
     },
 
-    refreshHandlers() {
+    async refreshHandlers() {
+      await sleep(100)
       const amounts = this.thresholds.map(threshold => threshold.amount)
 
       this.minimum = this.thresholds[0].amount
@@ -391,10 +397,12 @@ export default {
       this.panelCaretPosition = caretMargin + (panelWidth - caretMargin * 2) * (left / this.width)
     },
 
-    refreshGradients() {
+    async refreshGradients() {
       if (this.showThresholdsAsTable) {
         return
       }
+
+      await sleep(100)
 
       const minLog = Math.max(0, Math.log(this.minimum + 1) || 0)
       const maxLog = Math.log(this.maximum + 1)
@@ -515,7 +523,6 @@ export default {
       if (!this.picking || this.thresholds[this.picking.index][`${this.picking.side}Color`] === color) {
         return
       }
-      console.log(this.thresholds[this.picking.index][`${this.picking.side}Color`])
       this.$store.commit('settings/SET_THRESHOLD_COLOR', {
         index: this.picking.index,
         side: this.picking.side,
@@ -642,7 +649,7 @@ export default {
       border: 0;
       padding: 0;
       background: 0;
-      color: white;
+      color: inherit;
 
       &[type='number'] {
         font-weight: 600;
@@ -900,5 +907,9 @@ export default {
     opacity: 1;
     transform: translateY(0%);
   }
+}
+
+.flip-list-move {
+  transition: transform 0.4s $easeOutExpo;
 }
 </style>

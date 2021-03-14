@@ -1,7 +1,6 @@
 <template>
   <div id="settings" class="settings__container stack__container" @mousedown="$event.target === $el && $emit('close')">
-    <div class="stack__scroller">
-      <!-- <a href="https://github.com/Tucsky/SignificantTrades/issues" target="_blank" class="settings__report"><i class="icon-warning"></i> Found a bug or feedback ? Let me know on Github !</a> -->
+    <div class="stack__scroller" v-background="33">
       <div class="stack__wrapper">
         <a href="#" class="stack__toggler icon-cross" @click="$emit('close')"></a>
         <div class="form-group settings-pair mb8">
@@ -361,19 +360,42 @@
                 <editable :content="chartRefreshRate" @output="$store.commit('settings/SET_CHART_REFRESH_RATE', $event)"></editable>&nbsp;ms
               </span>
             </div>
+            <p v-if="chartRefreshRate < 500" class="form-feedback"><i class="icon-warning"></i> Low refresh rate can be very CPU intensive</p>
             <div class="form-group mb8">
-              <span>
-                <label class="checkbox-control flex-left">
-                  <input
-                    type="checkbox"
-                    class="form-control"
-                    :checked="!!timezoneOffset"
-                    @change="$store.commit('settings/SET_TIMEZONE_OFFSET', !timezoneOffset ? new Date().getTimezoneOffset() * 60000 * -1 : 0)"
-                  />
-                  <div></div>
-                  <span>Show local time</span>
-                </label>
-              </span>
+              <label class="checkbox-control flex-left">
+                <input
+                  type="checkbox"
+                  class="form-control"
+                  :checked="!!timezoneOffset"
+                  @change="$store.commit('settings/SET_TIMEZONE_OFFSET', !timezoneOffset ? new Date().getTimezoneOffset() * 60000 * -1 : 0)"
+                />
+                <div></div>
+                <span>Show local time</span>
+              </label>
+            </div>
+            <div class="column mb8">
+              <verte
+                picker="square"
+                menuPosition="left"
+                model="rgb"
+                :value="chartBackgroundColor"
+                @input="$event !== chartBackgroundColor && $store.dispatch('settings/setBackgroundColor', $event)"
+                :colorHistory="colors"
+              ></verte>
+              <label for="" class="-fill -center">Background color</label>
+            </div>
+            <div class="column mb8">
+              <verte
+                picker="square"
+                menuPosition="left"
+                model="rgb"
+                :value="chartColor"
+                @input="$event !== chartColor && $store.commit('settings/SET_CHART_COLOR', $event)"
+                :colorHistory="colors"
+              ></verte>
+              <label for="" class="-fill -center"
+                >Text color <a><i class="icon-cross text-small" v-if="chartColor" @click="$store.commit('settings/SET_CHART_COLOR', null)"></i></a
+              ></label>
             </div>
           </div>
         </div>
@@ -443,15 +465,14 @@
         </div>
         <div class="mt15 settings__footer flex-middle">
           <div class="form-group">
-            <div v-if="version">
-              <span>
+            <div v-if="version" class="column">
+              <div class="-grow">
                 v{{ version }}
                 <sup class="version-date">{{ buildDate }}</sup>
-              </span>
-              <i class="divider">|</i>
+              </div>
               <a href="javascript:void(0);" @click="reset()">reset</a>
-              <i class="divider">|</i>
-              <a target="_blank" href="https://github.com/Tucsky/SignificantTrades" title="Run your own instance !">github</a>
+              <!--<i class="divider">|</i>
+              <a target="_blank" href="https://github.com/Tucsky/SignificantTrades" title="Run your own instance !">github</a>-->
               <i class="divider">|</i>
               <a
                 target="_blank"
@@ -463,6 +484,10 @@
                 }"
                 >donate</a
               >
+              <i class="divider">|</i>
+              <a href="javascript:void(0);" @click="exportSettings">export</a>
+              <i class="divider">|</i>
+              <a href="javascript:void(0);" class="settings__browse-import">import<input type="file" @change="confirmImport"/></a>
             </div>
           </div>
         </div>
@@ -474,8 +499,9 @@
 <script>
 import { mapState } from 'vuex'
 
-import { ago } from '../utils/helpers'
+import { ago, downloadJson } from '../utils/helpers'
 import { MASTER_DOMAIN } from '../utils/constants'
+import { PALETTE } from '@/utils/colors'
 
 import socket from '../services/socket'
 
@@ -483,7 +509,7 @@ import Exchange from './Exchange.vue'
 import Thresholds from './Thresholds.vue'
 
 import StatDialog from './StatDialog'
-import { create } from 'vue-modal-dialogs'
+import { showDialog } from '../services/dialog'
 
 export default {
   components: {
@@ -522,6 +548,9 @@ export default {
       'timeframe',
       'showChart',
       'chartRefreshRate',
+      'chartTheme',
+      'chartColor',
+      'chartBackgroundColor',
       'timezoneOffset',
       'showExchangesBar',
       'settings',
@@ -538,7 +567,8 @@ export default {
       const match = window.location.hostname.match(/^([\d\w]+)\..*\./i)
 
       return !match || match.length < 2 || match[1].toLowerCase() !== state.pair.toLowerCase()
-    }
+    },
+    colors: () => PALETTE
   },
   created() {
     this.stringifyCounters()
@@ -593,8 +623,57 @@ export default {
       this.stringifyCounters()
     },
     openStat(id) {
-      const dialog = create(StatDialog, 'id')
-      dialog(id)
+      showDialog(StatDialog, { id })
+    },
+    exportSettings() {
+      const settings = JSON.parse(JSON.stringify(this.$store.state.settings))
+
+      delete settings.pair
+
+      for (let name in settings.exchanges) {
+        delete settings.exchanges[name].match
+      }
+
+      downloadJson(settings, 'aggr')
+    },
+    confirmImport(event) {
+      var reader = new FileReader()
+      reader.onload = async ({ target }) => {
+        event.target.value = ''
+
+        const settings = this.validateSettings(target.result)
+
+        if (!settings) {
+          return
+        }
+
+        if (
+          await showDialog('SettingsImportConfirmation', {
+            settings
+          })
+        ) {
+          this.importSettings(settings)
+        }
+      }
+      reader.readAsText(event.target.files[0])
+    },
+    validateSettings(content) {
+      let settings = null
+
+      try {
+        settings = JSON.parse(content)
+      } catch (error) {
+        alert('invalid settings')
+
+        return false
+      }
+
+      return settings
+    },
+    importSettings(settings) {
+      localStorage.setItem('settings', JSON.stringify(settings))
+
+      window.location.reload(true)
     }
   }
 }
@@ -703,10 +782,6 @@ export default {
     padding: 20px;
   }
 
-  a {
-    color: white;
-  }
-
   .settings__footer {
     a {
       opacity: 0.5;
@@ -728,8 +803,8 @@ export default {
     }
 
     .divider {
-      opacity: 0.2;
-      margin: 0 2px;
+      opacity: 0.5;
+      margin: 0 0.25rem;
     }
 
     .donation {
@@ -755,6 +830,22 @@ export default {
       .donation__address {
         letter-spacing: -0.5px;
         font-size: 10px;
+      }
+    }
+
+    .settings__browse-import {
+      position: relative;
+      input[type='file'] {
+        opacity: 0;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        cursor: pointer;
       }
     }
   }

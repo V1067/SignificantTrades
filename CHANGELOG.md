@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.6] - 2021-03-13
+
+### Added
+
+- Change input function for graphs from UI
+- Animate threshold reordering
+- Fix remove threshold
+- Import / export settings
+- Background color option
+
 ## [2.5.7] - 2020-12-05
 
 ### Added
 
-- Pitch ajust
+- Beep sound pitch adjustment
 
 ## [2.5.6] - 2020-05-08
 

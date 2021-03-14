@@ -16,14 +16,16 @@
       <button class="btn -blue autocomplete__submit" :class="{ active: items.length > 0 }" @click="submit"><i class="icon-check"></i></button>
     </div>
     <div class="autocomplete__dropdown" v-show="isOpen">
-      <div
-        class="autocomplete__option"
-        v-for="(item, index) in availableOptions"
-        :key="index"
-        :class="{ active: activeOptionIndex === index }"
-        @click="addItem(index)"
-      >
-        <slot :item="item">{{ item }}</slot>
+      <div class="autocomplete__scroller custom-scrollbar">
+        <div
+          class="autocomplete__option"
+          v-for="(item, index) in availableOptions"
+          :key="index"
+          :class="{ active: activeOptionIndex === index }"
+          @click="addItem(index)"
+        >
+          <slot :item="item">{{ item }}</slot>
+        </div>
       </div>
     </div>
   </div>
@@ -65,7 +67,6 @@ export default {
   },
   methods: {
     search(query) {
-      console.log('search', query)
       this.activeOptionIndex = null
       if (!this.load) {
         return
@@ -101,7 +102,6 @@ export default {
       }
 
       this.unbindClickOutside()
-      console.log('close')
       this.isOpen = false
     },
     addItem(index) {

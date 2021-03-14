@@ -34,7 +34,7 @@ lineOptions.scaleMargins = {
 }
 
 import StatDialog from './StatDialog'
-import { create } from 'vue-modal-dialogs'
+import { showDialog } from '../services/dialog'
 
 import { formatAmount, getVisibleRange } from '../utils/helpers'
 /** @type {Counter[]} */
@@ -423,8 +423,7 @@ export default {
         return
       }
 
-      const dialog = create(StatDialog, 'id')
-      dialog(index)
+      showDialog(StatDialog, { id: index })
     },
     getCounterFunction(str) {
       const litteral = str.replace(/([^.]|^)(vbuy|vsell|cbuy|csell|lbuy|lsell)/g, '$1stats.$2')
@@ -534,7 +533,7 @@ export default {
     &__value {
       text-align: right;
       white-space: nowrap;
-      font-family: 'Roboto Condensed';
+      font-family: 'Barlow Semi Condensed';
       z-index: 1;
       flex-grow: 1;
     }

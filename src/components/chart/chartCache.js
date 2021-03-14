@@ -50,7 +50,6 @@ export function saveChunk(chunk) {
       ' -> to: ',
       formatTime(chunk.to) + ']'
     )
-    debugger
   }
 }
 

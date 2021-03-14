@@ -7,8 +7,10 @@
     :data-symbol="symbol"
     :data-pair="pair"
     :class="{
-      loading: isLoading
+      '-loading': isLoading,
+      '-light': chartTheme === 'light'
     }"
+    v-background
   >
     <div class="notices">
       <Notice v-for="(notice, index) in notices" :key="index" :notice="notice" />
@@ -102,7 +104,17 @@ export default {
   },
   computed: {
     ...mapState('app', ['isLoading', 'actives', 'notices', 'showSearch', 'pairs']),
-    ...mapState('settings', ['pair', 'showChart', 'showCounters', 'showStats', 'decimalPrecision', 'preferQuoteCurrencySize', 'showExchangesBar'])
+    ...mapState('settings', [
+      'pair',
+      'showChart',
+      'showCounters',
+      'showStats',
+      'decimalPrecision',
+      'preferQuoteCurrencySize',
+      'showExchangesBar',
+      'chartTheme',
+      'chartBackgroundColor'
+    ])
   },
   created() {
     this.$root.formatPrice = formatPrice
@@ -174,6 +186,7 @@ export default {
         if (
           this.showSearch ||
           document.activeElement.tagName === 'INPUT' ||
+          document.activeElement.tagName === 'TEXTAREA' ||
           document.activeElement.tagName === 'SELECT' ||
           document.activeElement.isContentEditable
         ) {

@@ -1,10 +1,14 @@
 .verte {
+  > button {
+    cursor: pointer;
+  }
+
   .verte__draggable {
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 2px, transparent 1%) center, linear-gradient(rgba(0, 0, 0, 0.27) 2px, transparent 1%) center, rgba(112, 128, 144, 0.2);
+    background: lighten($dark, 10%);
     background-size: 4px 4px;
     height: 32px;
   }
-  
+
   .verte__menu {
     background-color: lighten($dark, 10%);
     color: white;
@@ -17,11 +21,11 @@
     background-color: transparent;
     border-radius: 2px;
   }
-  
+
   .verte__model,
   .verte__submit {
     font-style: italic;
-    font-family: Roboto;
+    font-family: Barlow;
     margin-right: 1em;
     color: white;
     fill: white;
@@ -38,16 +42,16 @@
       }
     }
   }
-  
+
   .verte__model {
-    margin-right: .5em;
+    margin-right: 0.5em;
   }
-  
+
   .verte__submit {
-    margin-left: .5em;
+    margin-left: 0.5em;
     margin-right: 0;
   }
-  
+
   .verte__input {
     color: white;
     background-color: $dark;
@@ -55,19 +59,19 @@
   }
 
   .slider__handle {
-    transition: box-shadow .2s $easeOutExpo;
+    transition: box-shadow 0.2s $easeOutExpo;
     cursor: grab;
-    
+
     &:active,
     &:hover {
-      box-shadow: 0 0 0 .5em rgba(white, .2)
+      box-shadow: 0 0 0 0.5em rgba(white, 0.2);
     }
 
     &:active {
       cursor: grabbing;
     }
   }
-  
+
   .verte-picker {
     margin-bottom: 0;
   }
@@ -75,15 +79,16 @@
   .verte__close {
     background-color: $red;
     fill: white;
-    transition: transform .2s $easeOutExpo;
-    right: -.25em;
-    top: -.25em;
+    transition: transform 0.2s $easeOutExpo;
+    right: -0.25em;
+    top: -0.25em;
     transform: none;
+    display: none;
 
     svg {
       stroke-width: 2px;
       stroke: white;
-      transition: stroke-width .2s $easeOutExpo;
+      transition: stroke-width 0.2s $easeOutExpo;
     }
 
     &:hover {
