@@ -21,16 +21,16 @@ export default {
     state.isLoading = value ? true : false
   },
   CREATE_NOTICE(state, notice) {
+    console.log('notice', notice.id, notice.title, 'created successfully')
     state.notices.push(notice)
+  },
+  UPDATE_NOTICE(state, { index, notice }) {
+    Vue.set(state.notices, index, notice)
   },
   REMOVE_NOTICE(state, notice) {
     const index = state.notices.indexOf(notice)
 
     if (index !== -1) {
-      if (notice.hideTimeout) {
-        clearTimeout(notice.hideTimeout)
-      }
-
       state.notices.splice(index, 1)
     }
   },

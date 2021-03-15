@@ -25,7 +25,6 @@ chartOptions.timeScale.secondsVisible = true
 chartOptions.priceScale.mode = 0
 
 const lineOptions = JSON.parse(JSON.stringify(defaultLineOptions))
-lineOptions.overlay = true
 lineOptions.lineWidth = 2
 lineOptions.priceLineVisible = false
 lineOptions.scaleMargins = {
@@ -34,7 +33,7 @@ lineOptions.scaleMargins = {
 }
 
 import StatDialog from './StatDialog'
-import { showDialog } from '../services/dialog'
+import dialogService from '../services/dialog'
 
 import { formatAmount, getVisibleRange } from '../utils/helpers'
 /** @type {Counter[]} */
@@ -138,6 +137,7 @@ export default {
 
       counter.serie = chart[methodName](
         Object.assign({}, lineOptions, {
+          priceScaleId: counter.name,
           color: counter.color
         })
       )
@@ -423,7 +423,7 @@ export default {
         return
       }
 
-      showDialog(StatDialog, { id: index })
+      dialogService.open(StatDialog, { id: index })
     },
     getCounterFunction(str) {
       const litteral = str.replace(/([^.]|^)(vbuy|vsell|cbuy|csell|lbuy|lsell)/g, '$1stats.$2')
@@ -493,7 +493,7 @@ export default {
           order: 2;
           opacity: 0;
           transform: translateX(8px);
-          transition: transform 0.2s $easeOutExpo, opacity 0.2s $easeOutExpo;
+          transition: transform 0.2s $ease-out-expo, opacity 0.2s $ease-out-expo;
         }
 
         &:hover {
@@ -527,7 +527,7 @@ export default {
     &__name {
       color: rgba(white, 0.5);
       letter-spacing: 0.4px;
-      transition: opacity 0.2s $easeOutExpo;
+      transition: opacity 0.2s $ease-out-expo;
     }
 
     &__value {

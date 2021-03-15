@@ -30,7 +30,6 @@ export default {
       priceScaleId: 'volume_ema',
       color: '#c14047',
       lineWidth: 2,
-      overlay: true,
       scaleMargins: {
         top: 0.8,
         bottom: 0
@@ -46,7 +45,6 @@ export default {
       priceScaleId: 'volume_ema',
       color: '#c9b087',
       lineWidth: 2,
-      overlay: true,
       scaleMargins: {
         top: 0.8,
         bottom: 0
@@ -92,7 +90,6 @@ export default {
       scaleAsVolume: true,
       color: '#ffffff',
       lineWidth: 2,
-      overlay: true,
       scaleMargins: {
         top: 0.1,
         bottom: 0.2
@@ -112,7 +109,6 @@ export default {
       color: '#ffffff',
       lineWidth: 1,
       lineStyle: 2,
-      overlay: true,
       scaleMargins: {
         top: 0.1,
         bottom: 0.2

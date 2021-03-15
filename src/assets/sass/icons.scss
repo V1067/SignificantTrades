@@ -314,3 +314,9 @@ $iconpath: '../fonts';
     content: unicode($icon-search);
   }
 }
+
+.icon-dropper {
+  &:before {
+    content: unicode($icon-dropper);
+  }
+}

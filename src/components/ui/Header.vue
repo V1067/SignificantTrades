@@ -152,7 +152,7 @@ header#header {
 
     > span {
       display: inline-block;
-      transition: all 0.5s $easeElastic;
+      transition: all 0.5s $ease-elastic;
     }
 
     .icon-play {
@@ -225,7 +225,7 @@ header#header {
     bottom: 0;
     display: block;
     background-clip: padding-box;
-    transition: background-color 0.4s $easeOutExpo;
+    transition: background-color 0.4s $ease-out-expo;
   }
 }
 

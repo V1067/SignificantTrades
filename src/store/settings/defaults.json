@@ -47,6 +47,7 @@
   "settings": ["other", "chart", "stats", "counters", "audio"],
   "chartHeight": null,
   "sidebarWidth": null,
+  "recentColors": [],
   "showThresholdsAsTable": true,
   "showCounters": false,
   "countersGranularity": 5000,

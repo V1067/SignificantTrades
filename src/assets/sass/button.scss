@@ -4,10 +4,11 @@
   font-size: 0.9rem;
   text-transform: uppercase;
   font-family: 'Barlow Semi Condensed';
-  padding: 0.35em 0.6em 0.45em;
+  padding: .563rem;
   border: 0;
   border-radius: 2px;
   color: white;
+  line-height: 1;
   cursor: pointer;
 
   background-color: $green;
@@ -24,16 +25,47 @@
     font-size: 1.125rem;
   }
 
-  &.-condensed {
-    padding: 0.2rem 0.3rem;
-    font-size: 0.75rem;
+  &.-text {
+    background-color: transparent;
+  }
+
+  &.-icon {
+    width: 2rem;
+    height: 2rem;
+    text-align: center;
   }
 
   &.-red {
     background-color: $red;
 
+    &.-text {
+      color: $red;
+    }
+
     &:hover {
       background-color: lighten($red, 10%);
+
+      &.-text {
+        background: 0;
+        color: lighten($red, 10%);
+      }
+    }
+  }
+
+  &.-blue {
+    background-color: $blue;
+
+    &.-text {
+      color: $blue;
+    }
+
+    &:hover {
+      background-color: lighten($blue, 10%);
+
+      &.-text {
+        background: 0;
+        color: lighten($blue, 10%);
+      }
     }
   }
 
@@ -42,6 +74,11 @@
 
     &:hover {
       background-color: $dark;
+
+      &.-text {
+        background: 0;
+        color: lighten($dark, 10%);
+      }
     }
   }
 }

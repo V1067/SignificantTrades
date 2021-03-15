@@ -71,7 +71,6 @@ export const defaultCandlestickOptions = {
     type: 'price',
     precision: 2
   },
-  overlay: false,
   borderVisible: false,
   upColor: '#c3a87a',
   downColor: '#e53935',
@@ -83,7 +82,6 @@ export const defaultHistogramOptions = {
   color: '#c3a87a',
   lastValueVisible: false,
   priceLineVisible: false,
-  overlay: true,
   scaleMargins: {
     top: 0.8,
     bottom: 0

@@ -2,8 +2,6 @@ import Vue from 'vue'
 import App from './App.vue'
 import VueTippy from 'vue-tippy'
 import * as ModalDialogs from 'vue-modal-dialogs'
-import Verte from 'verte'
-import 'verte/dist/verte.css'
 import './assets/sass/app.scss'
 import store from './store'
 
@@ -29,11 +27,11 @@ Vue.use(VueTippy, {
   theme: 'blue'
 })
 
-Vue.component('verte', Verte)
-
+import Verte from './components/ui/picker/Verte.vue'
 import Editable from './components/ui/Editable'
 import Dropdown from './components/ui/Dropdown'
 import Slider from './components/ui/Slider'
+Vue.component('verte', Verte)
 Vue.component('dropdown', Dropdown)
 Vue.component('editable', Editable)
 Vue.component('slider', Slider)

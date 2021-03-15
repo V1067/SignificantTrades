@@ -1,17 +1,5 @@
 <template>
   <div class="thresholds" :class="{ '-dragging': dragging, '-rendering': rendering }">
-    <verte
-      v-if="picking !== null"
-      :style="{ opacity: 0, position: 'absolute' }"
-      display="widget"
-      :draggable="true"
-      ref="picker"
-      picker="square"
-      model="rgb"
-      :colorHistory="colors"
-      :value="thresholds[picking.index][picking.side]"
-      @input="updateColor"
-    ></verte>
     <table class="thresholds-table" v-if="showThresholdsAsTable">
       <transition-group name="flip-list" tag="tbody">
         <tr v-for="(threshold, index) in indexedThresholds" :key="threshold.id">
@@ -42,16 +30,8 @@
               "
             />
           </td>
-          <td
-            class="thresholds-table__color"
-            :style="{ backgroundColor: thresholds[index].buyColor }"
-            @click="openPicker('buyColor', index, $event)"
-          ></td>
-          <td
-            class="thresholds-table__color"
-            :style="{ backgroundColor: thresholds[index].sellColor }"
-            @click="openPicker('sellColor', index, $event)"
-          ></td>
+          <td class="thresholds-table__color" :style="{ backgroundColor: thresholds[index].buyColor }" @click="openPicker('buyColor', index)"></td>
+          <td class="thresholds-table__color" :style="{ backgroundColor: thresholds[index].sellColor }" @click="openPicker('sellColor', index)"></td>
           <td class="thresholds-table__delete" @click="deleteThreshold(index)">
             <i class="icon-cross"></i>
           </td>
@@ -172,7 +152,8 @@ import { mapState } from 'vuex'
 
 import { TOUCH_SUPPORTED } from '../utils/constants'
 import { formatPrice, sleep } from '../utils/helpers'
-import { PALETTE } from '../utils/colors'
+
+import dialogService from '@/services/dialog'
 
 let thresholdIndex = 0
 
@@ -192,7 +173,6 @@ export default {
 
   computed: {
     ...mapState('settings', ['thresholds', 'showThresholdsAsTable', 'preferQuoteCurrencySize']),
-    colors: () => PALETTE,
     indexedThresholds() {
       return this.thresholds.map(threshold => (threshold.id ? threshold : { ...threshold, id: ++thresholdIndex }))
     }
@@ -452,11 +432,7 @@ export default {
       this.$store.commit('settings/DELETE_THRESHOLD', index)
     },
 
-    openPicker(side, index, event) {
-      if (this.picking && this.picking.index === index && this.picking.side === side) {
-        return this.closePicker(event)
-      }
-
+    openPicker(side, index) {
       if (!this.thresholds[index][side]) {
         this.$store.commit('settings/SET_THRESHOLD_COLOR', {
           index: index,
@@ -465,68 +441,12 @@ export default {
         })
       }
 
-      if (this.picking) {
-        this.picking.target.classList.remove('-active')
-      }
-
-      this.picking = { side, index, target: event.target }
-
-      this.picking.target.classList.add('-active')
-
-      setTimeout(() => {
-        const containerBounds = this.$el.getBoundingClientRect()
-        const targetBounds = event.target.getBoundingClientRect()
-
-        let left = Math.max(
-          8,
-          Math.min(
-            this.$el.clientWidth - this.$refs.picker.$el.clientWidth - 8,
-            targetBounds.left + targetBounds.width - containerBounds.left - this.$refs.picker.$el.clientWidth
-          )
-        )
-        let top = targetBounds.top - containerBounds.top + event.target.clientHeight * 1.3
-
-        this.$refs.picker.$el.style.top = top + 'px'
-        this.$refs.picker.$el.style.left = left + 'px'
-        this.$refs.picker.$el.style.position = 'absolute'
-        this.$refs.picker.$el.style.opacity = 1
-        this.$refs.picker.$el.style.zIndex = 10
-
-        this.$refs.picker.fieldsIndex = 1
-      }, 100)
-
-      event.stopPropagation()
-
-      if (!this._clickOutsideHandler) {
-        this._clickOutsideHandler = (event => {
-          if (!this.$refs.picker.$el.contains(event.target)) {
-            this.closePicker()
-          }
-        }).bind(this)
-
-        document.addEventListener('mousedown', this._clickOutsideHandler)
-      }
-    },
-
-    closePicker() {
-      if (this._clickOutsideHandler) {
-        document.removeEventListener('mousedown', this._clickOutsideHandler)
-        delete this._clickOutsideHandler
-      }
-
-      this.picking.target.classList.remove('-active')
-
-      this.picking = null
-    },
-
-    updateColor(color) {
-      if (!this.picking || this.thresholds[this.picking.index][`${this.picking.side}Color`] === color) {
-        return
-      }
-      this.$store.commit('settings/SET_THRESHOLD_COLOR', {
-        index: this.picking.index,
-        side: this.picking.side,
-        value: color
+      dialogService.openPicker(this.thresholds[index][side], color => {
+        this.$store.commit('settings/SET_THRESHOLD_COLOR', {
+          index: index,
+          side: side,
+          value: color
+        })
       })
     }
   }
@@ -562,7 +482,7 @@ export default {
     bottom: 0;
     flex-grow: 1;
     opacity: 0;
-    transition: all 0.2s $easeOutExpo;
+    transition: all 0.2s $ease-out-expo;
 
     .vc-chrome-fields .vc-input__label {
       font-family: monospace;
@@ -614,7 +534,7 @@ export default {
     }
 
     .thresholds-slider__handler {
-      transition: box-shadow 0.2s $easeElastic;
+      transition: box-shadow 0.2s $ease-elastic;
     }
 
     .threshold-panel {
@@ -692,7 +612,7 @@ export default {
 
   &__color {
     width: 2em;
-    transition: box-shadow 0.2s $easeOutExpo;
+    transition: box-shadow 0.2s $ease-out-expo;
     cursor: pointer;
 
     &.-active {
@@ -722,7 +642,7 @@ export default {
 
 .thresholds-slider {
   padding: 2em 0 1em;
-  transition: opacity 0.2s $easeOutExpo;
+  transition: opacity 0.2s $ease-out-expo;
   position: relative;
 
   &__bar {
@@ -744,7 +664,7 @@ export default {
     margin-left: -0.75em;
     padding: 0.25em;
     border-radius: 50%;
-    transition: box-shadow 0.2s $easeElastic, transform 0.2s $easeOutExpo;
+    transition: box-shadow 0.2s $ease-elastic, transform 0.2s $ease-out-expo;
     box-shadow: 0 1px 0 1px rgba(black, 0.2);
     cursor: move;
 
@@ -783,7 +703,7 @@ export default {
   border-radius: 4px;
   padding: 1em;
   margin: 1.5em auto 0;
-  transition: transform 0.2s $easeOutExpo;
+  transition: transform 0.2s $ease-out-expo;
   max-width: 220px;
 
   .form-group {
@@ -867,7 +787,7 @@ export default {
     border-right: 0.75em solid transparent;
     border-bottom: 0.75em solid lighten($dark, 18%);
     margin-left: -1.75em;
-    transition: transform 0.2s $easeOutExpo;
+    transition: transform 0.2s $ease-out-expo;
   }
 
   &__colors {
@@ -910,6 +830,6 @@ export default {
 }
 
 .flip-list-move {
-  transition: transform 0.4s $easeOutExpo;
+  transition: transform 0.4s $ease-out-expo;
 }
 </style>

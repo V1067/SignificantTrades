@@ -131,7 +131,7 @@ export default {
 .settings-exchange {
   background-color: rgba(white, 0.15);
   color: white;
-  transition: all 0.2s $easeOutExpo;
+  transition: all 0.2s $ease-out-expo;
   border-radius: 2px;
   margin-bottom: 8px;
   flex-basis: calc(50% - 4px);
@@ -145,7 +145,7 @@ export default {
     background-color: $blue;
 
     .settings-exchange__header:before {
-      transition: all 0.2s $easeElastic;
+      transition: all 0.2s $ease-elastic;
       display: block;
       opacity: 1;
       width: 16px;
@@ -210,16 +210,21 @@ export default {
 
 .settings-exchange__identity {
   position: relative;
-  margin: 0px 10px;
+  margin: 0 0 0 0.5rem;
   display: flex;
   flex-direction: column;
   height: 40px;
   justify-content: center;
+  font-size: 80%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .settings-exchange__name {
   position: relative;
   margin-right: auto;
+  text-transform: uppercase;
 
   .icon-line-chart {
     position: absolute;
@@ -230,10 +235,10 @@ export default {
   &:before {
     content: '';
     position: absolute;
-    top: calc(50% - 0px);
+    top: calc(50% + 1px);
     height: 1px;
     background-color: white;
-    transition: width 0.2s $easeOutExpo 0.2s;
+    transition: width 0.2s $ease-out-expo 0.2s;
     left: -2px;
     width: calc(100% + 4px);
   }
@@ -272,7 +277,7 @@ export default {
     background-color: #fff;
     border-radius: 50%;
     animation: circle-scaleout 1s infinite ease-in-out;
-    transition: all 0.2s $easeElastic, visibility 0.2s linear 0.2s;
+    transition: all 0.2s $ease-elastic, visibility 0.2s linear 0.2s;
     left: 3px;
     display: none;
     align-self: center;

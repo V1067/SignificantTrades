@@ -237,7 +237,7 @@ export default {
   .highlight {
     position: absolute;
     top: -0.2em;
-    animation: fly-high 2s $easeInExpo;
+    animation: fly-high 2s $ease-in-expo;
     opacity: 0;
     padding: 0.3em 0.4em;
     box-shadow: 0 1px 1px rgba(black, 0.5);

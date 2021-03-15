@@ -8,7 +8,7 @@ body {
   position: relative;
   min-height: 100%;
   background-color: $dark;
-  transition: transform 0.3s $easeOutExpo;
+  transition: transform 0.3s $ease-out-expo;
   color: white;
 
   @media screen and (min-width: 768px) {
@@ -17,7 +17,7 @@ body {
 
   &.-loading {
     .app__layout {
-      transition: opacity 5s $easeElastic;
+      transition: opacity 5s $ease-elastic;
       opacity: 0.9;
     }
   }
@@ -235,6 +235,10 @@ body {
   }
 
   &:last-child .form-group {
+    margin-bottom: 0;
+  }
+
+  > label {
     margin-bottom: 0;
   }
 }

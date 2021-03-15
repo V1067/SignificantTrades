@@ -12,9 +12,7 @@
     }"
     v-background
   >
-    <div class="notices">
-      <Notice v-for="(notice, index) in notices" :key="index" :notice="notice" />
-    </div>
+    <Notices />
     <Settings v-if="showSettings" @close="showSettings = false" />
     <div class="app__wrapper">
       <div
@@ -48,7 +46,6 @@
         </div>
       </div>
     </div>
-    <dialogs-wrapper></dialogs-wrapper>
   </div>
 </template>
 
@@ -58,7 +55,7 @@ import { formatPrice, formatAmount, movingAverage, countDecimals } from './utils
 
 import socket from './services/socket'
 
-import Notice from './components/ui/Notice.vue'
+import Notices from './components/ui/Notices.vue'
 import Header from './components/ui/Header.vue'
 import Autocomplete from './components/ui/Autocomplete.vue'
 import Settings from './components/Settings.vue'
@@ -85,7 +82,7 @@ export default {
     TradeList,
     Chart,
     Counters,
-    Notice,
+    Notices,
     Stats,
     Exchanges,
     Autocomplete

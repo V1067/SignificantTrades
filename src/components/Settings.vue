@@ -25,22 +25,20 @@
           </small>
         </div>
         <div class="mb8">
-          <div class="form-group mb8">
-            <label class="checkbox-control -auto" v-tippy title="Size display preference">
-              <input
-                type="checkbox"
-                class="form-control"
-                :checked="preferQuoteCurrencySize"
-                @change="$store.commit('settings/SET_QUOTE_AS_PREFERED_CURRENCY', $event.target.checked)"
-              />
-              <div on="quote" off="base"></div>
-              <span>
-                Prefer
-                <strong>{{ preferQuoteCurrencySize ? 'quote' : 'base' }}</strong> (
-                <i :class="preferQuoteCurrencySize ? 'icon-quote' : 'icon-base'"></i>&nbsp;) currency
-              </span>
-            </label>
-          </div>
+          <label class="checkbox-control -auto" v-tippy title="Size display preference">
+            <input
+              type="checkbox"
+              class="form-control"
+              :checked="preferQuoteCurrencySize"
+              @change="$store.commit('settings/SET_QUOTE_AS_PREFERED_CURRENCY', $event.target.checked)"
+            />
+            <div on="quote" off="base"></div>
+            <span>
+              Prefer
+              <strong>{{ preferQuoteCurrencySize ? 'quote' : 'base' }}</strong> (
+              <i :class="preferQuoteCurrencySize ? 'icon-quote' : 'icon-base'"></i>&nbsp;) currency
+            </span>
+          </label>
         </div>
         <div
           class="settings__title"
@@ -355,10 +353,10 @@
           </div>
           <div class="-fill">
             <div class="form-group mb8">
-              <span>
+              <label>
                 Refresh chart every
                 <editable :content="chartRefreshRate" @output="$store.commit('settings/SET_CHART_REFRESH_RATE', $event)"></editable>&nbsp;ms
-              </span>
+              </label>
             </div>
             <p v-if="chartRefreshRate < 500" class="form-feedback"><i class="icon-warning"></i> Low refresh rate can be very CPU intensive</p>
             <div class="form-group mb8">
@@ -373,27 +371,22 @@
                 <span>Show local time</span>
               </label>
             </div>
-            <div class="column mb8">
+            <div class="form-group column mb8">
               <verte
-                picker="square"
-                menuPosition="left"
-                model="rgb"
                 :value="chartBackgroundColor"
                 @input="$event !== chartBackgroundColor && $store.dispatch('settings/setBackgroundColor', $event)"
-                :colorHistory="colors"
               ></verte>
-              <label for="" class="-fill -center">Background color</label>
+              <label class="-fill -center ml8">Background color</label>
             </div>
-            <div class="column mb8">
+            <div class="form-group column mb8">
               <verte
                 picker="square"
                 menuPosition="left"
                 model="rgb"
                 :value="chartColor"
                 @input="$event !== chartColor && $store.commit('settings/SET_CHART_COLOR', $event)"
-                :colorHistory="colors"
               ></verte>
-              <label for="" class="-fill -center"
+              <label for="" class="-fill -center ml8"
                 >Text color <a><i class="icon-cross text-small" v-if="chartColor" @click="$store.commit('settings/SET_CHART_COLOR', null)"></i></a
               ></label>
             </div>
@@ -501,7 +494,6 @@ import { mapState } from 'vuex'
 
 import { ago, downloadJson } from '../utils/helpers'
 import { MASTER_DOMAIN } from '../utils/constants'
-import { PALETTE } from '@/utils/colors'
 
 import socket from '../services/socket'
 
@@ -509,7 +501,7 @@ import Exchange from './Exchange.vue'
 import Thresholds from './Thresholds.vue'
 
 import StatDialog from './StatDialog'
-import { showDialog } from '../services/dialog'
+import dialogService from '../services/dialog'
 
 export default {
   components: {
@@ -567,8 +559,7 @@ export default {
       const match = window.location.hostname.match(/^([\d\w]+)\..*\./i)
 
       return !match || match.length < 2 || match[1].toLowerCase() !== state.pair.toLowerCase()
-    },
-    colors: () => PALETTE
+    }
   },
   created() {
     this.stringifyCounters()
@@ -623,7 +614,7 @@ export default {
       this.stringifyCounters()
     },
     openStat(id) {
-      showDialog(StatDialog, { id })
+      dialogService.open(StatDialog, { id })
     },
     exportSettings() {
       const settings = JSON.parse(JSON.stringify(this.$store.state.settings))
@@ -648,7 +639,7 @@ export default {
         }
 
         if (
-          await showDialog('SettingsImportConfirmation', {
+          await dialogService.openAsPromise('SettingsImportConfirmation', {
             settings
           })
         ) {
@@ -688,7 +679,8 @@ export default {
   body.-translate {
     .stack__container,
     #app {
-      overflow: visible;
+      overflow: visible !important;
+      z-index: 10;
     }
 
     #app {
@@ -713,7 +705,7 @@ export default {
   padding: 0.5em 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  opacity: 0.5;
+  opacity: 0.8;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   -khtml-user-select: none;
@@ -727,7 +719,7 @@ export default {
   }
 
   .icon-up {
-    transition: transform 0.2s $easeElastic;
+    transition: transform 0.2s $ease-elastic;
     margin-left: 0.5em;
   }
 
@@ -820,7 +812,7 @@ export default {
         width: 100%;
         margin: 0px;
         display: block;
-        transition: transform 0.2s $easeElastic;
+        transition: transform 0.2s $ease-elastic;
 
         &:active {
           transform: scale(0.9);
@@ -845,170 +837,137 @@ export default {
         width: 100%;
         max-width: 100%;
         overflow: hidden;
-        cursor: pointer;
+
+        &,
+        &::-webkit-file-upload-button {
+          cursor: pointer;
+        }
       }
     }
   }
 
-  .form-group {
-    .checkbox-control {
-      &.-luminosity {
-        input {
-          ~ div {
-            background-color: $blue;
-
-            &:before {
-              content: unicode($icon-day);
-            }
-
-            &:after {
-              content: unicode($icon-night);
-            }
-          }
-
-          &:checked ~ div {
-            background-color: $green;
-          }
-        }
-      }
-
-      &.-slippage input ~ div {
-        &:before,
-        &:after {
-          content: unicode($icon-slippery);
-        }
-
-        &:before {
-          font-size: 1.5em;
-        }
-      }
-
-      &.-count-or-volume input ~ div {
-        &:before {
-          content: unicode($icon-countdown);
-          font-size: 1.5em;
-        }
-
-        &:after {
-          content: unicode($icon-balance);
-        }
-      }
-
-      &.-aggr input ~ div {
-        &:before {
-          content: unicode($icon-ms);
-          font-size: 1.5em;
-        }
-
-        &:after {
-          content: unicode($icon-cross);
-        }
-      }
-
-      &.-rip input ~ div {
-        &:before,
-        &:after {
-          content: unicode($icon-skull);
-        }
-
-        &:before {
-          font-size: 1.5em;
-        }
-      }
-
-      &.-auto input {
+  .checkbox-control {
+    &.-luminosity {
+      input {
         ~ div {
-          width: auto;
-          display: flex;
-
-          &:before,
-          &:after {
-            font-family: inherit;
-            position: relative;
-            line-height: 1;
-            order: 0;
-          }
-
-          i {
-            order: 1;
-            top: 0;
-          }
+          background-color: $blue;
 
           &:before {
-            content: attr(on);
-            display: none;
+            content: unicode($icon-day);
           }
 
           &:after {
-            content: attr(off);
+            content: unicode($icon-night);
           }
         }
 
         &:checked ~ div {
-          &:before {
-            display: block;
-          }
-
-          &:after {
-            display: none;
-          }
-        }
-      }
-
-      &.-cml-abs input {
-        ~ div {
-          &:before,
-          &:after {
-            font-family: inherit;
-          }
-
-          &:before {
-            content: 'CML';
-          }
-
-          &:after {
-            content: 'ABS';
-          }
-        }
-
-        &:not(:checked) ~ div {
-          background-color: $blue;
+          background-color: $green;
         }
       }
     }
-  }
 
-  .settings__title {
-    display: flex;
-    align-items: center;
-    padding: 0.5em 0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    opacity: 0.5;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-
-    &:hover {
-      opacity: 1;
-      cursor: pointer;
-    }
-
-    .icon-up {
-      transition: transform 0.2s $easeElastic;
-      margin-left: 0.5em;
-    }
-
-    &.closed {
-      .icon-up {
-        transform: rotateZ(180deg);
+    &.-slippage input ~ div {
+      &:before,
+      &:after {
+        content: unicode($icon-slippery);
       }
 
-      + div {
-        display: none;
+      &:before {
+        font-size: 1.5em;
+      }
+    }
+
+    &.-count-or-volume input ~ div {
+      &:before {
+        content: unicode($icon-countdown);
+        font-size: 1.5em;
+      }
+
+      &:after {
+        content: unicode($icon-balance);
+      }
+    }
+
+    &.-aggr input ~ div {
+      &:before {
+        content: unicode($icon-ms);
+        font-size: 1.5em;
+      }
+
+      &:after {
+        content: unicode($icon-cross);
+      }
+    }
+
+    &.-rip input ~ div {
+      &:before,
+      &:after {
+        content: unicode($icon-skull);
+      }
+
+      &:before {
+        font-size: 1.5em;
+      }
+    }
+
+    &.-auto input {
+      ~ div {
+        width: auto;
+        display: flex;
+
+        &:before,
+        &:after {
+          font-family: inherit;
+          position: relative;
+          line-height: 1;
+          order: 0;
+        }
+
+        i {
+          order: 1;
+          top: 0;
+        }
+
+        &:before {
+          content: attr(on);
+          display: none;
+        }
+
+        &:after {
+          content: attr(off);
+        }
+      }
+
+      &:checked ~ div {
+        &:before {
+          display: block;
+        }
+
+        &:after {
+          display: none;
+        }
+      }
+    }
+
+    &.-cml-abs input {
+      ~ div {
+        &:before,
+        &:after {
+          font-family: inherit;
+        }
+
+        &:before {
+          content: 'CML';
+        }
+
+        &:after {
+          content: 'ABS';
+        }
+      }
+
+      &:not(:checked) ~ div {
+        background-color: $blue;
       }
     }
   }

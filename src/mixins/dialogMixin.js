@@ -1,7 +1,7 @@
 export default {
   data: function() {
     return {
-      value: null,
+      output: null,
       open: false
     }
   },
@@ -20,7 +20,7 @@ export default {
       this.open = false
 
       if (data) {
-        this.value = data
+        this.output = data
       }
 
       setTimeout(this.$destroy.bind(this), 500)

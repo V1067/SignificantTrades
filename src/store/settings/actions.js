@@ -19,18 +19,25 @@ export default {
       value
     })
   },
-  setSeriePreference({ commit, state }, { id, key, value }) {
+  setSeriePreference({ commit }, { id, key, value }) {
     try {
       value = JSON.parse(value)
     } catch (error) {
       // empty
     }
 
-    if (state.series[id] && state.series[id][key] === value) {
+    commit('SET_SERIE_OPTION', { id, key, value })
+  },
+  addRecentColor({ commit, state }, newColor) {
+    if (state.recentColors.includes(newColor)) {
       return
     }
 
-    commit('SET_SERIE_OPTION', { id, key, value })
+    if (state.recentColors.length >= 16) {
+      commit('POP_OLDEST_RECENT_COLOR')
+    }
+
+    commit('ADD_RECENT_COLOR', newColor)
   },
   setBackgroundColor({ commit, state }, rgb) {
     commit('SET_CHART_BACKGROUND_COLOR', rgb)

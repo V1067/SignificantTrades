@@ -111,13 +111,13 @@ export default {
 
       let ref
 
-      for (let i = 0; i < elements.length; i++) {
+      for (let i = elements.length - 1; i >= 0; i--) {
         const txt = ago(elements[i].getAttribute('timestamp'))
 
         if (typeof ref !== 'undefined' && ref === txt) {
           elements[i].textContent = ''
           elements[i].className = 'trade__date'
-          i++
+          i--
           continue
         }
 
@@ -127,7 +127,7 @@ export default {
 
         ref = txt
       }
-    }, 1000)
+    }, 2500)
   },
   beforeDestroy() {
     socket.$off('trades.aggr', this.onTrades)
@@ -307,11 +307,11 @@ export default {
 
       li.appendChild(date)
 
-      this.$refs.tradesContainer.appendChild(li)
+      this.$refs.tradesContainer.prepend(li)
 
       while (this.tradesCount > this.maxRows) {
         this.tradesCount--
-        this.$refs.tradesContainer.removeChild(this.$refs.tradesContainer.firstChild)
+        this.$refs.tradesContainer.removeChild(this.$refs.tradesContainer.lastChild)
       }
     },
     retrieveStoredGifs(refresh) {
@@ -435,8 +435,6 @@ export default {
   ul {
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-flow: column-reverse nowrap;
   }
 
   &.-slippage {
@@ -486,12 +484,13 @@ export default {
 .trade {
   display: flex;
   flex-flow: row nowrap;
-  padding: 0.4em 0.6em;
+  padding: 0 .5rem;
   background-position: center center;
   background-size: cover;
   background-blend-mode: overlay;
   position: relative;
   align-items: center;
+  height: 28px;
 
   &:after {
     content: '';
@@ -502,7 +501,7 @@ export default {
     bottom: 0;
     opacity: 0;
     background-color: white;
-    animation: 1s $easeOutExpo highlight;
+    animation: 1s $ease-out-expo highlight;
     pointer-events: none;
   }
 
@@ -540,12 +539,13 @@ export default {
   }
 
   &.-level-2 {
-    padding: 0.5em 0.6em;
+    height: 32px;
   }
 
   &.-level-3 {
     box-shadow: 0 0 20px rgba(red, 0.5);
     z-index: 1;
+    height: 36px;
   }
 
   > div {

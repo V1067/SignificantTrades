@@ -23,46 +23,32 @@
           v-tippy
         ></span
       ></label>
-      <textarea
-        class="form-control"
-        rows="5"
-        :value="input"
-        @change="$store.commit('settings/SET_SERIE_INPUT', { id, value: $event.target.value })"
-      ></textarea>
+      <textarea class="form-control" rows="5" :value="input" @change="setInput($event.target.value)"></textarea>
     </div>
     <hr />
     <div class="column w-100">
       <div v-if="colorOptions.length">
-        <div v-for="(option, index) in colorOptions" :key="index" class="column -fill mr15 mb8">
+        <div v-for="(option, index) in colorOptions" :key="index" class="column form-group -fill mr15 mb8">
           <label v-if="option.label !== false" class="-center -fill -nowrap mr15">{{ option.label }}</label>
           <verte
             picker="square"
             menuPosition="left"
             model="rgb"
-            :value="option.value"
-            @input="option.value !== $event && validate(option, $event)"
-            :colorHistory="colors"
+            :value="currentValues[option.key]"
+            @input="currentValues[option.key] !== $event && validate(option, $event)"
           ></verte>
         </div>
       </div>
       <div v-if="otherOptions.length" class=" -fill">
-        <div v-for="(option, index) in otherOptions" :key="index" class="form-group mb15">
+        <div v-for="option in otherOptions" :key="option.key" class="form-group mb15">
           <label v-if="option.label !== false">{{ option.label }}</label>
 
           <template v-if="option.type === 'string' || option.type === 'number'">
-            <editable class="form-control" :content="option.value" @output="validate(option, $event)"></editable>
+            <editable class="form-control" :content="currentValues[option.key]" @output="validate(option, $event)"></editable>
           </template>
-          <!--<template v-if="option.type === 'type'">
-            <dropdown
-              class="available-types -left -center"
-              :selected="option.value"
-              :options="availableTypes"
-              @output="$store.commit('settings/SET_SERIE_TYPE', { id, value: $event })"
-            ></dropdown>
-          </template>-->
           <template v-if="option.type === 'boolean'">
             <label class="checkbox-control">
-              <input type="checkbox" class="form-control" :checked="option.value" @change="validate(option, $event.target.checked)" />
+              <input type="checkbox" class="form-control" :checked="currentValues[option.key]" @change="validate(option, $event.target.checked)" />
               <div></div>
             </label>
           </template>
@@ -70,18 +56,18 @@
       </div>
     </div>
     <div v-if="positionOption" class="column mt15">
-      <div class="-fill mr15">
-        <div class="column help-text mb8">
+      <div class="-fill form-group mr15">
+        <label class="column help-text mb8">
           <div class="text-left text-nowrap">Start at top</div>
           <div class="text-right text-nowrap">Start at bottom</div>
-        </div>
+        </label>
         <input class="w-100" type="range" min="0" max="1" step=".1" :value="positionOption.value.top" @input="setScale('top', $event.target.value)" />
       </div>
-      <div class="-fill ml15">
-        <div class="column help-text mb8">
+      <div class="-fill form-group ml15">
+        <label class="column help-text mb8">
           <div class="text-left text-nowrap">End at top</div>
           <div class="text-right text-nowrap">End at bottom</div>
-        </div>
+        </label>
         <input
           class="w-100  -reverse"
           type="range"
@@ -97,7 +83,7 @@
     <div class="form-group">
       <label
         class="checkbox-control -on-off"
-        v-tippy="{ placement: 'bottom' }"
+        v-tippy="{ placement: 'left' }"
         :title="!enabled ? 'Enable ' + id : 'Disable ' + id"
         @change="$store.commit('settings/TOGGLE_SERIE', { id, value: $event.target.checked })"
       >
@@ -115,10 +101,9 @@
 import seriesData from '../../data/series'
 import store from '../../store'
 import { snakeToSentence } from '../../utils/helpers'
-import { PALETTE } from '../../utils/colors'
-
 import Dialog from '../ui/Dialog.vue'
 import DialogMixin from '../../mixins/dialogMixin'
+import { defaultPlotsOptions } from './chartOptions'
 
 const optionsByType = {
   line: ['color', 'lineWidth'],
@@ -138,18 +123,22 @@ export default {
     title: 'Serie',
     enabled: true,
     type: 'line',
-    model: [],
-    options: [],
+    currentValues: {},
+    serieDefaultOptionsKeys: [],
+    colorOptionsKeys: [],
+    otherOptionsKeys: [],
+    inputOptionsKeys: [],
+    colorOptions: [],
+    otherOptions: [],
     availableTypes: { line: 'Line', histogram: 'Histogram', candlestick: 'Candlestick', bar: 'Bar' }
   }),
   computed: {
-    colors: () => PALETTE,
     userPreferences: function() {
       const options = store.state.settings.series[this.id] || {}
 
       return options
     },
-    colorOptions() {
+    /*colorOptions() {
       return optionsByType[this.type]
         .filter(o => /color/i.test(o))
         .map(key => ({
@@ -159,16 +148,22 @@ export default {
           type: 'color'
         }))
     },
-    otherOptions() {
-      return optionsByType[this.type]
-        .filter(o => !/color/i.test(o))
+    typeOptions() {
+      const serieOptionsKeys = this.options.map(o => o.key)
+      const typeOptions = optionsByType[this.type]
+        .filter(o => serieOptionsKeys.indexOf(o) === -1)
         .map(key => ({
           key,
           label: key,
           value: this.getValue(key),
           type: this.getType(this.getDefaultValue(key), key)
         }))
+
+      return typeOptions
     },
+    otherOptions() {
+      return this.options.concat(this.typeOptions).filter(o => !/color/i.test(o.key))
+    },*/
     positionOption() {
       return {
         key: 'scaleMargins',
@@ -183,6 +178,14 @@ export default {
     this.enabled = typeof this.userPreferences.enabled === 'undefined' ? true : this.userPreferences.enabled
     this.type = typeof this.userPreferences.type === 'string' ? this.userPreferences.type : seriesData[this.id].type
     this.input = typeof this.userPreferences.input === 'string' ? this.userPreferences.input : seriesData[this.id].input
+
+    const serieDefinition = seriesData[this.id]
+
+    if (serieDefinition) {
+      this.serieDefaultOptionsKeys = Object.keys(serieDefinition.options)
+    }
+
+    this.refreshOptions()
   },
   methods: {
     getType(value, key) {
@@ -209,17 +212,15 @@ export default {
       return type
     },
     validate(option, value) {
+      const key = typeof option === 'string' ? option : option.key
+
       store.dispatch('settings/setSeriePreference', {
         id: this.id,
-        key: typeof option === 'string' ? option : option.key,
-        value: value
+        key,
+        value
       })
 
-      const modelIndex = this.model.indexOf(option)
-
-      if (modelIndex !== -1) {
-        this.$set(this.model[modelIndex], 'value', value)
-      }
+      this.currentValues = { ...this.currentValues, [key]: value }
     },
     setScale(side, value) {
       const option = this.positionOption
@@ -242,24 +243,121 @@ export default {
       this.validate(option, scale)
     },
     getDefaultValue(key) {
-      return seriesData[this.id].options[key]
+      let value = seriesData[this.id].options[key]
+
+      if (typeof value === 'undefined' && defaultPlotsOptions[this.type]) {
+        value = defaultPlotsOptions[this.type][key]
+      }
+
+      return value
     },
     getValue(key) {
       const preferedValue = (store.state.settings.series[this.id] || {})[key]
       const defaultValue = this.getDefaultValue(key)
+      let finalValue = ''
 
       if (typeof preferedValue !== 'undefined') {
-        return preferedValue
+        finalValue = preferedValue
       } else if (typeof defaultValue !== 'undefined') {
-        return defaultValue
-      } else {
-        return ''
+        finalValue = defaultValue
+      }
+
+      this.currentValues[key] = finalValue
+
+      return this.currentValues[key]
+    },
+    setType(newType) {
+      this.$store.commit('settings/SET_SERIE_TYPE', { id: this.id, value: newType })
+
+      this.type = newType
+
+      this.refreshOptions()
+    },
+    setInput(newInput) {
+      this.$store.commit('settings/SET_SERIE_INPUT', { id: this.id, value: newInput })
+
+      this.input = newInput
+
+      this.refreshOptions()
+    },
+    getInputOptions(input) {
+      const keys = []
+      const reg = /options\.([a-zA-Z0-9]+)/g
+
+      let match
+
+      do {
+        if ((match = reg.exec(input))) {
+          keys.push(match[1])
+        }
+      } while (match)
+
+      return keys
+    },
+    removeOption(key) {
+      this.$store.commit('settings/REMOVE_SERIE_OPTION', { id: this.id, key })
+
+      for (let options of [this.colorOptions, this.otherOptions]) {
+        let option = options.find(o => o.key === key)
+
+        if (option) {
+          options.splice(options.indexOf(option), 1)
+          break
+        }
       }
     },
-    setType(type) {
-      this.$store.commit('settings/SET_SERIE_TYPE', { id: this.id, value: type })
+    refreshOptions() {
+      const serieDefaultOptionsKeys = this.serieDefaultOptionsKeys
 
-      this.type = type
+      const inputOptionsKeys = this.getInputOptions(this.input)
+      const typeOptionsKeys = optionsByType[this.type]
+
+      const mergedOptionsKeys = [...serieDefaultOptionsKeys, ...inputOptionsKeys, ...typeOptionsKeys].filter((x, i, a) => a.indexOf(x) == i)
+
+      const colorOptionsKeys = mergedOptionsKeys.filter(k => /color/i.test(k))
+      const otherOptionsKeys = mergedOptionsKeys.filter(k => !/color/i.test(k))
+
+      for (let key of colorOptionsKeys) {
+        if (this.colorOptionsKeys.indexOf(key) === -1) {
+          const value = this.getValue(key)
+
+          if (value && typeof value === 'object') {
+            continue
+          }
+
+          this.colorOptions.push({
+            key,
+            label: key,
+            type: this.getType(value, key)
+          })
+        }
+      }
+
+      for (let key of otherOptionsKeys) {
+        if (this.otherOptionsKeys.indexOf(key) === -1) {
+          const value = this.getValue(key)
+
+          if (value && typeof value === 'object') {
+            continue
+          }
+
+          this.otherOptions.push({
+            key,
+            label: key,
+            type: this.getType(value, key)
+          })
+        }
+      }
+
+      for (let key of this.inputOptionsKeys) {
+        if (mergedOptionsKeys.indexOf(key) === -1) {
+          this.removeOption(key)
+        }
+      }
+
+      this.colorOptionsKeys = colorOptionsKeys
+      this.inputOptionsKeys = inputOptionsKeys
+      this.otherOptionsKeys = otherOptionsKeys
     }
   }
 }

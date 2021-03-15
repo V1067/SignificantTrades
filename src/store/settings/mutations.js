@@ -278,6 +278,13 @@ export default {
 
     Vue.set(state.series[id], key, value)
   },
+  REMOVE_SERIE_OPTION(state, { id, key }) {
+    if (!state.series[id]) {
+      return
+    }
+
+    Vue.delete(state.series[id], key)
+  },
   SET_SERIE_TYPE(state, { id, value }) {
     if (!state.series[id]) {
       state.series[id] = {}
@@ -303,5 +310,11 @@ export default {
   },
   TOGGLE_EXCHANGES_BAR(state, value) {
     state.showExchangesBar = value ? true : false
+  },
+  ADD_RECENT_COLOR(state, value) {
+    state.recentColors.push(value)
+  },
+  POP_OLDEST_RECENT_COLOR(state) {
+    state.recentColors.pop()
   }
 }

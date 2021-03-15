@@ -129,7 +129,7 @@ export default {
           chart.toggleSerie(mutation.payload)
           break
         case 'settings/SET_CHART_PRICE_MARGINS':
-          chart.setPriceMargins(mutation.payload)
+          // chart.setPriceMargins(mutation.payload)
           break
         case 'settings/TOGGLE_EXCHANGES_BAR':
           setTimeout(this.refreshChartDimensions.bind(this))
@@ -625,7 +625,7 @@ export default {
   font-family: 'Barlow Semi Condensed';
   z-index: 2;
   opacity: 0;
-  transition: opacity 0.2s $easeOutExpo;
+  transition: opacity 0.2s $ease-out-expo;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -678,7 +678,7 @@ export default {
   font-family: 'Barlow Semi Condensed';
   z-index: 2;
   opacity: 0;
-  transition: opacity 0.2s $easeOutExpo;
+  transition: opacity 0.2s $ease-out-expo;
   display: flex;
   flex-direction: row;
   align-items: flex-start;

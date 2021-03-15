@@ -288,6 +288,7 @@ const emitter = new Vue({
 
       if (!pair && !this.pair) {
         store.dispatch('app/showNotice', {
+          id: 'exchanges-initialization',
           type: 'error',
           title: `No pair.`
         })
@@ -300,6 +301,7 @@ const emitter = new Vue({
       console.log(`[socket.connect] connecting to ${this.pair}`)
 
       store.dispatch('app/showNotice', {
+        id: 'exchanges-initialization',
         type: 'info',
         title: 'Fetching the latest products, please wait.'
       })
@@ -309,8 +311,9 @@ const emitter = new Vue({
 
         if (!validExchanges.length) {
           store.dispatch('app/showNotice', {
+            id: 'exchanges-initialization',
             type: 'error',
-            delay: false,
+            timeout: -1,
             title: `Cannot find ${this.pair}, sorry`
           })
 
@@ -324,6 +327,7 @@ const emitter = new Vue({
         validExchanges = validExchanges.filter(exchange => !this.exchangesSettings[exchange.id].disabled)
 
         store.dispatch('app/showNotice', {
+          id: 'exchanges-initialization',
           type: 'info',
           title: `Connecting to ${validExchanges.length} exchange${validExchanges.length > 1 ? 's' : ''}`
         })
@@ -332,10 +336,11 @@ const emitter = new Vue({
 
         Promise.all(validExchanges.map(exchange => exchange.connect())).then(() => {
           store.dispatch('app/showNotice', {
+            id: 'exchanges-initialization',
             type: 'success',
             title:
               `Subscribed to ${this.pair} on ${validExchanges.length} exchange${validExchanges.length > 1 ? 's' : ''}` +
-              (validExchanges.length < successfullMatches ? ` (${successfullMatches - validExchanges.length} hidden)` : '')
+              (validExchanges.length < successfullMatches ? `<br> (${successfullMatches - validExchanges.length} are hidden)` : '')
           })
         })
       })
@@ -485,7 +490,7 @@ const emitter = new Vue({
             err &&
               store.dispatch('app/showNotice', {
                 type: 'error',
-                message: `API error (${
+                title: `API error (${
                   err.response && err.response.data && err.response.data.error ? err.response.data.error : err.message || 'unknown error'
                 })`
               })

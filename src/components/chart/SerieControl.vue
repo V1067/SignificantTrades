@@ -7,13 +7,13 @@
 
 <script>
 import SerieDialog from './SerieDialog.vue'
-import { showDialog } from '../../services/dialog'
+import dialogService from '../../services/dialog'
 
 export default {
   props: ['id', 'legend'],
   methods: {
     edit() {
-      showDialog(SerieDialog, { id: this.id })
+      dialogService.open(SerieDialog, { id: this.id })
     }
   }
 }

@@ -7,7 +7,8 @@ import { defaultChartOptions, defaultPlotsOptions } from './chartOptions'
 import * as _serieFunctions from './serieFunctions'
 
 import * as TV from 'lightweight-charts'
-import { showDialog } from '../../services/dialog'
+import dialogService from '../../services/dialog'
+import { formatRgb, toRgb } from 'color-fns'
 const serieFunctions = Object.keys(_serieFunctions).reduce((o, name) => {
   o[name] = _serieFunctions[name]
   return o
@@ -62,8 +63,6 @@ export default class ChartController {
   createChart(containerElement, chartDimensions) {
     console.log(`[chart/controller] create chart`)
 
-    const options = Object.assign({}, defaultChartOptions, chartDimensions)
-
     let chartColor
 
     if (store.state.settings.chartColor) {
@@ -72,13 +71,17 @@ export default class ChartController {
       chartColor = store.state.settings.chartTheme === 'light' ? '#111111' : '#f6f6f6'
     }
 
-    options.priceScale.borderColor = chartColor
-    options.timeScale.borderColor = chartColor
-    options.layout.textColor = chartColor
+    const options = Object.assign({}, defaultChartOptions, chartDimensions)
 
-    if (store.state.settings.series.price && store.state.settings.series.price.scaleMargins) {
-      options.priceScale.scaleMargins = store.state.settings.series.price.scaleMargins
+    const chartColorOptions = this.getChartColorOptions(chartColor)
+
+    for (let prop in chartColorOptions) {
+      Object.assign(options[prop], chartColorOptions[prop])
     }
+
+    /* if (store.state.settings.series.price && store.state.settings.series.price.scaleMargins) {
+      options.priceScale.scaleMargins = store.state.settings.series.price.scaleMargins
+    } */
 
     this.chartInstance = TV.createChart(containerElement, options)
     this.chartElement = containerElement
@@ -160,8 +163,10 @@ export default class ChartController {
    */
   rebuildSerie(id) {
     this.removeSerie(this.getSerie(id))
-    this.addSerie(id)
-    this.redrawSerie(id)
+
+    if (this.addSerie(id)) {
+      this.redrawSerie(id)
+    }
   }
 
   /**
@@ -257,15 +262,20 @@ export default class ChartController {
     try {
       serie.serieFunctionDefinition = this.buildSerieFunction(serie, input)
     } catch (error) {
-      store.dispatch('app/showNotice', {
-        type: 'error',
-        title: 'BUILD FAILED ' + error.message
+      setTimeout(() => {
+        store.dispatch('app/showNotice', {
+          type: 'error',
+          icon: 'icon-warning',
+          title: `serie ${serie.id} contain an error<br>Error: ${error.message}`
+        })
       })
       console.error(error)
 
-      showDialog('chart/SerieDialog', {
-        id: serie.id
-      })
+      if (!dialogService.isDialogOpened('SerieDialog')) {
+        dialogService.open('chart/SerieDialog', {
+          id: serie.id
+        })
+      }
 
       return false
     }
@@ -1333,18 +1343,27 @@ export default class ChartController {
     }
   }
 
-  setChartColor(color) {
-    this.chartInstance.applyOptions({
+  getChartColorOptions(color) {
+    let borderColor = toRgb(color)
+
+    borderColor.alpha = 0.2
+    borderColor = formatRgb(borderColor)
+
+    return {
       layout: {
         textColor: color,
-        borderColor: color
+        borderColor
       },
       priceScale: {
-        borderColor: color
+        borderColor
       },
       timeScale: {
-        borderColor: color
+        borderColor
       }
-    })
+    }
+  }
+
+  setChartColor(color) {
+    this.chartInstance.applyOptions(this.getChartColorOptions(color))
   }
 }
