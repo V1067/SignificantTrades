@@ -42,13 +42,12 @@
           <span class="condensed">Adj. threshold:</span>
           <span v-if="exchanges[exchange.id].threshold !== 1">{{ $root.formatAmount(minimumThreshold * exchangeMultiplier) }}</span>
         </label>
-
         <Slider
           :step="0.0001"
           :min="0"
           :max="2"
           :editable="false"
-          :value="exchanges[exchange.id].threshold"
+          :value="exchangeMultiplier"
           @input="
             $store.commit('settings/SET_EXCHANGE_THRESHOLD', {
               exchange: exchange.id,

@@ -20,7 +20,6 @@
 <script>
 import { mix } from 'color-fns'
 import { getClosestValue, debounce, getEventCords } from '../../../utils/picker'
-import { TOUCH_SUPPORTED } from '../../../utils/constants'
 
 export default {
   name: 'VerteSlider',
@@ -116,10 +115,6 @@ export default {
     },
     initEvents() {
       window.addEventListener('resize', this.handleResize)
-
-      this._onMouseDownHandler = this.onMouseDown.bind(this)
-
-      this.$el.addEventListener(TOUCH_SUPPORTED ? 'touchstart' : 'mousedown', this._onMouseDownHandler, false)
     },
     /**
      * fire select events
@@ -129,6 +124,19 @@ export default {
       event.stopPropagation()
       // check if  left mouse is clicked
       if (event.buttons === 2) return
+
+      // check if a double click
+      if (this.pendingDblClick) {
+        this.pendingDblClick = false
+        this.$emit('reset')
+        return
+      }
+
+      // next click might be double click, for the next 300ms
+      this.pendingDblClick = true
+      this._dblClickTimeout = window.setTimeout(() => {
+        this.pendingDblClick = false
+      }, 300)
 
       this.updateWidth()
       this.track.classList.add('slider--dragging')
@@ -292,22 +300,6 @@ export default {
         if (muted) return
         this.$emitInputEvent()
       })
-    },
-
-    onMouseDown() {
-      // handle double click
-      clearTimeout(this._dblClickTimeout)
-      if (this.pendingDblClick) {
-        this.pendingDblClick = false
-        this.$emit('reset')
-        return
-      }
-
-      // next click might be double click, for the next 300ms
-      this.pendingDblClick = true
-      this._dblClickTimeout = window.setTimeout(() => {
-        this.pendingDblClick = false
-      }, 300)
     }
   },
   created() {
@@ -321,9 +313,6 @@ export default {
       this.updateWidth()
       this.updateValue(undefined, true)
     })
-  },
-  beforeDestroy() {
-    this.$el.removeEventListener(TOUCH_SUPPORTED ? 'touchstart' : 'mousedown', this._onMouseDownHandler)
   },
   destroyed() {
     window.removeEventListener('resize', this.handleResize)

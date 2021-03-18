@@ -30,11 +30,9 @@ Vue.use(VueTippy, {
 import Verte from './components/ui/picker/Verte.vue'
 import Editable from './components/ui/Editable'
 import Dropdown from './components/ui/Dropdown'
-import Slider from './components/ui/Slider'
 Vue.component('verte', Verte)
 Vue.component('dropdown', Dropdown)
 Vue.component('editable', Editable)
-Vue.component('slider', Slider)
 
 import backgroundDirective from './directives/backgroundDirective'
 Vue.directive('background', backgroundDirective)
