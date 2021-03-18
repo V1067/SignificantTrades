@@ -1,6 +1,6 @@
 export const APPLICATION_START_TIME = +new Date()
 export const MASTER_DOMAIN = /aggr.trade$/.test(window.location.hostname)
-export const MAX_BARS_PER_CHUNKS = 50
+export const MAX_BARS_PER_CHUNKS = 100
 export const MAX_CHUNKS = 100
 export const TOUCH_SUPPORTED = (function() {
   var prefixes = ' -webkit- -moz- -o- -ms- '.split(' ')

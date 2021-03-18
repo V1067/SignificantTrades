@@ -3,14 +3,25 @@
 All notable changes to this project will be documented in this file.
 
 ## [2.6] - 2021-03-13
+### Changed
+- Allow change serie input from serie dialog
+- Fix remove threshold
+- Never unload present chunks (> minimum visible range)
+- Trim chart after 30min
+- Set maximum stored bars to 100 bars * 100 chunks (10000 bars, 1 bar = 1 exchange at time)
 
 ### Added
 
-- Change input function for graphs from UI
+- Inline code editor for input function
 - Animate threshold reordering
-- Fix remove threshold
 - Import / export settings
 - Background color option
+
+TODO:
+// - New serie transpiler and variable memory injection strategy
+// - Show / hide serie without unloading
+// - Dynamic series (detach activeSerie from serie type allowing infinite series on chart)
+
 
 ## [2.5.7] - 2020-12-05
 
