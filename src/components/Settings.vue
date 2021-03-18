@@ -499,6 +499,7 @@ import socket from '../services/socket'
 
 import Exchange from './Exchange.vue'
 import Thresholds from './Thresholds.vue'
+import SettingsImportConfirmation from './SettingsImportConfirmation.vue'
 
 import StatDialog from './StatDialog'
 import dialogService from '../services/dialog'
@@ -639,7 +640,7 @@ export default {
         }
 
         if (
-          await dialogService.openAsPromise('SettingsImportConfirmation', {
+          await dialogService.openAsPromise(SettingsImportConfirmation, {
             settings
           })
         ) {

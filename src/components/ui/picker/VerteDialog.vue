@@ -1,9 +1,9 @@
 <template>
   <Dialog :open="open" @clickOutside="close" class="-picker">
     <template v-slot:header>
-      <div class="title">okok</div>
+      <div class="title">&nbsp;</div>
     </template>
-    <Picker v-if="!isLoading" :mode="picker" :alpha="alpha" v-model="currentColor"></Picker>
+    <Picker :mode="picker" :alpha="alpha" v-model="currentColor"></Picker>
     <div class="verte__controller">
       <Slider
         v-if="enableAlpha"
@@ -197,9 +197,6 @@ export default {
   created() {
     this.selectColor(this.value || '#000', true)
     this.currentModel = this.model
-  },
-  mounted() {
-    setTimeout(() => (this.isLoading = false), 100)
   },
   methods: {
     selectColor(color, muted = false) {

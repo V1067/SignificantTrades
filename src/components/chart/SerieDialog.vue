@@ -23,7 +23,7 @@
           v-tippy
         ></span
       ></label>
-      <textarea class="form-control" rows="5" :value="input" @change="setInput($event.target.value)"></textarea>
+      <textarea ref="behaveInput" class="form-control" rows="5" :value="input" @change="setInput($event.target.value)"></textarea>
     </div>
     <hr />
     <div class="column w-100">
@@ -57,26 +57,64 @@
     </div>
     <div v-if="positionOption" class="column mt15">
       <div class="-fill form-group mr15">
-        <label class="column help-text mb8">
-          <div class="text-left text-nowrap">Start at top</div>
-          <div class="text-right text-nowrap">Start at bottom</div>
-        </label>
-        <input class="w-100" type="range" min="0" max="1" step=".1" :value="positionOption.value.top" @input="setScale('top', $event.target.value)" />
+        <div class="form-group">
+          <label>Top</label>
+          <editable class="form-control" :content="positionOption.value.top" :step="0.01" @output="setScale('top', $event)"></editable>
+        </div>
+        <div class="form-group">
+          <label>Bottom</label>
+          <editable class="form-control" :content="positionOption.value.bottom" :step="0.01" @output="setScale('bottom', $event)"></editable>
+        </div>
       </div>
-      <div class="-fill form-group ml15">
-        <label class="column help-text mb8">
-          <div class="text-left text-nowrap">End at top</div>
-          <div class="text-right text-nowrap">End at bottom</div>
-        </label>
-        <input
-          class="w-100  -reverse"
-          type="range"
-          min="0"
-          max="1"
-          step=".1"
-          :value="positionOption.value.bottom"
-          @input="setScale('bottom', $event.target.value)"
-        />
+      <div class="-fill column mr15">
+        <div class="-fill form-group mr15">
+          <label class="column help-text mb8">
+            <div class="text-left text-nowrap">Start at top</div>
+            <div class="text-right text-nowrap">Start at bottom</div>
+          </label>
+          <input
+            class="w-100"
+            type="range"
+            min="0"
+            max="1"
+            step=".1"
+            :value="positionOption.value.top"
+            @input="setScale('top', $event.target.value)"
+          />
+        </div>
+        <div class="-fill form-group ml15">
+          <label class="column help-text mb8">
+            <div class="text-left text-nowrap">End at top</div>
+            <div class="text-right text-nowrap">End at bottom</div>
+          </label>
+          <input
+            class="w-100  -reverse"
+            type="range"
+            min="0"
+            max="1"
+            step=".1"
+            :value="positionOption.value.bottom"
+            @input="setScale('bottom', $event.target.value)"
+          />
+        </div>
+      </div>
+    </div>
+    <div v-if="formatOption" class="column mt15">
+      <div class="form-group">
+        <label>precision</label>
+        <editable
+          class="form-control"
+          :content="formatOption.value.minMove"
+          @output="validate(formatOption, { ...formatOption.value, precision: +$event || 1 })"
+        ></editable>
+      </div>
+      <div class="form-group">
+        <label>minMove</label>
+        <editable
+          class="form-control"
+          :content="formatOption.value.precision"
+          @output="validate(formatOption, { ...formatOption.value, minMove: +$event || 0.1 })"
+        ></editable>
       </div>
     </div>
     <hr />
@@ -104,6 +142,7 @@ import { snakeToSentence } from '../../utils/helpers'
 import Dialog from '../ui/Dialog.vue'
 import DialogMixin from '../../mixins/dialogMixin'
 import { defaultPlotsOptions } from './chartOptions'
+import Behave from 'behave-js'
 
 const optionsByType = {
   line: ['color', 'lineWidth'],
@@ -121,6 +160,7 @@ export default {
   },
   data: () => ({
     title: 'Serie',
+    editor: null,
     enabled: true,
     type: 'line',
     currentValues: {},
@@ -130,7 +170,7 @@ export default {
     inputOptionsKeys: [],
     colorOptions: [],
     otherOptions: [],
-    availableTypes: { line: 'Line', histogram: 'Histogram', candlestick: 'Candlestick', bar: 'Bar' }
+    availableTypes: { line: 'Line', area: 'Area', histogram: 'Histogram', candlestick: 'Candlestick', bar: 'Bar' }
   }),
   computed: {
     userPreferences: function() {
@@ -171,6 +211,18 @@ export default {
         value: this.getValue('scaleMargins'),
         type: 'position'
       }
+    },
+    formatOption() {
+      if (!this.serieDefaultOptionsKeys.priceFormat) {
+        return null
+      }
+
+      return {
+        key: 'priceFormat',
+        label: 'priceFormat',
+        value: this.getValue('priceFormat'),
+        type: 'position'
+      }
     }
   },
   created() {
@@ -186,6 +238,16 @@ export default {
     }
 
     this.refreshOptions()
+  },
+  mounted() {
+    this.$nextTick(function() {
+      this.createInputEditor()
+    })
+  },
+  beforeDestroy() {
+    if (this.editor) {
+      this.editor.destroy()
+    }
   },
   methods: {
     getType(value, key) {
@@ -234,10 +296,6 @@ export default {
 
       if (scale.top + scale.bottom > 1) {
         scale[side] = 1 - scale[side === 'top' ? 'bottom' : 'top']
-      }
-
-      if (this.id === 'price') {
-        store.commit('settings/SET_CHART_PRICE_MARGINS', scale)
       }
 
       this.validate(option, scale)
@@ -358,6 +416,23 @@ export default {
       this.colorOptionsKeys = colorOptionsKeys
       this.inputOptionsKeys = inputOptionsKeys
       this.otherOptionsKeys = otherOptionsKeys
+    },
+    createInputEditor() {
+      setTimeout(() => {
+        this.editor = new Behave({
+          textarea: this.$refs.behaveInput,
+          replaceTab: true,
+          softTabs: true,
+          tabSize: 2,
+          autoOpen: true,
+          overwrite: true,
+          autoStrip: true,
+          autoIndent: true,
+          fence: false
+        })
+
+        console.log(this.$refs.behaveInput, this.editor)
+      })
     }
   }
 }

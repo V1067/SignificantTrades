@@ -68,7 +68,7 @@
   &__scroller {
     overflow: auto;
     max-height: 50vh;
-    border-radius: $border-radius-base;
+    border-radius: $border-radius-base - 2;
   }
 
   &__option {

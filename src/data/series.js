@@ -3,12 +3,7 @@ export default {
     type: 'candlestick',
     input: `ohlc_avg_price(bar)`,
     options: {
-      upColor: '#c3a87a',
-      downColor: '#e53935',
-      borderUpColor: '#c3a87a',
-      borderDownColor: '#e53935',
-      wickUpColor: 'rgba(223, 195, 148, .8)',
-      wickDownColor: 'rgba(224, 91, 95, .8)',
+      priceScaleId: 'price',
       priceLineColor: 'rgba(255, 255, 255, .5)',
       priceLineWidth: 1,
       priceLineStyle: 2,
@@ -25,7 +20,7 @@ export default {
     type: 'line',
     input: `ema(bar.vsell,options.ema_length)`,
     options: {
-      scaleAsVolume: true,
+      valueAsVolume: true,
       ema_length: 14,
       priceScaleId: 'volume_ema',
       color: '#c14047',
@@ -40,7 +35,7 @@ export default {
     type: 'line',
     input: `ema(bar.vbuy, options.ema_length)`,
     options: {
-      scaleAsVolume: true,
+      valueAsVolume: true,
       ema_length: 14,
       priceScaleId: 'volume_ema',
       color: '#c9b087',
@@ -58,7 +53,7 @@ export default {
       color: bar.vbuy - bar.vsell > 0 ? options.upColor : options.downColor
     }`,
     options: {
-      scaleAsVolume: true,
+      valueAsVolume: true,
       upColor: '#c3a87a',
       downColor: '#e53935',
       priceScaleId: 'volume'
@@ -68,7 +63,7 @@ export default {
     type: 'histogram',
     input: `bar.vbuy + bar.vsell`,
     options: {
-      scaleAsVolume: true,
+      valueAsVolume: true,
       color: 'rgba(255, 255, 255, .15)',
       priceScaleId: 'volume'
     }
@@ -77,7 +72,7 @@ export default {
     type: 'histogram',
     input: `bar.lbuy + bar.lsell`,
     options: {
-      scaleAsVolume: true,
+      valueAsVolume: true,
       priceScaleId: 'volume',
       color: '#9c27b0'
     }
@@ -86,8 +81,11 @@ export default {
     type: 'line',
     input: `ohlc((this.open || 0) + (bar.vbuy - bar.vsell))`,
     options: {
-      priceScaleId: 'overlay1',
-      scaleAsVolume: true,
+      priceScaleId: 'left',
+      valueAsVolume: true,
+      lastValueVisible: true,
+      priceLineVisible: true,
+      priceLineColor: 'rgba(255, 235, 59, .75)',
       color: '#ffffff',
       lineWidth: 2,
       scaleMargins: {
@@ -105,7 +103,8 @@ export default {
     type: 'line',
     input: `bar.series.ctd.value + (bar.cbuy - bar.csell)`,
     options: {
-      scaleAsVolume: true,
+      priceScaleId: 'overlay2',
+      valueAsVolume: true,
       color: '#ffffff',
       lineWidth: 1,
       lineStyle: 2,

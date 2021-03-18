@@ -28,6 +28,19 @@
     <div class="chart__controls">
       <button class="btn -small" @click="refreshChart">Refresh</button>
     </div>
+    <div class="chart__positions">
+      <div>
+        from: {{ visibleRangeFrom }}<br />
+        logicalfrom: {{ visibleRangeLogicalFrom }}
+      </div>
+      <div>
+        {{ scrollPosition }}
+      </div>
+      <div>
+        to: {{ visibleRangeTo }}<br />
+        logicalto: {{ visibleRangeLogicalTo }}
+      </div>
+    </div>
   </div>
 </template>
 
@@ -36,13 +49,14 @@ import '../../data/typedef'
 import { mapState } from 'vuex'
 // import VueGridLayout from 'vue-grid-layout';
 import ChartController from './chartController'
-import { cacheRange, saveChunk } from './chartCache'
+import { cacheRange, trimCache, saveChunk } from './chartCache'
 import seriesData from '../../data/series'
 import socket from '../../services/socket'
 
-import { formatPrice, formatAmount, formatTime, getHms } from '../../utils/helpers'
+import { formatPrice, formatAmount, formatTime } from '../../utils/helpers'
 
 import SerieControl from './SerieControl.vue'
+import { MAX_BARS_PER_CHUNKS } from '../../utils/constants'
 
 /**
  * @type {ChartController}
@@ -61,7 +75,12 @@ export default {
       resizing: {},
       fetching: false,
       legend: {},
-      seriesLayout: null
+      seriesLayout: null,
+      visibleRangeFrom: null,
+      visibleRangeTo: null,
+      visibleRangeLogicalFrom: null,
+      visibleRangeLogicalTo: null,
+      scrollPosition: null
     }
   },
 
@@ -87,6 +106,8 @@ export default {
 
   created() {
     chart = new ChartController()
+
+    setInterval(this.debugPosition.bind(this), 1000)
 
     socket.$on('trades', this.onTrades)
 
@@ -127,9 +148,6 @@ export default {
           break
         case 'settings/TOGGLE_SERIE':
           chart.toggleSerie(mutation.payload)
-          break
-        case 'settings/SET_CHART_PRICE_MARGINS':
-          // chart.setPriceMargins(mutation.payload)
           break
         case 'settings/TOGGLE_EXCHANGES_BAR':
           setTimeout(this.refreshChartDimensions.bind(this))
@@ -191,6 +209,25 @@ export default {
   },
 
   methods: {
+    debugPosition() {
+      if (!chart.chartInstance) {
+        return
+      }
+
+      let visibleRange = chart.chartInstance.timeScale().getVisibleRange()
+      let visibleRangeLogical = chart.chartInstance.timeScale().getVisibleLogicalRange()
+      let scrollPosition = chart.chartInstance.timeScale().scrollPosition()
+
+      if (visibleRange) {
+        this.visibleRangeFrom = formatTime(visibleRange.from)
+        this.visibleRangeTo = formatTime(visibleRange.to)
+      }
+      if (visibleRangeLogical) {
+        this.visibleRangeLogicalFrom = Math.round(visibleRangeLogical.from)
+        this.visibleRangeLogicalTo = Math.round(visibleRangeLogical.to)
+      }
+      this.scrollPosition = Math.round(scrollPosition)
+    },
     refreshSeriesLayout() {
       const layout = []
 
@@ -211,46 +248,46 @@ export default {
      * fetch whatever is missing based on visiblerange
      * @param {boolean} clear will clear the chart / initial fetch
      */
-    fetch() {
+    fetch(rangeToFetch) {
       if (!socket.canFetch()) {
         return Promise.reject('Fetch is disabled')
       }
 
-      const visibleRange = chart.getVisibleRange()
-      const isChartEmpty = chart.isEmpty()
-      let rangeToFetch
-
-      if (isChartEmpty) {
-        console.log(`[chart] fetch (real time range)`)
-
-        rangeToFetch = chart.getRealtimeRange()
-      } else if (visibleRange.from === cacheRange.from) {
-        console.log(`[chart] fetch (chunk on the left)`)
-
-        rangeToFetch = {
-          from: visibleRange.from - chart.getOptimalRangeLength(),
-          to: visibleRange.from
-        }
-      }
-
-      /* else if (false && visibleRange.to === cacheRange.to) {
-        console.log(`[chart] fetch (chunk on the right)`)
-
-        rangeToFetch = {
-          from: visibleRange.to,
-          to: visibleRange.to + chart.getOptimalRangeLength()
-        }
-      }*/
+      const visibleRange = chart.chartInstance.timeScale().getVisibleRange()
+      const timeframe = +this.$store.state.settings.timeframe
 
       if (!rangeToFetch) {
-        return Promise.reject('Nothing to fetch')
+        const barsCount = 200
+
+        let leftTime
+
+        if (cacheRange && cacheRange.from) {
+          leftTime = cacheRange.from
+        } else if (visibleRange && visibleRange.from) {
+          leftTime = visibleRange.from
+        } else {
+          leftTime = +new Date() / 1000
+        }
+
+        rangeToFetch = {
+          from: leftTime - timeframe * barsCount,
+          to: leftTime - timeframe
+        }
       }
+
+      rangeToFetch.from = Math.floor(parseInt(rangeToFetch.from) / timeframe) * timeframe
+      rangeToFetch.to = Math.ceil(parseInt(rangeToFetch.to) / timeframe) * timeframe - 1
+
+      console.log(`[chart/fetch] final rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
 
       chart.lockRender()
 
       return socket
         .fetchHistoricalData(parseInt(rangeToFetch.from * 1000), parseInt(rangeToFetch.to * 1000 - 1))
         .then(({ data, from, to, format }) => {
+          /**
+           * @type {Chunk}
+           */
           let chunk
 
           switch (format) {
@@ -266,13 +303,59 @@ export default {
               break
           }
 
-          if (chunk) {
-            saveChunk(chunk)
+          if (chunk && chunk.bars.length) {
+            /**
+             * @type {Chunk[]}
+             */
+            const chunks = [
+              {
+                from: chunk.from,
+                to: chunk.from,
+                bars: []
+              }
+            ]
+
+            console.log(`[chart/fetch] success (${data.length} new ${format}s)`)
+
+            if (chunk.bars.length > MAX_BARS_PER_CHUNKS) {
+              console.log(`[chart/fetch] response chunk is too large (> ${MAX_BARS_PER_CHUNKS} bars) -> start splitting`)
+            }
+
+            while (chunk.bars.length) {
+              const bar = chunk.bars.shift()
+
+              if (chunks[0].bars.length >= MAX_BARS_PER_CHUNKS && chunks[0].to < bar.timestamp) {
+                chunks.unshift({
+                  from: bar.timestamp,
+                  to: bar.timestamp,
+                  bars: []
+                })
+              }
+
+              chunks[0].bars.push(bar)
+              chunks[0].to = bar.timestamp
+            }
+
+            if (chunks.length > 1) {
+              console.log(`[chart/fetch] splitted result into ${chunks.length} chunks`)
+            }
+
+            console.log(`[chart/fetch] save ${chunks.length} new chunks`)
+            console.log(
+              `\t-> [first] FROM: ${formatTime(chunks[0].from)} | TO: ${formatTime(chunks[0].to)} (${formatAmount(chunks[0].bars.length)} bars)`
+            )
+            console.log(
+              `\t-> [last] FROM: ${formatTime(chunks[chunks.length - 1].from)} | TO: ${formatTime(chunks[chunks.length - 1].to)} (${formatAmount(
+                chunks[chunks.length - 1].bars.length
+              )} bars)`
+            )
+            console.log(`\t-> [current cacheRange] FROM: ${formatTime(cacheRange.from)} | TO: ${formatTime(cacheRange.to)}`)
+            for (const chunk of chunks) {
+              saveChunk(chunk)
+            }
+
+            chart.renderVisibleChunks()
           }
-
-          console.log(`[fetch] success (${data.length} new ${format}s)`)
-
-          chart.renderVisibleChunks()
         })
         .catch(err => {
           console.error(err)
@@ -281,32 +364,6 @@ export default {
           chart.unlockRender()
         })
     },
-
-    /* onClick(param) {
-      const time = param.time;
-      let trades = socket.getBarTrades(time)
-
-      if (!trades) {
-        trades = [];
-
-        for (let i = 0; i < cache.length; i++) {
-          if (time >= cache[i].from && time <= cache[i].to) {
-            for (let j = 0; j < cache[i].bars.length; j++) {
-              if (cache[i].bars[j].timestamp == time) {
-                trades.push(cache[i].bars[j]);
-              }
-            }
-          }
-        }
-      }
-
-
-      console.log('trades at bar', time, ':')
-
-      console.log(trades)
-
-      console.log('\n')
-    }, */
 
     /**
      * TV chart mousemove event
@@ -331,7 +388,7 @@ export default {
             continue
           }
 
-          let formatFunction = serie.options.scaleAsVolume ? formatAmount : formatPrice
+          let formatFunction = serie.options.valueAsVolume ? formatAmount : formatPrice
 
           if (data.close) {
             this.$set(
@@ -506,7 +563,9 @@ export default {
     /**
      * on chart pan
      */
-    onPan() {
+    onPan(visibleLogicalRange) {
+      this.debugPosition()
+
       if (chart.panPrevented) {
         return
       }
@@ -520,35 +579,33 @@ export default {
         if (cacheRange.from === null) {
           return
         }
+        // const visibleRangeLogical = chart.chartInstance.timeScale().getVisibleLogicalRange()
 
-        if (this._keepAliveTimeout) {
-          clearTimeout(this._keepAliveTimeout)
-          delete this._keepAliveTimeout
+        if (visibleLogicalRange.from > 0) {
+          return
         }
 
-        this.keepAlive()
+        const barsToLoad = Math.abs(visibleLogicalRange.from)
+        const rangeToFetch = {
+          from: cacheRange.from - barsToLoad * this.$store.state.settings.timeframe,
+          to: cacheRange.from
+        }
 
-        const visibleRange = chart.getVisibleRange()
+        console.log(`[chart/pan] timeout fired`)
+        console.log(`\t-> barsToLoad: ${barsToLoad}`)
+        console.log(`\t-> rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
+        console.log(`\t-> current cacheRange: FROM: ${formatTime(cacheRange.from)} | TO: ${formatTime(cacheRange.to)}`)
 
-        console.log(
-          '[pan] current scrollPosition',
-          getHms(chart.chartInstance.timeScale().scrollPosition() * 1000),
-          '(from:',
-          formatTime(visibleRange.from),
-          ' to:',
-          formatTime(visibleRange.to),
-          ')'
-        )
+        if (!cacheRange.from || rangeToFetch.to <= cacheRange.from) {
+          this.fetch(rangeToFetch)
+        } else {
+          console.warn(
+            `[chart/pan] wont fetch this range\n\t-> rangeToFetch.to (${formatTime(rangeToFetch.to)}) > cacheRange.from (${formatTime(
+              cacheRange.from
+            )})`
+          )
+          console.warn('(might trigger redraw with more cached chunks here...)')
 
-        if (visibleRange.from <= cacheRange.from) {
-          this.panPrevented = true
-          this.fetch().then(() => {
-            this.panPrevented = false
-          })
-        } else if (
-          (visibleRange.from <= chart.renderedRange.from && cacheRange.from <= chart.renderedRange.from) ||
-          (visibleRange.to > chart.renderedRange.to && cacheRange.to > chart.renderedRange.to)
-        ) {
           chart.renderVisibleChunks()
         }
       }, 200)
@@ -577,15 +634,17 @@ export default {
 
     keepAlive() {
       if (this._keepAliveTimeout) {
-        chart.redraw(true)
-      } else {
-        console.log(`[chart] setup keepalive`)
+        trimCache()
+
+        chart.redraw()
       }
 
-      this._keepAliveTimeout = setTimeout(this.keepAlive.bind(this), 1000 * 60 * 15)
+      this._keepAliveTimeout = setTimeout(this.keepAlive.bind(this), 1000 * 60 * 30)
     },
 
     refreshChart() {
+      trimCache()
+
       chart.redraw()
     }
   }
@@ -667,6 +726,30 @@ export default {
 
     @media screen and (min-width: 768px) {
       display: none;
+    }
+  }
+}
+
+.chart__positions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 2rem;
+  font-family: 'Barlow Semi Condensed';
+  background-color: rgba(black, 0.8);
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  text-align: center;
+  z-index: 10;
+
+  > div {
+    &:first-child {
+      text-align: left;
+    }
+    &:last-child {
+      text-align: right;
     }
   }
 }

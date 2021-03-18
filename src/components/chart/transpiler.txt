@@ -1,0 +1,398 @@
+delta = bar.vbuy - bar.vsell
+ohlc(ema(sma(delta, 10), 20))
+
+breakdown instructions
+1. delta = bar.vbuy - bar.vsell <- declare variable
+2. sma(delta, 10) = sma_bar_vbuy_10 <- periodic function
+3. ema(sma(delta, 10), 20) = ema_sma_bar_vbuy_10_20 <- periodic function
+4. ohlc(ema(sma(delta, 10), 20)) = ohlc_ema_sma_bar_vbuy_10_20 <- standard function
+
+2. append context to functions
+memory_1 = bar.vbuy - bar.vsell <- variable replaced by memory
+utils.ohlc(memory_2, utils.ema(memory_3, utils.sma(memory_4, memory_1, 10), 20))
+
+2. determine memory context by type
+memory_1 = non object (number)
+
+memory_2 = free memory
+memory_2 = {}
+
+memory_3 = sma context = periodic context
+memory_3 = {
+  output: null, // last value
+  points: [], // n previous values
+  count: 0, //
+  sum: 0
+}
+
+2. convert instructions
+
+utils.ema(utils.sma(bar.vbuy, 10), 20)
+
+{
+  "input": "ema(sma(bar.vbuy, 10), 20)",
+  "output": [
+    {
+      "name": "ema",
+      "args": [
+        {
+          "name": "sma",
+          "args": [
+            "bar.vbuy",
+            10
+          ]
+        },
+        20
+      ]
+    }
+  ]
+}
+
+// scenario redraw 1
+ema(sma(bar.vbuy, 10), 20)
+ema(sma(16199, 10), 20)
+
+function analysis(instructions) {
+  foreach (instruction of instructions) {
+    if (instruction.args && instruction.args.length) {
+
+    }
+  }
+}
+
+
+<textarea id="input"></textarea>
+
+<pre id="output"></pre>
+
+let antifreeze = 0
+
+const utils = {
+	cum(memory, value) {
+  	memory.value = (memory.value || 0) + value
+  },
+  ohlc(memory, value) {
+    if (typeof memory.open === 'undefined') {
+      memory.open = value
+      memory.high = value
+      memory.low = value
+    }
+
+    memory.high = Math.max(memory.high, value)
+    memory.low = Math.min(memory.low, value)
+    memory.close = value
+
+    return {
+      open: memory.open,
+      high: memory.high,
+      low: memory.low,
+      close: memory.close
+    }
+  },
+  ema(memory, value, length) {
+    const k = 2 / (length + 1)
+
+    if (memory.count) {
+      const last = memory.points[memory.points.length - 1]
+      memory.output = (value - last) * k + last
+    } else {
+      memory.output = value
+    }
+
+    return memory.output
+  },
+  sma(memory, value) {
+    const average = (memory.sum + value) / (memory.count + 1)
+    memory.output = value
+    return average
+  },
+  cma(memory, value) {
+    memory.output = (memory.sum + value) / (memory.count + 1)
+    return memory.output
+  }
+}
+
+function space() {
+  output.innerHTML += '\n\n'
+}
+
+function log(content, title) {
+  if (content && (typeof content === 'object' || Array.isArray(content))) {
+    content = JSON.stringify(content, null, 2)
+  }
+
+  if (typeof title === 'string') {
+    output.innerHTML += '<code>' + title + '</code>\n'
+  }
+
+  if (content) {
+    output.innerHTML += content + '\n\n'
+  }
+}
+
+let memory = []
+
+
+const variableReg = /([a-zA-Z0_9_]+)\s*=\s*(.*)/
+const functionReg = /([a-zA-Z0_9_]+)\(/
+
+/*input.value = `delta = bar.vbuy - bar.vsell
+cum_ohlc(sma(delta, 20))`*/
+input.value = `delta = bar.vbuy - bar.vsell
+cum(delta) + sma(ema(delta[1], 20), 10)`
+
+
+var periodicFunctions = ['sma', 'ema', 'cma']
+
+function getContext(name, type) {
+  if (type === 'variable') {
+    return [
+      0
+    ]
+  }
+
+  if (periodicFunctions.indexOf(name) !== -1) {
+    return {
+      sum: 0,
+      count: 0,
+      points: []
+    }
+  } else {
+    return {
+
+    }
+  }
+}
+
+
+function transpile() {
+memory = []
+  output.innerHTML = ''
+
+  let transpiledInput = input.value
+
+  const lines = input.value.split(/\n/)
+  log(lines, 'lines in input')
+
+
+  let variableMatch = null
+  antifreeze = 0
+  do {
+    if ((variableMatch = variableReg.exec(transpiledInput, 'g'))) {
+    antifreeze++
+      const variableName = variableMatch[1]
+      const variableValue = variableMatch[2]
+
+    if (variableName === 'context') {
+    debugger
+    }
+      log(variableName, 'variable spotted')
+
+      transpiledInput = transpiledInput.replace(new RegExp('\\b(' + variableName + ')\\b', 'ig'), 'memory[' + memory.length + ']')
+      memory.push({
+        type: 'variable',
+        name: variableName,
+        context: getContext(variableName, 'variable')
+      })
+
+    }
+  } while (antifreeze < 10 && variableMatch)
+
+  let functionMatch = null
+  antifreeze = 0
+  do {
+    if ((functionMatch = functionReg.exec(transpiledInput))) {
+    antifreeze++
+      const functionName = functionMatch[1]
+
+      log(functionName, 'function spotted')
+      transpiledInput = transpiledInput.replace(functionReg, `utils.$1$(memory[${memory.length}],`)
+      memory.push({
+        type: 'function',
+        name: functionName,
+        context: getContext(functionName, 'function')
+      })
+
+
+    }
+  } while (antifreeze < 10 && functionMatch)
+
+  transpiledInput = '(' + transpiledInput.replace(/\n/, '),(') + ')'
+  
+  for (let mem of memory) {
+  if (mem.type !== 'variable') {
+  continue
+  }
+    const index = memory.indexOf(mem)
+    
+    const lReg = new RegExp('memory\\[' + index + '\\](?:\\[(\\d+)\\])?', 'g')
+    
+    console.log(lReg.toString())
+
+    let lregmatch = null
+    antifreeze = 0
+    do {
+      if ((lregmatch = lReg.exec(transpiledInput))) {
+      antifreeze++
+        console.log(lregmatch)
+        const l = lregmatch[1]
+        
+        const position = lregmatch.index + lregmatch[0].length
+        if (typeof l === 'undefined') {
+          transpiledInput = transpiledInput.substring(0, position) + '.context[0]' + transpiledInput.substring(position)
+        } else {
+         transpiledInput.substring(0, lregmatch.index) + 'memory[' + index + '].context[' + l + ']' + transpiledInput.substring(134 + lregmatch[0].length)
+        
+        }
+        mem.length = Math.max(mem.length || 0, +l)
+        
+        
+      }
+    } while (antifreeze < 10 && lregmatch)
+    
+    console.log('eneded lreg match check')
+  }
+
+
+  log(transpiledInput, '\n---------------------\ntranspiled:')
+  log(memory, '\n---------------------\nmemory :')
+
+  return {
+    transpiledInput,
+    memory
+  }
+}
+function onChange() {
+
+  const {
+    transpiledInput,
+    memory
+  } = transpile()
+
+  test(transpiledInput, memory)
+}
+
+function test(transpiledInput, memory) {
+  const utilsCopy = memory.reduce((fns, mem) => {
+    if (mem.type === 'function') {
+    	if (!utils[mem.name]) {
+        throw new Error('fn '+mem.name + ' not found');
+      }
+      
+      fns[mem.name + '$'] = (m, v, l) => {
+        if (typeof l === 'number') {
+          memory[memory.indexOf(mem)].length = l
+          return utils[mem.name].apply(null, arguments)
+        }
+      }
+    }
+    return fns
+  }, {})
+  const options = {
+    upColor: 'green',
+    downColor: 'red',
+    smaLength: 27
+  }
+  const bar = {
+    vbuy: 1000,
+    vsell: 2000,
+    cbuy: 1,
+    csell: 2,
+    lbuy: 0,
+    lsell: 1,
+    exchanges: {
+      gdax: {
+        open: 1234,
+        high: 1240,
+        low: 1210,
+        close: 1239
+      },
+      binance: {
+        open: 1233,
+        high: 1239,
+        low: 1213,
+        close: 1239
+      }
+    }
+  }
+
+  const values = []
+  for (let i = 0; i < 3; i++) {
+    values.push('on update ' + new Function('bar', 'memory', 'options', 'utils', 'return ' + transpiledInput)(bar, memory, options, utilsCopy))
+    nextUpdate(bar)
+  }
+  values.push('|newbar|')
+  newBar(bar, memory)
+  for (let i = 0; i < 3; i++) {
+    values.push('on update ' + new Function('bar', 'memory', 'options', 'utils', 'return ' + transpiledInput)(bar, memory, options, utilsCopy))
+    nextUpdate(bar)
+  }
+  values.push('|newbar|')
+  newBar(bar, memory)
+  for (let i = 0; i < 3; i++) {
+    values.push('on update ' + new Function('bar', 'memory', 'options', 'utils', 'return ' + transpiledInput)(bar, memory, options, utilsCopy))
+    nextUpdate(bar)
+  }
+  values.push('|newbar|')
+  newBar(bar, memory)
+  for (let i = 0; i < 3; i++) {
+    values.push('on update ' + new Function('bar', 'memory', 'options', 'utils', 'return ' + transpiledInput)(bar, memory, options, utilsCopy))
+    nextUpdate(bar)
+  }
+  values.push('|newbar|')
+  newBar(bar, memory)
+  values.push('new candle ' + new Function('utils', 'bar', 'options', 'return ' + transpiledInput)(utilsCopy, bar, options))
+
+  console.info('output', values)
+}
+
+function nextUpdate(bar) {
+  bar.vbuy += 100
+  bar.vsell += 150
+  bar.cbuy += 2
+  bar.csell += 5
+  bar.lbuy += 1
+  bar.lsell += 0
+  const priceChange = Math.random() * .001
+  for (const exchangeName in bar.exchanges) {
+    bar.exchanges[exchangeName].close *= +priceChange.toFixed(2)
+    bar.exchanges[exchangeName].high = Math.max(bar.exchanges[exchangeName].high, bar.exchanges[exchangeName].close)
+    bar.exchanges[exchangeName].low = Math.max(bar.exchanges[exchangeName].low, bar.exchanges[exchangeName].close)
+  }
+}
+
+function newBar(bar, memory) {
+
+  bar.vbuy = 0
+  bar.vsell = 0
+  bar.cbuy = 0
+  bar.csell = 0
+  bar.lbuy = 0
+  bar.lsell = 0
+  for (const exchangeName in bar.exchanges) {
+    bar.exchanges[exchangeName].open = bar.exchanges[exchangeName].close
+    bar.exchanges[exchangeName].high = bar.exchanges[exchangeName].high
+    bar.exchanges[exchangeName].low = bar.exchanges[exchangeName].low
+  }
+  /*context: []
+  -- memory[0][0] = 1010
+  context: [1010][]
+  -- memory[0][0] = 1018
+  context: [1018,1010]
+  --*/
+  for (let mem of memory) {
+    if (mem.type === 'variable' && typeof mem.length === 'number') {
+    	mem.context.unshift(mem.context[0])
+      if (mem.context.length > mem.length) {
+				mem.context.splice(0, mem.context.length - mem.length)
+      }
+    }
+  }
+}
+
+
+input.addEventListener('change', () => {
+onChange()
+})
+
+onChange()

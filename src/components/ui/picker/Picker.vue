@@ -246,7 +246,8 @@ export default {
     }
   },
   mounted() {
-    this.pickerRect = this.$refs.canvas.getBoundingClientRect()
+    this.pickerRect = { ...this.$refs.canvas.getBoundingClientRect(), width: this.$refs.canvas.clientWidth, height: this.$refs.canvas.clientHeight }
+
     if (this.mode === 'wheel') {
       this.initWheel()
     }
@@ -276,13 +277,17 @@ export default {
     position: relative;
     margin: 0 auto;
     overflow: hidden;
+    height: 150px;
+    width: 250px;
   }
   &__slider {
-    margin: 20px 20px 0;
+    margin: 1rem 1rem 0;
   }
 
   &__canvas {
     display: block;
+    width: 100%;
+    height: 100%;
   }
 
   &__cursor {

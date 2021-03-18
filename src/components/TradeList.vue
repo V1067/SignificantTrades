@@ -86,19 +86,36 @@ export default {
       this.sfx = new Sfx()
 
       if (this.sfx.context.state === 'suspended') {
-        const resumeOnFocus = (() => {
-          if (this.useAudio) {
-            this.sfx.context.resume()
-          }
+        let lastTryTimestamp = 0
+        const resumeOnFocus = ((sfx, event) => {
+          if (event.type !== 'mousemove' || event.timeStamp - lastTryTimestamp > 3000) {
+            console.log('[sfx] Yet another try to start AudioContext')
+            if (event.type === 'mousemove') {
+              lastTryTimestamp = event.timeStamp
+            }
 
-          if (!this.useAudio || this.sfx.context.state !== 'suspended') {
-            window.removeEventListener('focus', resumeOnFocus, false)
-            window.removeEventListener('blur', resumeOnFocus, false)
-          }
-        }).bind(this)
+            if (this.useAudio) {
+              sfx.context.resume()
+            }
 
-        window.addEventListener('blur', resumeOnFocus, false)
-        window.addEventListener('focus', resumeOnFocus, false)
+            if (!this.useAudio || sfx.context.state !== 'suspended') {
+              console.info(`[sfx] AudioContext resumed successfully during the "${event.type}" event.`)
+              window.removeEventListener('focus', resumeOnFocus)
+              window.removeEventListener('blur', resumeOnFocus)
+              document.body.removeEventListener('mousemove', resumeOnFocus)
+              document.body.removeEventListener('mouseenter', resumeOnFocus)
+              document.body.removeEventListener('mouseleave', resumeOnFocus)
+              document.body.removeEventListener('mouseup', resumeOnFocus)
+            }
+          }
+        }).bind(null, this.sfx)
+
+        window.addEventListener('blur', resumeOnFocus)
+        window.addEventListener('focus', resumeOnFocus)
+        document.body.addEventListener('mousemove', resumeOnFocus)
+        document.body.addEventListener('mouseenter', resumeOnFocus)
+        document.body.addEventListener('mouseleave', resumeOnFocus)
+        document.body.addEventListener('mouseup', resumeOnFocus)
       }
     }
 
@@ -484,7 +501,7 @@ export default {
 .trade {
   display: flex;
   flex-flow: row nowrap;
-  padding: 0 .5rem;
+  padding: 0 0.5rem;
   background-position: center center;
   background-size: cover;
   background-blend-mode: overlay;

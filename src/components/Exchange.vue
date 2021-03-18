@@ -42,24 +42,27 @@
           <span class="condensed">Adj. threshold:</span>
           <span v-if="exchanges[exchange.id].threshold !== 1">{{ $root.formatAmount(minimumThreshold * exchangeMultiplier) }}</span>
         </label>
-        <slider
+
+        <Slider
           :step="0.0001"
           :min="0"
           :max="2"
+          :editable="false"
           :value="exchanges[exchange.id].threshold"
+          @input="
+            $store.commit('settings/SET_EXCHANGE_THRESHOLD', {
+              exchange: exchange.id,
+              threshold: $event
+            })
+          "
           @reset="
             $store.commit('settings/SET_EXCHANGE_THRESHOLD', {
               exchange: exchange.id,
               threshold: 1
             })
           "
-          @output="
-            $store.commit('settings/SET_EXCHANGE_THRESHOLD', {
-              exchange: exchange.id,
-              threshold: $event
-            })
-          "
-        />
+        >
+        </Slider>
       </div>
       <div v-if="exchange.indexedProducts.length" class="form-group mt8">
         <button v-if="canRefreshProducts" class="btn -red -small" @click="refreshProducts">
@@ -73,7 +76,12 @@
 <script>
 import { mapState } from 'vuex'
 
+import Slider from './ui/picker/Slider.vue'
+
 export default {
+  components: {
+    Slider
+  },
   data() {
     return {
       canRefreshProducts: true,

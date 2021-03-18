@@ -31,7 +31,7 @@ export const defaultChartOptions = {
     }
   },
   timeScale: {
-    barSpacing: 15,
+    barSpacing: 4,
     rightOffset: 12,
     lockVisibleTimeRangeOnResize: true,
     rightBarStaysOnScroll: true,
@@ -74,6 +74,8 @@ export const defaultCandlestickOptions = {
   borderVisible: false,
   upColor: '#c3a87a',
   downColor: '#e53935',
+  borderUpColor: '#c3a87a',
+  borderDownColor: '#e53935',
   wickUpColor: 'rgba(223, 195, 148, .8)',
   wickDownColor: 'rgba(224, 91, 95, .8)'
 }

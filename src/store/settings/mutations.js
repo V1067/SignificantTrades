@@ -299,15 +299,6 @@ export default {
 
     Vue.set(state.series[id], 'input', value)
   },
-  SET_CHART_PRICE_MARGINS(state, value) {
-    if (!state.series.price) {
-      state.series.price = {}
-    }
-
-    state.series.price = {
-      scaleMargins: value
-    }
-  },
   TOGGLE_EXCHANGES_BAR(state, value) {
     state.showExchangesBar = value ? true : false
   },

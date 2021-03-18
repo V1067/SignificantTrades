@@ -22,19 +22,24 @@ export default {
     }
   },
   data: () => ({
+    currentColor: null,
     dialogInstance: null
   }),
+  /* watch: {
+    value(newColor) {
+      this.currentColor = newColor
+    }
+  }, */
   beforeDestroy() {
     if (this.dialogInstance) {
-      console.log('bout to destroy dialoginstance (picker)', this.dialogInstance)
       this.dialogInstance.$destroy()
     }
   },
   methods: {
     openPicker() {
       this.dialogInstance = dialogService.openPicker(this.value, color => {
-        this.value = color
-        this.$emit('input', this.value)
+        // this.value = color
+        this.$emit('input', color)
       })
     }
   }

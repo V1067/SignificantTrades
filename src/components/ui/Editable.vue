@@ -3,8 +3,9 @@
 </template>
 
 <script>
+import { countDecimals } from '../../utils/helpers'
 export default {
-  props: ['content'],
+  props: ['content', 'step', 'min', 'max'],
   data() {
     return {
       changed: false
@@ -61,12 +62,15 @@ export default {
         return
       }
 
-      if (!isNaN(event.target.innerText)) {
-        if (event.which === 38) {
-          this.$emit('output', +event.target.innerText + 1)
-        } else if (event.which === 40) {
-          this.$emit('output', +event.target.innerText - 1)
-        }
+      if (!isNaN(event.target.innerText) && (event.which === 38 || event.which === 40)) {
+        const max = typeof this.max === 'undefined' ? Infinity : this.max
+        const min = typeof this.min === 'undefined' ? 0 : this.min
+        const step = this.step || 1
+        const precision = countDecimals(step)
+        const change = step * (event.which === 40 ? -1 : 1)
+        const value = +Math.max(min, Math.min(max, +event.target.innerText + change)).toFixed(precision)
+
+        this.$emit('output', value)
       }
     },
     onFocus() {
@@ -85,6 +89,12 @@ export default {
       this.clickAt = now
     },
     onWheel(event) {
+      if (!document.activeElement.isContentEditable) {
+        return
+      }
+
+      event.preventDefault()
+
       if (!isNaN(event.target.innerText)) {
         this.$emit('output', +event.target.innerText + Math.sign(event.deltaY) * -1)
       }

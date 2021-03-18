@@ -19,11 +19,15 @@ export default {
       value
     })
   },
-  setSeriePreference({ commit }, { id, key, value }) {
+  setSeriePreference({ commit, state }, { id, key, value }) {
     try {
       value = JSON.parse(value)
     } catch (error) {
       // empty
+    }
+
+    if (state.series[id] && state.series[id][key] === value) {
+      return
     }
 
     commit('SET_SERIE_OPTION', { id, key, value })

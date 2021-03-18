@@ -20,6 +20,7 @@
 <script>
 import { mix } from 'color-fns'
 import { getClosestValue, debounce, getEventCords } from '../../../utils/picker'
+import { TOUCH_SUPPORTED } from '../../../utils/constants'
 
 export default {
   name: 'VerteSlider',
@@ -115,6 +116,10 @@ export default {
     },
     initEvents() {
       window.addEventListener('resize', this.handleResize)
+
+      this._onMouseDownHandler = this.onMouseDown.bind(this)
+
+      this.$el.addEventListener(TOUCH_SUPPORTED ? 'touchstart' : 'mousedown', this._onMouseDownHandler, false)
     },
     /**
      * fire select events
@@ -287,6 +292,22 @@ export default {
         if (muted) return
         this.$emitInputEvent()
       })
+    },
+
+    onMouseDown() {
+      // handle double click
+      clearTimeout(this._dblClickTimeout)
+      if (this.pendingDblClick) {
+        this.pendingDblClick = false
+        this.$emit('reset')
+        return
+      }
+
+      // next click might be double click, for the next 300ms
+      this.pendingDblClick = true
+      this._dblClickTimeout = window.setTimeout(() => {
+        this.pendingDblClick = false
+      }, 300)
     }
   },
   created() {
@@ -300,6 +321,9 @@ export default {
       this.updateWidth()
       this.updateValue(undefined, true)
     })
+  },
+  beforeDestroy() {
+    this.$el.removeEventListener(TOUCH_SUPPORTED ? 'touchstart' : 'mousedown', this._onMouseDownHandler)
   },
   destroyed() {
     window.removeEventListener('resize', this.handleResize)
@@ -372,7 +396,7 @@ $checkerboard: linear-gradient(45deg, $accent 25%, transparent 25%), linear-grad
   left: 0;
   will-change: transform;
   color: black;
-  margin: -2px 0 0 -8px;
+  margin: -4px 0 0 -8px;
   width: 12px;
   height: 12px;
   border: 2px solid white;

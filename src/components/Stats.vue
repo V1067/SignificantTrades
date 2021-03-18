@@ -163,8 +163,6 @@ export default {
       if (this._keepAliveTimeout) {
         clearTimeout(this._keepAliveTimeout)
         delete this._keepAliveTimeout
-
-        console.log(`[stats] clear keep alive for chart`)
       }
     },
     chartUpdate() {
@@ -199,8 +197,6 @@ export default {
       if (this._chartUpdateInterval) {
         clearInterval(this._chartUpdateInterval)
         delete this._chartUpdateInterval
-
-        console.log(`[stats] clear chart interval`)
       }
     },
     keepAlive(timerId) {
@@ -239,7 +235,6 @@ export default {
           setTimeout(() => {
             for (let k = 0; k < counters.length; k++) {
               if (counters[k].serie) {
-                console.log(`[stats.keepalive] set data to serie #${k} (${data[k].length} points)`)
                 counters[k].serie.setData(data[k])
               }
             }
@@ -250,8 +245,6 @@ export default {
             }
           })
         }
-      } else {
-        console.log(`[stats] setup keep alive for chart`)
       }
 
       this._keepAliveTimeout = setTimeout(this.keepAlive.bind(this, [this._keepAliveTimeout]), 1000 * 60 * 2)
@@ -272,7 +265,6 @@ export default {
       }, 500)
     },
     prepareCounters() {
-      console.log(`[stats.prepareCounters]`)
       this.clearCounters()
       for (let i = 0; i < this.statsCounters.length; i++) {
         this.createCounter(this.statsCounters[i])
@@ -311,11 +303,9 @@ export default {
     removeCounter(index) {
       const counter = this.getCounter(index)
       if (!counter) {
-        console.log(`[removeCounter] couldnt find counter ${index}`)
         return
       }
       index = counters.indexOf(counter)
-      console.log(`\tunbind counter ${counter.name} index ${index}`)
       counter.unbind()
       if (counter.serie) {
         chart.removeSeries(counter.serie)
@@ -326,12 +316,10 @@ export default {
     refreshCounter(index) {
       const counter = this.getCounter(index)
       if (!counter) {
-        console.log(`[refreshCounter] couldnt find counter ${index}`)
         return
       }
       const options = this.statsCounters.filter(a => a.name === counter.name)[0]
       if (!options) {
-        console.log(`[refreshCounter] couldnt find options for counter ${counter.name}`)
         return
       }
       this.removeCounter(counter.name)
@@ -340,13 +328,11 @@ export default {
     recolorCounter(index, color) {
       const counter = this.getCounter(index)
       if (!counter) {
-        console.log(`[refreshCounter] couldnt find counter ${index}`)
         return
       }
       if (!counter.serie) {
         return
       }
-      console.log('[recolorCounter]', counter.name, color)
 
       counter.color = color
       counter.serie.applyOptions({

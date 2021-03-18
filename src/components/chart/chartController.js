@@ -2,13 +2,14 @@ import '../../data/typedef'
 import store from '../../store'
 import seriesData from '../../data/series'
 import { cache, saveChunk, clearCache, cacheRange } from './chartCache'
-import { formatTime, getHms, setValueByDotNotation, slugify } from '../../utils/helpers'
+import { formatAmount, formatTime, getHms, setValueByDotNotation, slugify } from '../../utils/helpers'
 import { defaultChartOptions, defaultPlotsOptions } from './chartOptions'
 import * as _serieFunctions from './serieFunctions'
 
 import * as TV from 'lightweight-charts'
 import dialogService from '../../services/dialog'
 import { formatRgb, toRgb } from 'color-fns'
+import { MAX_BARS_PER_CHUNKS } from '../../utils/constants'
 const serieFunctions = Object.keys(_serieFunctions).reduce((o, name) => {
   o[name] = _serieFunctions[name]
   return o
@@ -79,9 +80,9 @@ export default class ChartController {
       Object.assign(options[prop], chartColorOptions[prop])
     }
 
-    /* if (store.state.settings.series.price && store.state.settings.series.price.scaleMargins) {
+    if (store.state.settings.series.price && store.state.settings.series.price.scaleMargins) {
       options.priceScale.scaleMargins = store.state.settings.series.price.scaleMargins
-    } */
+    }
 
     this.chartInstance = TV.createChart(containerElement, options)
     this.chartElement = containerElement
@@ -205,8 +206,8 @@ export default class ChartController {
    * Redraw
    * @param
    */
-  redraw(silent) {
-    this.renderVisibleChunks(silent)
+  redraw() {
+    this.renderVisibleChunks()
   }
 
   /**
@@ -223,6 +224,7 @@ export default class ChartController {
    */
   prepareSerie(serie) {
     let input = (serie.options.input || serie.input).toString().replace(/\n/g, '')
+
     // eslint-disable-next-line no-useless-escape
     const reg = new RegExp(`(${this.getAvailableSerieFunctions().join('|')})\\(([^\S]+)\\)`, 'g')
 
@@ -739,8 +741,6 @@ export default class ChartController {
       return
     }
 
-    let canRender = !this.activeChunk || this.activeChunk.rendered
-
     let i = 0
 
     for (i; i < trades.length; i++) {
@@ -749,26 +749,45 @@ export default class ChartController {
 
       if (!this.activeRenderer || this.activeRenderer.timestamp < timestamp) {
         if (this.activeRenderer) {
-          if (!this.activeChunk || (this.activeChunk.to < this.activeRenderer.timestamp && this.activeChunk.bars.length > 500)) {
-            // first time storing bar from realtime trades
-            const visibleRange = this.getVisibleRange()
-
-            canRender = this.activeRenderer.timestamp >= visibleRange.from && this.activeRenderer.timestamp <= visibleRange.to
-
-            if (this.activeChunk) {
-              this.activeChunk.active = false
+          if (!this.activeChunk || (this.activeChunk.to < this.activeRenderer.timestamp && this.activeChunk.bars.length >= MAX_BARS_PER_CHUNKS)) {
+            if (!this.activeChunk) {
+              console.log(`[chart/renderRealtimeTrades] formatbar require require active chunk`)
+            } else {
+              console.log(`[chart/renderRealtimeTrades] current active chunk is too large (${this.activeChunk.bars.length} bars)`)
             }
 
-            this.activeChunk = saveChunk({
-              from: this.activeRenderer.timestamp,
-              to: this.activeRenderer.timestamp,
-              active: true,
-              rendered: canRender,
-              bars: []
-            })
+            if (!this.activeChunk && cacheRange.to === this.activeRenderer.timestamp) {
+              cache[cache.length - 1].active = true
+              this.activeChunk = cache[cache.length - 1]
+              this.activeChunk.active = true
+              console.log(`\t-> set last chunk as activeChunk (same timestamp, ${this.activeChunk.bars.length} bars)`)
+            } else {
+              if (this.activeChunk) {
+                console.log(
+                  `\t-> mark current active chunk as inactive (#${cache.indexOf(this.activeChunk)} | FROM: ${formatTime(
+                    this.activeChunk.from
+                  )} | TO: ${formatTime(this.activeChunk.to)})\n\t-> then create new chunk as activeChunk`
+                )
+                this.activeChunk.active = false
+              }
+
+              this.activeChunk = saveChunk({
+                from: this.activeRenderer.timestamp,
+                to: this.activeRenderer.timestamp,
+                active: true,
+                rendered: true,
+                bars: []
+              })
+
+              console.log(
+                `[chart/renderRealtimeTrades] create new active chunk (#${cache.indexOf(this.activeChunk)} | FROM: ${formatTime(
+                  this.activeChunk.from
+                )} | TO: ${formatTime(this.activeChunk.to)})`
+              )
+            }
           }
 
-          if (canRender && this.activeRenderer.hasData) {
+          if (this.activeRenderer.hasData) {
             formatedBars.push(this.computeBar(this.activeRenderer))
           }
 
@@ -781,7 +800,7 @@ export default class ChartController {
 
           this.activeChunk.to = cacheRange.to = this.activeRenderer.timestamp
 
-          if (canRender && this.renderedRange.to < this.activeRenderer.timestamp) {
+          if (this.renderedRange.to < this.activeRenderer.timestamp) {
             this.renderedRange.to = this.activeRenderer.timestamp
           }
 
@@ -833,7 +852,7 @@ export default class ChartController {
       }
     }
 
-    if (canRender && this.activeRenderer.hasData) {
+    if (this.activeRenderer.hasData) {
       formatedBars.push(this.computeBar(this.activeRenderer))
 
       if (this.renderedRange.to < this.activeRenderer.timestamp) {
@@ -890,9 +909,6 @@ export default class ChartController {
       const timestamp = trades[j] ? Math.floor(trades[j][1] / 1000 / store.state.settings.timeframe) * store.state.settings.timeframe : Infinity
 
       if (bar.timestamp < timestamp) {
-        if (bar.timestamp && this.activeRenderer && bar.timestamp > this.activeRenderer.timestamp) {
-          debugger
-        }
         for (let exchange in bar.exchanges) {
           if (bar.timestamp && bar.exchanges[exchange].hasData) {
             bars.push(this.cloneBar(bar.exchanges[exchange], bar.timestamp))
@@ -950,7 +966,7 @@ export default class ChartController {
    * @param {number} [timestamp] apply timestamp to returned bar
    */
   cloneBar(bar, timestamp) {
-    return {
+    const barData = {
       exchange: bar.exchange,
       timestamp: timestamp || bar.timestamp,
       open: bar.open,
@@ -964,6 +980,8 @@ export default class ChartController {
       lbuy: bar.lbuy,
       lsell: bar.lsell
     }
+
+    return barData
   }
 
   /**
@@ -979,12 +997,9 @@ export default class ChartController {
       return
     }
 
-    const visibleRange = this.getVisibleRange()
-
     const computedSeries = {}
     let from = null
     let to = null
-    let length = 0
 
     let temporaryRenderer
 
@@ -1007,10 +1022,6 @@ export default class ChartController {
             }
 
             computedSeries[id].push(computedBar[id])
-          }
-
-          if (temporaryRenderer.timestamp > visibleRange.to) {
-            length++
           }
         }
 
@@ -1053,90 +1064,54 @@ export default class ChartController {
 
     this.replaceData(computedSeries)
 
-    if (!series) {
+    /* if (!series) {
       const setSP = length * -1 || 16
 
       this.chartInstance.timeScale().scrollToPosition(setSP)
-    }
+      console.log('rendered', length, 'bars, so scroll to position ', length + ' * -1 || 16', '=' + setSP)
+    } */
 
-    if (!this.activeChunk || (this.activeChunk.rendered && this.activeChunk.to === temporaryRenderer.timestamp)) {
-      if (!series || !this.activeRenderer) {
-        if (this.activeRenderer) {
-          temporaryRenderer.vbuy = this.activeRenderer.vbuy
-          temporaryRenderer.vsell = this.activeRenderer.vsell
-          temporaryRenderer.lbuy = this.activeRenderer.lbuy
-          temporaryRenderer.lsell = this.activeRenderer.lsell
-          temporaryRenderer.cbuy = this.activeRenderer.cbuy
-          temporaryRenderer.csell = this.activeRenderer.csell
-          temporaryRenderer.open = this.activeRenderer.open
-          for (let exchange in this.activeRenderer.exchanges) {
-            temporaryRenderer.exchanges[exchange] = this.activeRenderer.exchanges[exchange]
-          }
-          temporaryRenderer.timestamp = this.activeRenderer.timestamp
-        }
-        this.activeRenderer = temporaryRenderer
-      } else if (series) {
-        for (let id of series) {
-          this.activeRenderer.series[id] = temporaryRenderer.series[id]
-        }
+    if (this.activeRenderer) {
+      for (let id in temporaryRenderer.series) {
+        console.log('override active renderer serie', id)
+
+        this.activeRenderer.series[id] = temporaryRenderer.series[id]
       }
+    } else {
+      this.activeRenderer = temporaryRenderer
     }
   }
 
   /**
    * Renders chunks that collides with visible range
    */
-  renderVisibleChunks(silent) {
-    if (!cache.length) {
+  renderVisibleChunks() {
+    if (!cache.length || !this.chartInstance) {
       return
     }
 
-    const visibleRange = this.getVisibleRange()
+    const visibleRange = this.chartInstance.timeScale().getVisibleRange()
 
-    visibleRange.from -= +store.state.settings.timeframe
-    visibleRange.to += +store.state.settings.timeframe
-
-    let bars = []
-
-    console.log('[renderVisibleChunks]', `from: ${formatTime(visibleRange.from)} -> to: ${formatTime(visibleRange.to)}`)
-
-    for (let i = cache.length - 1; i >= 0; i--) {
-      const chunk = cache[i]
-
-      if (
-        (chunk.from >= visibleRange.from && chunk.from <= visibleRange.to) ||
-        (chunk.to >= visibleRange.from && chunk.to <= visibleRange.to) ||
-        (chunk.from <= visibleRange.from && chunk.to >= visibleRange.to)
-      ) {
-        let reasons = []
-
-        if (chunk.from >= visibleRange.from && chunk.from <= visibleRange.to) {
-          reasons.push('start of chunk visible')
-        }
-        if (chunk.to >= visibleRange.from && chunk.to <= visibleRange.to) {
-          reasons.push('end of chunk visible')
-        }
-        if (chunk.from <= visibleRange.from && chunk.to >= visibleRange.to) {
-          reasons.push('larger than (or equal to) view')
-        }
-        console.log(
-          `[renderVisibleChunks] select chunk ${chunk.active ? '(active chunk)' : ''} n°${cache.indexOf(chunk)} from: ${formatTime(
-            chunk.from
-          )} -> to: ${formatTime(chunk.to)}\n\t->${reasons}`
-        )
-        bars = chunk.bars.concat(bars)
-        chunk.rendered = true
-      } else {
-        chunk.rendered = false
-        console.log(
-          `[renderVisibleChunks] ignore chunk ${chunk.active ? '(active chunk)' : ''} n°${cache.indexOf(chunk)} from: ${formatTime(
-            chunk.from
-          )} -> to: ${formatTime(chunk.to)}`
-        )
-      }
+    if (visibleRange) {
+      console.log('[chart/renderVisibleChunks] VisibleRange: ', `from: ${formatTime(visibleRange.from)} -> to: ${formatTime(visibleRange.to)}`)
     }
 
-    this.renderBars(bars, null, silent)
+    let selection = ['------------------------']
+    const bars = cache
+      .filter(c => {
+        c.rendered = !visibleRange || c.to > visibleRange.from - store.state.settings.timeframe * 20
+        selection.push(
+          `${c.rendered ? '[selected] ' : ''} #${cache.indexOf(c)} | FROM: ${formatTime(c.from)} | TO: ${formatTime(c.to)} (${formatAmount(
+            c.bars.length
+          )} bars)`
+        )
+
+        return c.rendered
+      })
+      .reduce((bars, chunk) => bars.concat(chunk.bars), [])
+    selection.push('------------------------')
+    console.log(selection.join('\n') + '\n')
+    this.renderBars(bars, null)
   }
 
   /**

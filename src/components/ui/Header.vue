@@ -114,7 +114,7 @@ header#header {
 
   .header__title {
     width: 100%;
-    padding: 10px;
+    padding: 0.45rem 0.5rem 0.55rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

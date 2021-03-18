@@ -1,5 +1,7 @@
 export const APPLICATION_START_TIME = +new Date()
 export const MASTER_DOMAIN = /aggr.trade$/.test(window.location.hostname)
+export const MAX_BARS_PER_CHUNKS = 50
+export const MAX_CHUNKS = 100
 export const TOUCH_SUPPORTED = (function() {
   var prefixes = ' -webkit- -moz- -o- -ms- '.split(' ')
   var mq = function(query) {
@@ -10,8 +12,6 @@ export const TOUCH_SUPPORTED = (function() {
     return true
   }
 
-  // include the 'heartz' as a way to have a non matching MQ to help terminate the join
-  // https://git.io/vznFH
   var query = ['(', prefixes.join('touch-enabled),('), 'heartz', ')'].join('')
   return mq(query)
 })()

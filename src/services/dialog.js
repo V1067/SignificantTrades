@@ -54,8 +54,6 @@ class DialogService {
   open(component, props = {}) {
     component = this.createComponent(component, props)
 
-    console.log(component)
-
     this.mountDialog(component)
 
     return component
