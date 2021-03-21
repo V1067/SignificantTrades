@@ -298,6 +298,9 @@ export default {
 
     Vue.set(state.series[id], 'input', value)
   },
+  CUSTOMIZE_SERIE(state, id) {
+    Vue.set(state.series[id], 'options', {})
+  },
   REMOVE_SERIE(state, id) {
     Vue.delete(state.series, id)
   },

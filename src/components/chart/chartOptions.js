@@ -31,7 +31,7 @@ export const defaultChartOptions = {
     }
   },
   timeScale: {
-    barSpacing: 4,
+    barSpacing: 3,
     rightOffset: 12,
     lockVisibleTimeRangeOnResize: true,
     rightBarStaysOnScroll: true,

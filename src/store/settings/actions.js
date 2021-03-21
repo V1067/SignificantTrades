@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import { getColorLuminance, splitRgba } from '../../utils/colors'
-import { slugify, uniqueName } from '../../utils/helpers'
+import { getSerieOptions, slugify, uniqueName } from '../../utils/helpers'
 
 export default {
   updateStat({ commit, state }, { index, prop, value }) {
@@ -49,7 +49,7 @@ export default {
     commit('SET_SERIE_OPTION', {
       id,
       key: 'visible',
-      value: typeof state.series[id].options.visible === 'undefined' ? false : !state.series[id].options.visible
+      value: !state.series[id].options || typeof state.series[id].options.visible === 'undefined' ? false : !state.series[id].options.visible
     })
   },
   setSerieOption({ commit, state }, { id, key, value }) {
@@ -57,6 +57,19 @@ export default {
       value = JSON.parse(value)
     } catch (error) {
       // empty
+    }
+
+    if (key === 'scaleMargins') {
+      const currentPriceScaleId = state.series[id].options.priceScaleId
+
+      if (currentPriceScaleId) {
+        for (const _id in state.series) {
+          const serieOptions = getSerieOptions(_id)
+          if (id !== _id && serieOptions.priceScaleId === currentPriceScaleId) {
+            this.dispatch('settings/setSerieOption', { id: _id, key, value })
+          }
+        }
+      }
     }
 
     if (state.series[id] && state.series[id].options[key] === value) {

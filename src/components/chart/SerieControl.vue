@@ -38,7 +38,7 @@ export default {
       }
     },
     visible: function() {
-      return typeof this.serie.options.visible === 'undefined' ? true : this.serie.options.visible
+      return !this.serie.options || typeof this.serie.options.visible === 'undefined' ? true : this.serie.options.visible
     },
     error: function() {
       return this.$store.state.app.activeSeriesErrors[this.id]
@@ -46,13 +46,19 @@ export default {
   },
   methods: {
     edit() {
-      dialogService.open(SerieDialog, { id: this.id })
+      dialogService.open(SerieDialog, { id: this.id }, 'serie')
     },
     bringOnTop() {
       alert('top')
     },
     toggleVisibility() {
-      this.$store.dispatch('settings/toggleSerieVisibility', this.id)
+      if (!this.serie.options) {
+        this.$store.commit('settings/CUSTOMIZE_SERIE', this.id)
+      }
+
+      this.$nextTick(() => {
+        this.$store.dispatch('settings/toggleSerieVisibility', this.id)
+      })
     },
     remove() {
       this.$store.dispatch('settings/toggleSerie', this.id)
@@ -108,13 +114,11 @@ export default {
     }
 
     > .btn {
-      background-color: $blue;
+      background-color: rgba($blue, 0.5);
       color: white;
-      opacity: 0.5;
       border-radius: 0;
 
       &:hover {
-        opacity: 1;
         background-color: $blue;
       }
 
@@ -144,7 +148,7 @@ export default {
     text-shadow: none;
   }
   .serie__controls > .btn {
-    background-color: $green;
+    background-color: rgba($green, 0.5);
 
     &:hover {
       background-color: $green;

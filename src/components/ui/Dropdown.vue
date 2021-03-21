@@ -10,10 +10,13 @@
               class="dropdown__option"
               v-for="(value, index) in options"
               :key="index"
-              :class="{ active: alwaysShowPlaceholder && index === selected }"
+              :class="{ active: !alwaysShowPlaceholder && index === selected }"
               @click="set(index)"
-              v-html="value"
-            ></div>
+            >
+              <slot :value="value" :index="index">
+                <div>{{ value }}</div>
+              </slot>
+            </div>
           </div>
         </div>
       </transition>

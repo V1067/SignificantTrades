@@ -37,7 +37,7 @@ export default {
         }
 
         if (typeof notice.timeout === 'undefined') {
-          notice.timeout = notice.type === 'error' ? 15000 : 3000
+          notice.timeout = notice.type === 'error' ? 10000 : 3000
         }
 
         if (notice.timeout > 0) {

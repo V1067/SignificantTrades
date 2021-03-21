@@ -10,6 +10,7 @@ import ChartCache from './chartCache'
 import SerieTranspiler from './serieTranspiler'
 import dialogService from '../../services/dialog'
 import SerieDialog from './SerieDialog.vue'
+import { defaultChartSeries } from './chartSeries'
 export default class ChartController {
   constructor() {
     /** @type {TV.IChartApi} */
@@ -121,7 +122,7 @@ export default class ChartController {
   setSerieOption({ id, key, value }) {
     const serie = this.getSerie(id)
 
-    if (!serie) {
+    if (!serie || serie.enabled === false) {
       return
     }
 
@@ -269,13 +270,26 @@ export default class ChartController {
    * @returns {boolean} success if true
    */
   addSerie(id) {
-    const serieSettings = store.state.settings.series[id]
-    const serieOptions = Object.assign({}, defaultSerieOptions, defaultPlotsOptions[serieSettings.type] || {}, serieSettings.options || {})
-    const serieType = serieSettings.type
-    const serieInput = serieSettings.input
+    const serieSettings = store.state.settings.series[id] || {}
+    const defaultSerieSettings = defaultChartSeries[id] || {}
+    const serieType = serieSettings.type || defaultSerieSettings.type
+
+    if (!serieType) {
+      throw new Error('unknown-serie-type')
+    }
+
+    const serieOptions = Object.assign(
+      {},
+      defaultSerieOptions,
+      defaultPlotsOptions[serieType] || {},
+      defaultSerieSettings.options || {},
+      serieSettings.options || {}
+    )
+
+    const serieInput = serieSettings.input || defaultSerieSettings.input
 
     if (id === 'price' && !serieOptions.title) {
-      serieOptions.title = store.state.app.pairs.join('+')
+      serieOptions.title = serieSettings.name = store.state.app.pairs.join('+')
     }
 
     console.info(`[chart/addSerie] adding ${id}`)
@@ -297,6 +311,12 @@ export default class ChartController {
     const apiMethodName = 'add' + (serieType.charAt(0).toUpperCase() + serieType.slice(1)) + 'Series'
 
     serie.api = this.chartInstance[apiMethodName](serieOptions)
+
+    if (serieOptions.scaleMargins && serieOptions.priceScaleId) {
+      serie.api.applyOptions({
+        scaleMargins: serieOptions.scaleMargins
+      })
+    }
 
     this.activeSeries.push(serie)
 
@@ -346,10 +366,14 @@ export default class ChartController {
         error: error.message
       })
 
-      if (!dialogService.isDialogOpened('SerieDialog')) {
-        dialogService.open(SerieDialog, {
-          id: serie.id
-        })
+      if (!dialogService.isDialogOpened('serie')) {
+        dialogService.open(
+          SerieDialog,
+          {
+            id: serie.id
+          },
+          'serie'
+        )
       }
 
       return false
@@ -1084,10 +1108,14 @@ export default class ChartController {
           error: `${serie.id} is NaN`
         })
 
-        if (!dialogService.isDialogOpened('SerieDialog')) {
-          dialogService.open(SerieDialog, {
-            id: serie.id
-          })
+        if (!dialogService.isDialogOpened('serie')) {
+          dialogService.open(
+            SerieDialog,
+            {
+              id: serie.id
+            },
+            'serie'
+          )
         }
 
         continue

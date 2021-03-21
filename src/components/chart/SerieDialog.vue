@@ -8,6 +8,7 @@
       </div>
       <div class="column -center"></div>
     </template>
+    <p v-if="description" style="opacity: .5" class="mb15 mt0"><i class="icon-info mr8"></i> {{ description }}</p>
     <div class="mb15">
       <dropdown
         class="form-control -left -center"
@@ -157,6 +158,7 @@ import { defaultPlotsOptions, defaultSerieOptions } from './chartOptions'
 import Behave from 'behave-js'
 import SerieDialog from './SerieDialog.vue'
 import dialogService from '../../services/dialog'
+import { defaultChartSeries } from './chartSeries'
 
 const ignoredOptionsKeys = ['crosshairMarkerVisible']
 
@@ -182,22 +184,28 @@ export default {
     serieSettings: function() {
       return store.state.settings.series[this.id]
     },
+    defaultSettings: function() {
+      return defaultChartSeries[this.id] || {}
+    },
     error: function() {
       return store.state.app.activeSeriesErrors[this.id]
     },
     name: {
       get: function() {
-        return this.serieSettings.name
+        return this.serieSettings.name || this.defaultSettings.name
       },
       set: function(newName) {
         this.newName = newName
       }
     },
     type: function() {
-      return this.serieSettings.type
+      return this.serieSettings.type || this.defaultSettings.type
     },
     input: function() {
-      return this.serieSettings.input
+      return this.serieSettings.input || this.defaultSettings.input
+    },
+    description: function() {
+      return this.serieSettings.description || this.defaultSettings.description
     },
     enabled: function() {
       return typeof this.serieSettings.enabled === 'undefined' ? true : this.serieSettings.enabled
@@ -220,7 +228,13 @@ export default {
     }
   },
   created() {
-    this.refreshOptions()
+    if (!this.serieSettings.options) {
+      this.$store.commit('settings/CUSTOMIZE_SERIE', this.id)
+    }
+
+    this.$nextTick(() => {
+      this.refreshOptions()
+    })
   },
   mounted() {
     this.$nextTick(function() {
@@ -320,7 +334,13 @@ export default {
         return null
       }
 
-      const preferedValue = this.serieSettings.options[key]
+      let preferedValue
+
+      if (typeof this.serieSettings.options[key] !== 'undefined') {
+        preferedValue = this.serieSettings.options[key]
+      } else if (this.defaultSettings.options) {
+        preferedValue = this.serieSettings.options[key]
+      }
       const defaultValue = this.getDefaultValue(key)
       let finalValue = ''
 
@@ -335,20 +355,21 @@ export default {
       }
 
       this.currentValues[key] = finalValue
-
+      /*
       if (
         finalValue &&
         typeof finalValue !== 'object' &&
         typeof preferedValue === 'undefined' &&
         typeof (defaultPlotsOptions[this.type] || {})[key] === 'undefined'
       ) {
+        debugger
         store.dispatch('settings/setSerieOption', {
           id: this.id,
           key,
           value: finalValue
         })
       }
-
+*/
       return this.currentValues[key]
     },
     setType(newType) {
@@ -389,13 +410,15 @@ export default {
     },
     refreshOptions() {
       const serieDefaultOptionsKeys = Object.keys(this.serieSettings.options)
+      const exampleSerieOptionsKeys = Object.keys(this.defaultSettings.options || {})
 
       const inputOptionsKeys = this.getInputOptions(this.input)
       const typeOptionsKeys = Object.keys({ ...defaultSerieOptions, ...defaultPlotsOptions[this.type] })
-
-      const mergedOptionsKeys = [...serieDefaultOptionsKeys, ...inputOptionsKeys, ...typeOptionsKeys].filter((x, i, a) => {
-        return ignoredOptionsKeys.indexOf(x) === -1 && a.indexOf(x) == i
-      })
+      const mergedOptionsKeys = [...exampleSerieOptionsKeys, ...serieDefaultOptionsKeys, ...inputOptionsKeys, ...typeOptionsKeys].filter(
+        (x, i, a) => {
+          return ignoredOptionsKeys.indexOf(x) === -1 && a.indexOf(x) == i
+        }
+      )
 
       const colorOptionsKeys = mergedOptionsKeys.filter(k => /color/i.test(k))
       const otherOptionsKeys = mergedOptionsKeys.filter(k => !/color/i.test(k))
@@ -477,9 +500,13 @@ export default {
       const id = await store.dispatch('settings/createSerie', store.state.settings.series[this.id])
 
       await this.close()
-      dialogService.open(SerieDialog, {
-        id
-      })
+      dialogService.open(
+        SerieDialog,
+        {
+          id
+        },
+        'serie'
+      )
     },
     createInputEditor() {
       setTimeout(() => {
