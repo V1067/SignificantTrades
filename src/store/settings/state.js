@@ -1,6 +1,7 @@
 import { parseQueryString } from '../../utils/helpers'
 import { MASTER_DOMAIN } from '../../utils/constants'
 import DEFAULTS from './defaults.json'
+import { defaultChartSeries } from '../../components/chart/chartSeries'
 
 /**
  *  QUERY STRING PARSER
@@ -41,16 +42,21 @@ if (MASTER_DOMAIN) {
   }
 }
 
-if (STORED && STORED.series) {
+if (STORED.series) {
   for (const serieId in STORED.series) {
     if (!STORED.series[serieId].input) {
       delete STORED.series[serieId]
     }
   }
+}
 
-  if (!Object.keys(STORED.series).length) {
-    STORED.series = DEFAULTS.series
-  }
+if (!STORED.series || !Object.keys(STORED.series).length) {
+  STORED.series = Object.keys(defaultChartSeries)
+    .filter(id => defaultChartSeries[id].enabled !== false)
+    .reduce((series, id) => {
+      series[id] = {}
+      return series
+    }, {})
 }
 
 export default Object.assign({}, DEFAULTS, EXTRA, STORED, QUERY_STRING)

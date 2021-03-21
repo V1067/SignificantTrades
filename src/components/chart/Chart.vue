@@ -63,7 +63,7 @@ import ChartController from './chartController'
 import socket from '../../services/socket'
 
 import dialogService from '../../services/dialog'
-import { formatPrice, formatAmount, formatTime, getSeriesSettings } from '../../utils/helpers'
+import { formatPrice, formatAmount, formatTime, getSerieSettings } from '../../utils/helpers'
 
 import SerieControl from './SerieControl.vue'
 import { MAX_BARS_PER_CHUNKS } from '../../utils/constants'
@@ -109,9 +109,10 @@ export default {
       'chartTheme'
     ]),
     inactiveSeries: function() {
-      const series = getSeriesSettings()
+      const series = Object.keys(this.$store.state.settings.series)
+        .map(id => getSerieSettings(id))
         .filter(serie => {
-          return serie.enabled !== true
+          return serie.enabled === false
         })
         .concat([
           {
@@ -119,7 +120,6 @@ export default {
           }
         ])
 
-      console.log('inactive:', series)
       return series
     }
   },

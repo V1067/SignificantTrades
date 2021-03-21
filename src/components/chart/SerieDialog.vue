@@ -339,7 +339,7 @@ export default {
       if (typeof this.serieSettings.options[key] !== 'undefined') {
         preferedValue = this.serieSettings.options[key]
       } else if (this.defaultSettings.options) {
-        preferedValue = this.serieSettings.options[key]
+        preferedValue = this.defaultSettings.options[key]
       }
       const defaultValue = this.getDefaultValue(key)
       let finalValue = ''

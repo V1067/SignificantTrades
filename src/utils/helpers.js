@@ -218,34 +218,20 @@ export function array_move(arr, old_index, new_index) {
   arr.splice(new_index, 0, arr.splice(old_index, 1)[0])
 }
 
-export function getSerieOptions(id) {
+export function getSerieSettings(id) {
   const serieSettings = store.state.settings.series[id] || {}
   const defaultSerieSettings = defaultChartSeries[id] || {}
 
-  return Object.assign({}, defaultSerieSettings.options || {}, serieSettings.options || {})
+  return { ...serieSettings, ...defaultSerieSettings, options: Object.assign({}, defaultSerieSettings.options || {}, serieSettings.options || {}) }
 }
 
-export function getSeriesSettings(withOptions = false) {
+export function getAllSeries() {
   const ids = Object.keys(store.state.settings.series)
     .concat(Object.keys(defaultChartSeries))
     .filter((x, i, a) => a.indexOf(x) == i)
 
   return ids.reduce((series, id) => {
-    const serieSettings = store.state.settings.series[id] || {}
-    const defaultSerieSettings = defaultChartSeries[id] || {}
-
-    const serie = {
-      id,
-      ...defaultSerieSettings,
-      ...serieSettings,
-      aquired: typeof serieSettings.options !== 'undefined'
-    }
-
-    if (withOptions) {
-      serie.options = getSerieOptions(id)
-    }
-
-    series.push(serie)
+    series.push(getSerieSettings(id))
 
     return series
   }, [])

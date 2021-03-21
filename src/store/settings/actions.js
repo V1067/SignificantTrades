@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import { getColorLuminance, splitRgba } from '../../utils/colors'
-import { getSerieOptions, slugify, uniqueName } from '../../utils/helpers'
+import { getSerieSettings, slugify, uniqueName } from '../../utils/helpers'
 
 export default {
   updateStat({ commit, state }, { index, prop, value }) {
@@ -64,7 +64,7 @@ export default {
 
       if (currentPriceScaleId) {
         for (const _id in state.series) {
-          const serieOptions = getSerieOptions(_id)
+          const serieOptions = getSerieSettings(_id).options
           if (id !== _id && serieOptions.priceScaleId === currentPriceScaleId) {
             this.dispatch('settings/setSerieOption', { id: _id, key, value })
           }
@@ -93,7 +93,9 @@ export default {
   async renameSerie({ commit, state }, { id, name }) {
     const newId = uniqueName(slugify(name), Object.keys(state.series))
 
-    const serie = { ...state.series[id], name, id: newId, enabled: false }
+    let serieSource = getSerieSettings(id)
+
+    const serie = { ...serieSource, name, id: newId, enabled: false }
 
     commit('CREATE_SERIE', serie)
 

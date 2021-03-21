@@ -10,14 +10,7 @@
   "exchanges": {
     "hitbtc": { "disabled": true }
   },
-  "series": {
-    "cvd": {},
-    "price": {},
-    "volume": {},
-    "liquidations": {},
-    "volume_delta": {},
-    "cvd-50-ma": {}
-  },
+  "series": {},
   "maxRows": 100,
   "aggregateTrades": true,
   "decimalPrecision": null,

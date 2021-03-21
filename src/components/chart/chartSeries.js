@@ -17,11 +17,7 @@ export const defaultChartSeries = {
       wickDownColor: 'rgb(255,152,0)',
       borderVisible: true,
       lastValueVisible: true,
-      priceLineVisible: true,
-      scaleMargins: {
-        top: 0.05,
-        bottom: 0.6
-      }
+      priceLineVisible: true
     }
   },
   price: {
@@ -38,11 +34,7 @@ export const defaultChartSeries = {
       lastValueVisible: true,
       topColor: 'rgba(33,150,243,0.26)',
       lineColor: 'rgb(33,150,243)',
-      bottomColor: 'rgba(33,150,243,0)',
-      scaleMargins: {
-        top: 0.4,
-        bottom: 0.2
-      }
+      bottomColor: 'rgba(33,150,243,0)'
     }
   },
   volume: {
@@ -95,15 +87,10 @@ export const defaultChartSeries = {
     type: 'line',
     name: 'CTD',
     description: 'Cumulative Trade Delta',
-    priceScaleId: 'price',
     options: {
       priceScaleId: 'ctd',
       lineStyle: 4,
-      lineWidth: 1,
-      scaleMargins: {
-        top: 0.05,
-        bottom: 0.6
-      }
+      lineWidth: 1
     }
   },
   'cvd-50-ma': {
@@ -112,6 +99,7 @@ export const defaultChartSeries = {
     enabled: true,
     input: 'sma($cvd.close, options.smaLength)',
     options: {
+      priceScaleId: 'right',
       color: 'rgb(255,235,59)',
       smaLength: 50,
       lineWidth: 1

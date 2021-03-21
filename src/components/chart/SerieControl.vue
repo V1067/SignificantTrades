@@ -23,6 +23,7 @@
 <script>
 import SerieDialog from './SerieDialog.vue'
 import dialogService from '../../services/dialog'
+import { defaultChartSeries } from './chartSeries'
 
 export default {
   props: ['id', 'legend'],
@@ -33,6 +34,8 @@ export default {
     name: function() {
       if (this.serie.name && this.serie.name.length) {
         return this.serie.name
+      } else if (defaultChartSeries[this.id]) {
+        return defaultChartSeries[this.id].name
       } else {
         return this.id
       }
