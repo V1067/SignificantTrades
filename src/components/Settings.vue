@@ -414,47 +414,55 @@
           Other
           <i class="icon-up"></i>
         </div>
-        <div class="mb8">
-          <div class="form-group mb8">
+        <div class="form-group mb8">
+          <label class="checkbox-control">
+            <input
+              type="checkbox"
+              class="form-control"
+              :checked="!!decimalPrecision"
+              @change="$store.commit('settings/SET_DECIMAL_PRECISION', decimalPrecision ? null : 2)"
+            />
+            <div></div>
+            <span @click.stop.prevent="$event.currentTarget.children[0].focus()">
+              Round up to
+              <editable placeholder="auto" :content="decimalPrecision" @output="$store.commit('settings/SET_DECIMAL_PRECISION', $event)"></editable
+              >&nbsp;decimal(s)
+            </span>
+          </label>
+        </div>
+
+        <div class="mb8 -activable column" :class="{ active: showExchangesBar }">
+          <div class="form-group -tight">
             <label class="checkbox-control">
               <input
                 type="checkbox"
-                class="form-control"
-                :checked="!!decimalPrecision"
-                @change="$store.commit('settings/SET_DECIMAL_PRECISION', decimalPrecision ? null : 2)"
-              />
-              <div></div>
-              <span @click.stop.prevent="$event.currentTarget.children[0].focus()">
-                Round up to
-                <editable placeholder="auto" :content="decimalPrecision" @output="$store.commit('settings/SET_DECIMAL_PRECISION', $event)"></editable
-                >&nbsp;decimal(s)
-              </span>
-            </label>
-          </div>
-          <div class="form-group mb8">
-            <label class="checkbox-control">
-              <input
-                type="checkbox"
+                id="showExchangesBar"
                 class="form-control"
                 :checked="showExchangesBar"
                 @change="$store.commit('settings/TOGGLE_EXCHANGES_BAR', $event.target.checked)"
               />
               <div></div>
-              <span>Show exchanges bar</span>
             </label>
           </div>
-          <!--<div class="form-group mb8">
-            <label class="checkbox-control">
-              <input
-                type="checkbox"
-                class="form-control"
-                :checked="debug"
-                @change="$store.commit('toggleDebug', $event.target.checked)"
-              />
-              <div></div>
-              <span>Debug</span>
-            </label>
-          </div>-->
+          <div class="-fill form-group">
+            <div class="form-group mb8">
+              <label for="showExchangesBar">
+                Show exchanges bar
+              </label>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-control">
+                <input
+                  type="checkbox"
+                  class="form-control"
+                  :checked="animateExchangesBar"
+                  @change="$store.commit('settings/TOGGLE_EXCHANGES_BAR_ANIMATION', $event.target.checked)"
+                />
+                <div></div>
+                <span>Animate order change</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="mt15 settings__footer flex-middle">
           <div class="form-group">
@@ -546,6 +554,7 @@ export default {
       'chartBackgroundColor',
       'timezoneOffset',
       'showExchangesBar',
+      'animateExchangesBar',
       'settings',
       'debug'
     ]),
@@ -798,32 +807,6 @@ export default {
     .divider {
       opacity: 0.5;
       margin: 0 0.25rem;
-    }
-
-    .donation {
-      display: block;
-      font-weight: 600;
-      letter-spacing: -0.5px;
-      font-size: 14px;
-      font-family: monospace;
-      color: white;
-      text-shadow: 0 2px rgba(0, 0, 0, 0.2);
-
-      img {
-        width: 100%;
-        margin: 0px;
-        display: block;
-        transition: transform 0.2s $ease-elastic;
-
-        &:active {
-          transform: scale(0.9);
-        }
-      }
-
-      .donation__address {
-        letter-spacing: -0.5px;
-        font-size: 10px;
-      }
     }
 
     .settings__browse-import {

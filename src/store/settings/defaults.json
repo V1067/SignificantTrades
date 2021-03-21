@@ -62,7 +62,7 @@
         "emaLength": 14,
         "priceScaleId": "volume_ema",
         "color": "#c14047",
-        "lineWidth": 2,
+        "lineWidth": 1,
         "scaleMargins": {
           "top": 0.8,
           "bottom": 0
@@ -79,7 +79,7 @@
         "lineType": 1,
         "priceScaleId": "volume_ema",
         "color": "#c9b087",
-        "lineWidth": 2,
+        "lineWidth": 1,
         "scaleMargins": {
           "top": 0.8,
           "bottom": 0
@@ -164,6 +164,7 @@
   "chartColor": "",
   "timezoneOffset": 0,
   "showExchangesBar": false,
+  "animateExchangesBar": true,
   "timeframe": 10,
   "debug": false,
   "useAudio": false,

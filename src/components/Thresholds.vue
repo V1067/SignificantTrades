@@ -777,8 +777,4 @@ export default {
     transform: translateY(0%);
   }
 }
-
-.flip-list-move {
-  transition: transform 0.4s $ease-out-expo;
-}
 </style>

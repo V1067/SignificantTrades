@@ -271,4 +271,14 @@ header#header {
     right: -8%;
   }
 }
+
+#app.-light header#header button {
+  &:hover,
+  &:active,
+  &.active {
+    .icon-volume-muted {
+      text-shadow: 0 0 20px $green, 0 0 2px $green;
+    }
+  }
+}
 </style>

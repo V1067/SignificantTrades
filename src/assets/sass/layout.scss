@@ -290,3 +290,7 @@ body {
     }
   }
 }
+
+.flip-list-move {
+  transition: transform 0.4s $ease-out-expo;
+}

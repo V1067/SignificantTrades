@@ -1,8 +1,15 @@
 <template>
-  <div id="exchanges" class="exchanges condensed" @mouseenter="hovering = true" @mouseleave="hovering = false">
+  <transition-group
+    :name="transitionGroupAnimation"
+    tag="div"
+    id="exchanges"
+    class="exchanges condensed"
+    @mouseenter="hovering = true"
+    @mouseleave="hovering = false"
+  >
     <div
-      v-for="(id, index) in list"
-      :key="index"
+      v-for="id in list"
+      :key="id"
       :class="'-' + id + ' -' + status[id].status"
       :title="id"
       @click="$store.commit('settings/TOGGLE_EXCHANGE_VISIBILITY', id)"
@@ -11,7 +18,7 @@
         <span v-html="$root.formatPrice(status[id].price)"></span> &nbsp;
       </div>
     </div>
-  </div>
+  </transition-group>
 </template>
 
 <script>
@@ -28,7 +35,14 @@ export default {
   },
   computed: {
     ...mapState('app', ['activeExchanges']),
-    ...mapState('settings', ['exchanges'])
+    ...mapState('settings', ['exchanges', 'animateExchangesBar']),
+    transitionGroupAnimation: function() {
+      if (this.animateExchangesBar) {
+        return 'flip-list'
+      } else {
+        return null
+      }
+    }
   },
   created() {
     this.list = Object.keys(this.activeExchanges).filter(id => this.activeExchanges[id])

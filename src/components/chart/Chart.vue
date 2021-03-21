@@ -22,7 +22,7 @@
         v-if="inactiveSeries.length"
         :options="inactiveSeries"
         :alwaysShowPlaceholder="false"
-        placeholder="+ Add serie"
+        placeholder="+ serie"
         @output="addSerie"
       ></dropdown>
     </div>
@@ -100,7 +100,7 @@ export default {
     inactiveSeries: function() {
       return Object.keys(this.$store.state.settings.series)
         .filter(id => this.$store.state.settings.series[id].enabled === false)
-        .concat(['+ Create'])
+        .concat(['+ create'])
     }
   },
 

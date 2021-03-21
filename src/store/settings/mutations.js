@@ -304,6 +304,9 @@ export default {
   TOGGLE_EXCHANGES_BAR(state, value) {
     state.showExchangesBar = value ? true : false
   },
+  TOGGLE_EXCHANGES_BAR_ANIMATION(state, value) {
+    state.animateExchangesBar = value ? true : false
+  },
   ADD_RECENT_COLOR(state, value) {
     state.recentColors.push(value)
   },

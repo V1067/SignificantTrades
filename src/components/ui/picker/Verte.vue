@@ -1,11 +1,11 @@
 <template>
-  <button
-    class="btn"
-    :style="{
-      backgroundColor: value
-    }"
-    @click="openPicker"
-  >
+  <button class="btn verte-control" @click="openPicker">
+    <div
+      class="verte-control__color"
+      :style="{
+        backgroundColor: value
+      }"
+    ></div>
     <i class="icon-dropper"></i>
   </button>
 </template>

@@ -3,8 +3,6 @@
     <div class="serie__name" @click="edit">{{ name }}</div>
 
     <template v-if="!error">
-      <div v-if="legend" class="serie__legend">{{ legend }}</div>
-
       <div class="serie__controls">
         <button class="btn -small" @click="toggleVisibility" v-tippy title="show/hide">
           <i :class="{ 'icon-eye': !visible, 'icon-eye-crossed': visible }"></i>
@@ -13,6 +11,7 @@
         <button class="btn -small" @click="edit" v-tippy title="edit"><i class="icon-edit"></i></button>
         <button class="btn -small" @click="remove" v-tippy title="disable"><i class="icon-cross"></i></button>
       </div>
+      <div v-if="legend" class="serie__legend">{{ legend }}</div>
     </template>
     <template v-else>
       <i class="icon-warning mr15"></i>
@@ -80,45 +79,44 @@ export default {
     position: relative;
     cursor: pointer;
     line-height: 1.5;
-
-    &:hover {
-      + .serie__controls {
-        visibility: visible;
-        pointer-events: all;
-        transition-delay: 0s;
-      }
-    }
   }
 
   &__legend {
-    color: lighten($green, 20%);
+    color: lighten($blue, 20%);
     margin-left: 0.4em;
     font-family: monospace;
     pointer-events: none;
     line-height: 1.8;
     letter-spacing: 0px;
+    order: 2;
+    transition: visibility;
+    transition-delay: 1s;
 
     text-shadow: 1px 1px black;
   }
 
   &__controls {
-    //padding-left: 1rem;
-    display: inline-flex;
+    padding-left: 1rem;
+    margin-left: -0.5rem;
+    display: none;
     align-items: center;
     pointer-events: none;
-    visibility: hidden;
-    transition: visibility;
-    transition-delay: 1s;
+    order: 1;
 
     &:hover {
-      pointer-events: all;
-      visibility: visible;
-      transition-delay: 0s;
+      display: inline-flex;
     }
 
     > .btn {
-      background-color: $orange;
+      background-color: $blue;
+      color: white;
+      opacity: 0.5;
       border-radius: 0;
+
+      &:hover {
+        opacity: 1;
+        background-color: $blue;
+      }
 
       &:first-child {
         border-top-left-radius: 2px;
@@ -131,10 +129,26 @@ export default {
       }
     }
   }
+
+  &:hover {
+    .serie__controls {
+      display: inline-flex;
+      pointer-events: all;
+    }
+  }
 }
 
-#app.-light .serie__legend {
-  color: $blue;
-  text-shadow: none;
+#app.-light {
+  .serie__legend {
+    color: $green;
+    text-shadow: none;
+  }
+  .serie__controls > .btn {
+    background-color: $green;
+
+    &:hover {
+      background-color: $green;
+    }
+  }
 }
 </style>

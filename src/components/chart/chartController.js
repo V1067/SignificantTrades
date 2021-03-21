@@ -913,17 +913,8 @@ export default class ChartController {
 
     this.replaceData(computedSeries)
 
-    /* if (!series) {
-      const setSP = length * -1 || 16
-
-      this.chartInstance.timeScale().scrollToPosition(setSP)
-      console.log('rendered', length, 'bars, so scroll to position ', length + ' * -1 || 16', '=' + setSP)
-    } */
-
     if (this.activeRenderer) {
       for (let id in temporaryRenderer.series) {
-        console.log('override active renderer serie', id)
-
         this.activeRenderer.series[id] = temporaryRenderer.series[id]
       }
     } else {
@@ -1238,7 +1229,17 @@ export default class ChartController {
     borderColor.alpha = 0.2
     borderColor = formatRgb(borderColor)
 
+    const crossHairColor = store.state.settings.chartTheme === 'light' ? 'rgba(0, 0, 0, .25)' : 'rgba(255, 255, 255, .75)'
+
     return {
+      crosshair: {
+        vertLine: {
+          color: crossHairColor
+        },
+        horzLine: {
+          color: crossHairColor
+        }
+      },
       layout: {
         textColor: color,
         borderColor
