@@ -4,7 +4,6 @@ import * as seriesUtils from './serieUtils'
 import socket from '../../services/socket'
 const AVERAGE_FUNCTIONS_NAMES = ['sma', 'ema', 'cma']
 const VARIABLE_REGEX = /([a-zA-Z0_9_]+)\s*=\s*(.*)/
-const FUNCTION_REGEX = /([a-zA-Z0_9_]+)\(/
 const STRIP_COMMENTS_REGEX = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/gm
 const ARGUMENT_NAMES_REGEX = /([^\s,]+)/g
 const VARIABLES_VAR_NAME = 'vars'
@@ -128,11 +127,14 @@ export default class SerieTranspiler {
   parseFunctions(output, instructions) {
     let functionMatch = null
 
+    const FUNCTION_REGEX = new RegExp(`([a-zA-Z0_9_]+)\\(`, 'g')
+
     do {
       if ((functionMatch = FUNCTION_REGEX.exec(output))) {
         const functionName = functionMatch[1]
 
         if (Object.prototype.hasOwnProperty.call(Math, functionName)) {
+          FUNCTION_REGEX.lastIndex = functionMatch.index + functionMatch[0].length
           continue
         }
 
