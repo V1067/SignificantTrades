@@ -43,21 +43,21 @@ export default {
       'decimalPrecision',
       'showLogos'
     ]),
-    ...mapState('app', ['actives'])
+    ...mapState('app', ['activeExchanges'])
   },
   created() {
     // cache list of active exchange
-    activeExchanges = this.$store.state.app.actives.slice(0, this.$store.state.app.actives.length)
+    activeExchanges = Object.keys(this.activeExchanges).filter(id => !!this.activeExchanges[id])
 
     this.retrieveStoredGifs()
     this.prepareColorsSteps()
 
     socket.$on('trades.aggr', this.onTrades)
 
-    this.onStoreMutation = this.$store.subscribe((mutation, state) => {
+    this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
         case 'app/EXCHANGE_UPDATED':
-          activeExchanges = state.app.actives.slice(0, state.app.actives.length)
+          activeExchanges = Object.keys(this.activeExchanges).filter(id => !!this.activeExchanges[id])
           break
         case 'settings/SET_PAIR':
           this.clearList()
@@ -589,6 +589,10 @@ export default {
   .icon-quote,
   .icon-base {
     line-height: 0;
+  }
+
+  .icon-side {
+    font-size: 80%;
   }
 
   .trade__exchange {

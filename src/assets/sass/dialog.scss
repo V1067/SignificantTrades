@@ -109,11 +109,9 @@
     margin: 0;
     color: white;
     border: 1px solid lighten($dark, 20%);
-    background: rgba(0, 0, 0, 0.1);
     border-radius: 2px;
-    padding: (1rem/3);
+    padding: 0.5rem;
     box-sizing: border-box;
-    font-family: monospace;
     width: 100%;
     letter-spacing: 0;
   }
@@ -158,6 +156,26 @@
     &.-across {
       margin-left: -1rem;
       margin-right: -1rem;
+    }
+  }
+}
+
+.dialog.serie-dialog {
+  .title {
+    text-transform: none;
+
+    code {
+      font-size: 61.8%;
+      line-height: 0;
+      vertical-align: middle;
+      margin-top: -0.2rem;
+      display: inline-block;
+      padding: 0.5rem;
+      letter-spacing: 0;
+    }
+
+    [contenteditable="true"] {
+      color: $blue;
     }
   }
 }

@@ -100,7 +100,7 @@ export default {
     }
   },
   computed: {
-    ...mapState('app', ['isLoading', 'actives', 'notices', 'showSearch', 'pairs']),
+    ...mapState('app', ['isLoading', 'activeExchanges', 'notices', 'showSearch', 'pairs']),
     ...mapState('settings', [
       'pair',
       'showChart',
@@ -250,12 +250,12 @@ export default {
     },
     updatePrice() {
       let price = 0
-      let total = 0
+      let nbPricedExchanges = 0
+      let nbActiveExchanges = null
       let decimals = null
 
-      const activesExchangesLength = this.actives.length
-
       if (this.calculateOptimalPrice) {
+        nbActiveExchanges = Object.values(this.activeExchanges).map(a => !!a).length
         decimals = []
       }
 
@@ -268,18 +268,18 @@ export default {
           decimals.push(countDecimals(exchange.price))
         }
 
-        if (this.actives.indexOf(exchange.id) === -1) {
+        if (!this.activeExchanges[exchange.id]) {
           continue
         }
 
-        total++
+        nbPricedExchanges++
         price += exchange.price
       }
 
-      if (total) {
-        price = price / total
+      if (nbPricedExchanges) {
+        price = price / nbPricedExchanges
 
-        if (this.calculateOptimalPrice && total >= activesExchangesLength / 2) {
+        if (this.calculateOptimalPrice && nbPricedExchanges >= nbActiveExchanges / 2) {
           const optimalDecimal = Math.round(decimals.reduce((a, b) => a + b, 0) / decimals.length)
           this.$store.commit('app/SET_OPTIMAL_DECIMAL', optimalDecimal)
 

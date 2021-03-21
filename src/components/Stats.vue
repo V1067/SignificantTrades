@@ -49,7 +49,6 @@ export default {
   },
   computed: {
     ...mapState('settings', ['statsPeriod', 'statsChart', 'statsCounters']),
-    ...mapState('app', ['actives']),
     colors() {
       return this.statsCounters.reduce((obj, counter) => {
         obj[counter.name] = counter.color

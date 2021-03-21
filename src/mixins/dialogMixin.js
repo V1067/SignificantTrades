@@ -23,7 +23,13 @@ export default {
         this.output = data
       }
 
-      setTimeout(this.$destroy.bind(this), 500)
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve()
+
+          this.$destroy()
+        }, 500)
+      })
     }
   }
 }

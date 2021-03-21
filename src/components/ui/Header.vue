@@ -159,10 +159,6 @@ header#header {
       opacity: 0.2;
     }
 
-    .icon-volume-muted {
-      transform: scale(1.2);
-    }
-
     &:hover,
     &:active,
     &.active {

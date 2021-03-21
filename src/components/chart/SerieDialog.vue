@@ -1,12 +1,16 @@
 <template>
-  <Dialog :open="open" @clickOutside="close">
+  <Dialog :open="open" @clickOutside="close" class="serie-dialog">
     <template v-slot:header>
-      <div class="title">{{ title }}</div>
+      <div class="title">
+        <editable :class="{ '-no-grab': renaming }" :content="name" :editable="renaming" @output="name = $event" placeholder="Nom"></editable>
+        <code class="text-lowercase">({{ id }})</code>
+        <i class="icon-sm -no-grab" style="cursor: pointer" :class="{ 'icon-check': renaming, 'icon-edit': !renaming }" @click="renameSerie"></i>
+      </div>
       <div class="column -center"></div>
     </template>
     <div class="mb15">
       <dropdown
-        class="available-types -left -center"
+        class="form-control -left -center"
         :selected="type"
         label="Type"
         :options="availableTypes"
@@ -24,6 +28,7 @@
         ></span
       ></label>
       <textarea ref="behaveInput" class="form-control" rows="5" :value="input" @change="setInput($event.target.value)"></textarea>
+      <p v-if="error" class="form-feedback"><i class="icon-warning mr15"></i> {{ error }}</p>
     </div>
     <hr />
     <div class="column w-100">
@@ -43,10 +48,26 @@
         <div v-for="option in otherOptions" :key="option.key" class="form-group mb15">
           <label v-if="option.label !== false">{{ option.label }}</label>
 
-          <template v-if="option.type === 'string' || option.type === 'number'">
+          <dropdown
+            v-if="option.key === 'lineType'"
+            class="form-control -left -center"
+            :selected="currentValues[option.key]"
+            :options="{ 0: 'Simple', 1: 'with steps' }"
+            placeholder="lineType"
+            @output="validate(option, $event)"
+          ></dropdown>
+          <dropdown
+            v-else-if="option.key === 'lineStyle' || option.key === 'priceLineStyle'"
+            class="form-control -left -center"
+            :selected="currentValues[option.key]"
+            :options="{ 0: 'Solid', 1: 'Dotted', 2: 'Dashed', 3: 'LargeDashed', 4: 'SparseDotted' }"
+            placeholder="lineStyle"
+            @output="validate(option, $event)"
+          ></dropdown>
+          <template v-else-if="option.type === 'string' || option.type === 'number'">
             <editable class="form-control" :content="currentValues[option.key]" @output="validate(option, $event)"></editable>
           </template>
-          <template v-if="option.type === 'boolean'">
+          <template v-else-if="option.type === 'boolean'">
             <label class="checkbox-control">
               <input type="checkbox" class="form-control" :checked="currentValues[option.key]" @change="validate(option, $event.target.checked)" />
               <div></div>
@@ -57,100 +78,87 @@
     </div>
     <div v-if="positionOption" class="column mt15">
       <div class="-fill form-group mr15">
-        <div class="form-group">
-          <label>Top</label>
+        <div class="form-group mb15">
+          <label>top</label>
           <editable class="form-control" :content="positionOption.value.top" :step="0.01" @output="setScale('top', $event)"></editable>
         </div>
         <div class="form-group">
-          <label>Bottom</label>
+          <label>bottom</label>
           <editable class="form-control" :content="positionOption.value.bottom" :step="0.01" @output="setScale('bottom', $event)"></editable>
         </div>
       </div>
-      <div class="-fill column mr15">
-        <div class="-fill form-group mr15">
-          <label class="column help-text mb8">
-            <div class="text-left text-nowrap">Start at top</div>
-            <div class="text-right text-nowrap">Start at bottom</div>
-          </label>
-          <input
-            class="w-100"
-            type="range"
-            min="0"
-            max="1"
-            step=".1"
-            :value="positionOption.value.top"
-            @input="setScale('top', $event.target.value)"
-          />
-        </div>
-        <div class="-fill form-group ml15">
-          <label class="column help-text mb8">
-            <div class="text-left text-nowrap">End at top</div>
-            <div class="text-right text-nowrap">End at bottom</div>
-          </label>
-          <input
-            class="w-100  -reverse"
-            type="range"
-            min="0"
-            max="1"
-            step=".1"
-            :value="positionOption.value.bottom"
-            @input="setScale('bottom', $event.target.value)"
-          />
-        </div>
+      <div class="-fill column mr15 serie__scale-margins">
+        <input class="w-100" type="range" min="0" max="1" step=".1" :value="positionOption.value.top" @input="setScale('top', $event.target.value)" />
+        <input
+          class="w-100"
+          type="range"
+          min="0"
+          max="1"
+          step=".1"
+          :value="positionOption.value.bottom"
+          @input="setScale('bottom', $event.target.value)"
+        />
       </div>
     </div>
     <div v-if="formatOption" class="column mt15">
       <div class="form-group">
-        <label>precision</label>
-        <editable
-          class="form-control"
-          :content="formatOption.value.minMove"
-          @output="validate(formatOption, { ...formatOption.value, precision: +$event || 1 })"
-        ></editable>
+        <label>price format</label>
+        <dropdown
+          class="form-control -left -center"
+          :selected="formatOption.value.type"
+          :options="{ price: 'Price', volume: 'Volume', percent: 'Percent' }"
+          placeholder="lineType"
+          @output="validate(formatOption, { ...formatOption.value, type: $event })"
+        ></dropdown>
       </div>
-      <div class="form-group">
-        <label>minMove</label>
-        <editable
-          class="form-control"
-          :content="formatOption.value.precision"
-          @output="validate(formatOption, { ...formatOption.value, minMove: +$event || 0.1 })"
-        ></editable>
+      <div>
+        <div class="form-group mb15">
+          <label>precision</label>
+          <editable
+            class="form-control"
+            :content="formatOption.value.minMove"
+            @output="validate(formatOption, { ...formatOption.value, precision: +$event || 1 })"
+          ></editable>
+        </div>
+        <div class="form-group">
+          <label>minMove</label>
+          <editable
+            class="form-control"
+            :content="formatOption.value.precision"
+            @output="validate(formatOption, { ...formatOption.value, minMove: +$event || 0.1 })"
+          ></editable>
+        </div>
       </div>
     </div>
     <hr />
-    <div class="form-group">
-      <label
-        class="checkbox-control -on-off"
-        v-tippy="{ placement: 'left' }"
-        :title="!enabled ? 'Enable ' + id : 'Disable ' + id"
-        @change="$store.commit('settings/TOGGLE_SERIE', { id, value: $event.target.checked })"
-      >
+    <div class="form-group column">
+      <label class="checkbox-control -on-off" v-tippy :title="!enabled ? 'Enable' : 'Disable'" @change="$store.dispatch('settings/toggleSerie', id)">
         <input type="checkbox" class="form-control" :checked="enabled" />
         <div></div>
         <span>
           {{ enabled ? 'Active' : 'Disabled' }}
         </span>
       </label>
+      <button class="btn -blue mr15" v-tippy title="Duplicate" @click="duplicateSerie">
+        <i class="icon-duplicate"></i>
+      </button>
+      <button class="btn -red" v-tippy title="Serie will be lost forever" @click="removeSerie">
+        <i class="icon-trash"></i>
+      </button>
     </div>
   </Dialog>
 </template>
 
 <script>
-import seriesData from '../../data/series'
 import store from '../../store'
-import { snakeToSentence } from '../../utils/helpers'
 import Dialog from '../ui/Dialog.vue'
 import DialogMixin from '../../mixins/dialogMixin'
-import { defaultPlotsOptions } from './chartOptions'
+import { defaultPlotsOptions, defaultSerieOptions } from './chartOptions'
 import Behave from 'behave-js'
+import SerieDialog from './SerieDialog.vue'
+import dialogService from '../../services/dialog'
 
-const optionsByType = {
-  line: ['color', 'lineWidth'],
-  histogram: ['color', 'upColor', 'downColor'],
-  candlestick: ['upColor', 'downColor', 'wickUpColor', 'wickDownColor', 'borderUpColor', 'borderDownColor', 'borderVisible'],
-  bars: ['upColor', 'downColor', 'openVisible'],
-  area: ['topColor', 'bottomColor', 'lineColor', 'lineStyle', 'lineWidth']
-}
+const ignoredOptionsKeys = ['crosshairMarkerVisible']
 
 export default {
   props: ['id'],
@@ -159,51 +167,41 @@ export default {
     Dialog
   },
   data: () => ({
-    title: 'Serie',
     editor: null,
-    enabled: true,
-    type: 'line',
+    newName: null,
+    renaming: false,
     currentValues: {},
-    serieDefaultOptionsKeys: [],
-    colorOptionsKeys: [],
+    // inputOptionsKeys: [],
     otherOptionsKeys: [],
-    inputOptionsKeys: [],
+    colorOptionsKeys: [],
     colorOptions: [],
     otherOptions: [],
     availableTypes: { line: 'Line', area: 'Area', histogram: 'Histogram', candlestick: 'Candlestick', bar: 'Bar' }
   }),
   computed: {
-    userPreferences: function() {
-      const options = store.state.settings.series[this.id] || {}
-
-      return options
+    serieSettings: function() {
+      return store.state.settings.series[this.id]
     },
-    /*colorOptions() {
-      return optionsByType[this.type]
-        .filter(o => /color/i.test(o))
-        .map(key => ({
-          key,
-          label: key,
-          value: this.getValue(key),
-          type: 'color'
-        }))
+    error: function() {
+      return store.state.app.activeSeriesErrors[this.id]
     },
-    typeOptions() {
-      const serieOptionsKeys = this.options.map(o => o.key)
-      const typeOptions = optionsByType[this.type]
-        .filter(o => serieOptionsKeys.indexOf(o) === -1)
-        .map(key => ({
-          key,
-          label: key,
-          value: this.getValue(key),
-          type: this.getType(this.getDefaultValue(key), key)
-        }))
-
-      return typeOptions
+    name: {
+      get: function() {
+        return this.serieSettings.name
+      },
+      set: function(newName) {
+        this.newName = newName
+      }
     },
-    otherOptions() {
-      return this.options.concat(this.typeOptions).filter(o => !/color/i.test(o.key))
-    },*/
+    type: function() {
+      return this.serieSettings.type
+    },
+    input: function() {
+      return this.serieSettings.input
+    },
+    enabled: function() {
+      return typeof this.serieSettings.enabled === 'undefined' ? true : this.serieSettings.enabled
+    },
     positionOption() {
       return {
         key: 'scaleMargins',
@@ -213,10 +211,6 @@ export default {
       }
     },
     formatOption() {
-      if (!this.serieDefaultOptionsKeys.priceFormat) {
-        return null
-      }
-
       return {
         key: 'priceFormat',
         label: 'priceFormat',
@@ -226,17 +220,6 @@ export default {
     }
   },
   created() {
-    this.title = snakeToSentence(this.id)
-    this.enabled = typeof this.userPreferences.enabled === 'undefined' ? true : this.userPreferences.enabled
-    this.type = typeof this.userPreferences.type === 'string' ? this.userPreferences.type : seriesData[this.id].type
-    this.input = typeof this.userPreferences.input === 'string' ? this.userPreferences.input : seriesData[this.id].input
-
-    const serieDefinition = seriesData[this.id]
-
-    if (serieDefinition) {
-      this.serieDefaultOptionsKeys = Object.keys(serieDefinition.options)
-    }
-
     this.refreshOptions()
   },
   mounted() {
@@ -276,7 +259,7 @@ export default {
     validate(option, value) {
       const key = typeof option === 'string' ? option : option.key
 
-      store.dispatch('settings/setSeriePreference', {
+      store.dispatch('settings/setSerieOption', {
         id: this.id,
         key,
         value
@@ -301,16 +284,43 @@ export default {
       this.validate(option, scale)
     },
     getDefaultValue(key) {
-      let value = seriesData[this.id].options[key]
+      let value
 
-      if (typeof value === 'undefined' && defaultPlotsOptions[this.type]) {
+      if (typeof defaultPlotsOptions[this.type] !== 'undefined') {
         value = defaultPlotsOptions[this.type][key]
+      }
+
+      if (typeof value === 'undefined' && typeof defaultSerieOptions[key] !== 'undefined') {
+        value = defaultSerieOptions[key]
+      }
+
+      if (typeof value === 'undefined' && /length$/i.test(key)) {
+        value = 14
+      }
+
+      if (typeof value === 'undefined' && /color$/i.test(key)) {
+        value = '#c3a87a'
+      }
+
+      if (typeof value === 'undefined' && /width$/i.test(key)) {
+        value = 1
+      }
+
+      if (typeof value === 'undefined' && key === 'scaleMargins') {
+        value = {
+          top: 0.1,
+          bottom: 0.2
+        }
       }
 
       return value
     },
     getValue(key) {
-      const preferedValue = (store.state.settings.series[this.id] || {})[key]
+      if (!this.serieSettings) {
+        return null
+      }
+
+      const preferedValue = this.serieSettings.options[key]
       const defaultValue = this.getDefaultValue(key)
       let finalValue = ''
 
@@ -322,19 +332,28 @@ export default {
 
       this.currentValues[key] = finalValue
 
+      if (
+        finalValue &&
+        typeof finalValue !== 'object' &&
+        typeof preferedValue === 'undefined' &&
+        typeof (defaultPlotsOptions[this.type] || {})[key] === 'undefined'
+      ) {
+        store.dispatch('settings/setSerieOption', {
+          id: this.id,
+          key,
+          value: finalValue
+        })
+      }
+
       return this.currentValues[key]
     },
     setType(newType) {
       this.$store.commit('settings/SET_SERIE_TYPE', { id: this.id, value: newType })
 
-      this.type = newType
-
       this.refreshOptions()
     },
     setInput(newInput) {
       this.$store.commit('settings/SET_SERIE_INPUT', { id: this.id, value: newInput })
-
-      this.input = newInput
 
       this.refreshOptions()
     },
@@ -365,12 +384,14 @@ export default {
       }
     },
     refreshOptions() {
-      const serieDefaultOptionsKeys = this.serieDefaultOptionsKeys
+      const serieDefaultOptionsKeys = Object.keys(this.serieSettings.options)
 
       const inputOptionsKeys = this.getInputOptions(this.input)
-      const typeOptionsKeys = optionsByType[this.type]
+      const typeOptionsKeys = Object.keys({ ...defaultSerieOptions, ...defaultPlotsOptions[this.type] })
 
-      const mergedOptionsKeys = [...serieDefaultOptionsKeys, ...inputOptionsKeys, ...typeOptionsKeys].filter((x, i, a) => a.indexOf(x) == i)
+      const mergedOptionsKeys = [...serieDefaultOptionsKeys, ...inputOptionsKeys, ...typeOptionsKeys].filter((x, i, a) => {
+        return ignoredOptionsKeys.indexOf(x) === -1 && a.indexOf(x) == i
+      })
 
       const colorOptionsKeys = mergedOptionsKeys.filter(k => /color/i.test(k))
       const otherOptionsKeys = mergedOptionsKeys.filter(k => !/color/i.test(k))
@@ -407,15 +428,40 @@ export default {
         }
       }
 
-      for (let key of this.inputOptionsKeys) {
+      /*for (let key of this.inputOptionsKeys) {
         if (mergedOptionsKeys.indexOf(key) === -1) {
           this.removeOption(key)
         }
-      }
+      }*/
 
       this.colorOptionsKeys = colorOptionsKeys
-      this.inputOptionsKeys = inputOptionsKeys
       this.otherOptionsKeys = otherOptionsKeys
+    },
+    async removeSerie() {
+      await this.close()
+
+      store.dispatch('settings/removeSerie', this.id)
+    },
+    async renameSerie() {
+      if (!this.renaming) {
+        this.renaming = true
+
+        return
+      }
+
+      if (this.newName && this.newName.length) {
+        this.id = await store.dispatch('settings/renameSerie', { id: this.id, name: this.newName })
+        this.renaming = false
+        this.newName = null
+      }
+    },
+    async duplicateSerie() {
+      const id = await store.dispatch('settings/createSerie', store.state.settings.series[this.id])
+
+      await this.close()
+      dialogService.open(SerieDialog, {
+        id
+      })
     },
     createInputEditor() {
       setTimeout(() => {
@@ -430,8 +476,6 @@ export default {
           autoIndent: true,
           fence: false
         })
-
-        console.log(this.$refs.behaveInput, this.editor)
       })
     }
   }

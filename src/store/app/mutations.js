@@ -9,13 +9,7 @@ export default {
       Vue.set(this.state.settings.exchanges, exchange, {})
     }
 
-    const index = state.actives.indexOf(exchange)
-
-    if (active && index === -1) {
-      state.actives.push(exchange)
-    } else if (!active && index !== -1) {
-      state.actives.splice(index, 1)
-    }
+    Vue.set(state.activeExchanges, exchange, active)
   },
   TOGGLE_LOADING(state, value) {
     state.isLoading = value ? true : false
@@ -59,6 +53,31 @@ export default {
   },
   SET_BUILD_DATE(state, value) {
     state.buildDate = value
+  },
+  ENABLE_SERIE(state, id) {
+    const index = state.activeSeries.indexOf(id)
+
+    if (index === -1) {
+      state.activeSeries.push(id)
+    }
+  },
+  DISABLE_SERIE(state, id) {
+    const index = state.activeSeries.indexOf(id)
+
+    if (index !== -1) {
+      state.activeSeries.splice(index, 1)
+    }
+
+    if (state.activeSeriesErrors[id]) {
+      Vue.delete(state.activeSeriesErrors, id)
+    }
+  },
+  SET_SERIE_ERROR(state, { id, error }) {
+    if (error) {
+      Vue.set(state.activeSeriesErrors, id, error)
+    } else {
+      Vue.set(state.activeSeriesErrors, id, null)
+    }
   },
   INDEX_PRODUCTS(state, { pairs, exchange }) {
     for (let pair of pairs) {

@@ -2,8 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.6] - 2021-03-13
+## [2.7] - 2021-03-21
+
 ### Changed
+- Custom series
+- Show / hide serie without unloading
+- Dynamic series (detach activeSerie from serie type allowing infinite series on chart)
+
+## [2.6] - 2021-03-13
+
+### Changed
+
 - Allow change serie input from serie dialog
 - Fix remove threshold
 - Never unload present chunks (> minimum visible range)
@@ -16,11 +25,6 @@ All notable changes to this project will be documented in this file.
 - Animate threshold reordering
 - Import / export settings
 - Background color option
-
-TODO:
-// - New serie transpiler and variable memory injection strategy
-// - Show / hide serie without unloading
-// - Dynamic series (detach activeSerie from serie type allowing infinite series on chart)
 
 
 ## [2.5.7] - 2020-12-05
@@ -39,7 +43,7 @@ TODO:
 - Fix 1000k issue
 - Sound varitions now match thresholds (1 bip at minimum threshold, 2 at the 2nd threshold, 4 at the third)
 - Doubled sell song power
-- Fixed ohlc "high" spkike at liquidation (server)
+- Fixed ohlc "high" spikes at liquidation (server)
 
 ## [2.5.5] - 2020-05-06
 

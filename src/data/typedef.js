@@ -20,11 +20,30 @@
 /**
  * @typedef {{
  *  id: string,
- *  fn: function,
+ *  input: string,
  *  type: string,
  *  options: Object,
+ *  model: TranspilationResult,
  *  api: import('lightweight-charts').ISeriesApi
  * }} ActiveSerie
+ */
+
+/**
+ * @typedef {{
+ *  output: string,
+ *  references: string[],
+ *  exchanges: string[],
+ *  variables: Instruction[],
+ *  functions: Instruction[],
+ * }} TranspilationResult
+ */
+
+/**
+ * @typedef {{
+ *  name: string,
+ *  type: string,
+ *  state: any
+ * }} Instruction
  */
 
 /**

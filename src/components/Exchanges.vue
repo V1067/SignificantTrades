@@ -27,11 +27,11 @@ export default {
     }
   },
   computed: {
-    ...mapState('app', ['actives']),
+    ...mapState('app', ['activeExchanges']),
     ...mapState('settings', ['exchanges'])
   },
   created() {
-    this.list = this.actives.slice(0, this.actives.length)
+    this.list = Object.keys(this.activeExchanges).filter(id => this.activeExchanges[id])
     this.status = socket.exchanges.reduce((obj, exchange) => {
       obj[exchange.id] = {
         status: 'pending',
@@ -41,12 +41,12 @@ export default {
     }, {})
     this.onStoreMutation = this.$store.subscribe(mutation => {
       if (mutation.type === 'app/EXCHANGE_UPDATED' && mutation.payload) {
-        const active = this.actives.indexOf(mutation.payload) !== -1
-        const listed = this.list.indexOf(mutation.payload) !== -1
+        const active = mutation.payload.active
+        const listed = this.list.indexOf(mutation.payload.exchange) !== -1
         if (active && !listed) {
-          this.list.push(mutation.payload)
+          this.list.push(mutation.payload.exchange)
         } else if (!active && listed) {
-          this.list.splice(this.list.indexOf(mutation.payload), 1)
+          this.list.splice(this.list.indexOf(mutation.payload.exchange), 1)
         }
       }
     })
@@ -62,7 +62,7 @@ export default {
       const now = +new Date()
       for (let i = 0; i < socket.exchanges.length; i++) {
         const id = socket.exchanges[i].id
-        if (this.actives.indexOf(socket.exchanges[i].id) === -1 || this.status[id].price === socket.exchanges[i].price) {
+        if (!this.activeExchanges[socket.exchanges[i].id] || this.status[id].price === socket.exchanges[i].price) {
           continue
         }
         if (!socket.exchanges[i].price) {

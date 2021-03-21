@@ -1,16 +1,3 @@
-/**
- * Utilities
- */
-export function newArray(length, valueSource) {
-  let array = []
-  for (let i = 0; i < length; i++) {
-    const value = typeof valueSource === 'function' ? valueSource() : valueSource
-    array.push(value)
-  }
-
-  return array
-}
-
 export function debounce(func, immediate = false) {
   let timeout
   return function() {
@@ -23,15 +10,6 @@ export function debounce(func, immediate = false) {
     timeout = window.requestAnimationFrame(later)
     if (callNow) func(...arguments)
   }
-}
-
-export function isElementClosest(element, wrapper) {
-  while (element !== document && element !== null) {
-    if (element === wrapper) return true
-    element = element.parentNode
-  }
-
-  return false
 }
 
 export function getClosestValue(array, value) {

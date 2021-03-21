@@ -3,27 +3,153 @@
   "preferQuoteCurrencySize": true,
   "thresholds": [
     { "id": "threshold", "amount": 100000, "buyColor": "rgba(76,175,80,.33)", "sellColor": "rgba(229,115,115,.33)" },
-    { "id": "significant", "amount": 100000, "buyColor": "rgb(91,130,48)", "sellColor": "rgb(224,91,82)" },
+    { "id": "significant", "amount": 500000, "buyColor": "rgb(91,130,48)", "sellColor": "rgb(224,91,82)" },
     { "id": "huge", "amount": 1000000, "gif": "cash", "buyColor": "rgb(156,204,101)", "sellColor": "rgb(244,67,54)" },
     { "id": "rare", "amount": 10000000, "gif": "explosion", "buyColor": "rgb(255,160,0)", "sellColor": "rgb(233,30,99)" }
   ],
   "exchanges": {
-    "ftx": { "disabled": true },
-    "liquid": { "disabled": true },
-    "bithumb": { "disabled": true },
-    "hitbtc": { "disabled": true },
-    "coinex": { "disabled": true }
+    "hitbtc": { "disabled": true }
   },
   "series": {
-    "price": {
-      "scaleMargins": {
-        "top": 0.1,
-        "bottom": 0.2
+    "cvd": {
+      "name": "CVD",
+      "type": "candlestick",
+      "input": "cum_ohlc(vbuy - vsell)",
+      "options": {
+        "priceScaleId": "right",
+        "priceFormat": {
+          "type": "volume"
+        }
       }
     },
-    "liquidations": {},
-    "volume_delta": {},
-    "volume": {}
+    "price": {
+      "name": "Price",
+      "type": "bar",
+      "input": "avg_ohlc(bar)",
+      "axisLabelVisible": true,
+      "enabled": true,
+      "options": {
+        "priceScaleId": "price"
+      }
+    },
+    "bitmex": {
+      "name": "Bitmex",
+      "type": "line",
+      "input": "bitmex.close",
+      "enabled": true,
+      "options": {
+        "priceScaleId": "price"
+      }
+    },
+    "kraken": {
+      "name": "Kraken",
+      "type": "line",
+      "input": "kraken.close",
+      "enabled": true,
+      "options": {
+        "color": "#5741d9",
+        "priceScaleId": "price"
+      }
+    },
+
+    "volume_sell_ema": {
+      "type": "line",
+      "name": "Volume Sell EMA",
+      "input": "ema(vsell,options.emaLength)",
+      "options": {
+        "valueAsVolume": true,
+        "lineType": 1,
+        "emaLength": 14,
+        "priceScaleId": "volume_ema",
+        "color": "#c14047",
+        "lineWidth": 2,
+        "scaleMargins": {
+          "top": 0.8,
+          "bottom": 0
+        }
+      }
+    },
+    "volume_buy_ema": {
+      "type": "line",
+      "name": "Volume Buy EMA",
+      "input": "ema(vbuy,options.emaLength)",
+      "options": {
+        "valueAsVolume": true,
+        "emaLength": 14,
+        "lineType": 1,
+        "priceScaleId": "volume_ema",
+        "color": "#c9b087",
+        "lineWidth": 2,
+        "scaleMargins": {
+          "top": 0.8,
+          "bottom": 0
+        }
+      }
+    },
+    "volume_delta": {
+      "name": "Volume Delta",
+      "type": "histogram",
+      "enabled": false,
+      "input": "{value: Math.abs(vbuy-vsell),color: bar.vbuy - bar.vsell > 0 ? options.upColor : options.downColor}",
+      "options": {
+        "valueAsVolume": true,
+        "upColor": "#c3a87a",
+        "downColor": "#e53935",
+        "priceScaleId": "volume"
+      }
+    },
+    "volume": {
+      "name": "Volume",
+      "type": "histogram",
+      "input": "bar.vbuy + bar.vsell",
+      "enabled": false,
+      "options": {
+        "valueAsVolume": true,
+        "color": "rgba(255, 255, 255, .15)",
+        "priceScaleId": "volume"
+      }
+    },
+    "liquidations": {
+      "name": "Liquidations",
+      "type": "histogram",
+      "input": "{value: Math.abs(bar.vbuy-bar.vsell),color: vbuy - vsell > 0 ? options.upColor : options.downColor}",
+      "enabled": false,
+      "options": {
+        "valueAsVolume": true,
+        "priceScaleId": "volume",
+        "upColor": "#ec407a",
+        "downColor": "#9c27b0",
+        "color": "#9c27b0"
+      }
+    },
+    "ctd": {
+      "name": "Cumulative Trade Delta",
+      "type": "line",
+      "enabled": false,
+      "input": "cum(cbuy - csell)",
+      "options": {
+        "priceScaleId": "overlay2",
+        "valueAsVolume": true,
+        "color": "#ffffff",
+        "lineWidth": 1,
+        "lineStyle": 2,
+        "scaleMargins": {
+          "top": 0.1,
+          "bottom": 0.2
+        }
+      }
+    },
+    "price_sma": {
+      "type": "line",
+      "name": "Price SMA",
+      "enabled": false,
+      "input": "sma($price, options.smaLength)",
+      "options": {
+        "color": "rgba(52,100,69,0.38)",
+        "smaLength": 50,
+        "lineWidth": 2
+      }
+    }
   },
   "maxRows": 100,
   "aggregateTrades": true,

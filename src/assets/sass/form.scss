@@ -36,11 +36,15 @@
   label + .help-text {
     margin: -0.5em 0 0.5em;
   }
+
+  .checkbox-control {
+    margin-bottom: 0;
+  }
 }
 
 .form-control {
-  padding: .5rem .5rem;
-  background-color: white;
+  background: 0;
+  padding: 0.5rem;
   border-radius: 2px;
   border: 0;
   width: calc(100% - 16px);
@@ -48,6 +52,7 @@
   min-width: 0;
   font-size: 14px;
   margin: 0;
+  color: inherit;
 }
 
 .input-group {
@@ -87,7 +92,7 @@
     > span {
       order: 1;
       margin-left: 0;
-      margin-right: .5rem;
+      margin-right: 0.5rem;
     }
     > div {
       order: 2;
@@ -189,11 +194,11 @@
   }
 
   div + span {
-    margin-left: .5rem;
+    margin-left: 0.5rem;
   }
 
   span + div {
-    margin-left: .5rem;
+    margin-left: 0.5rem;
   }
 
   &.checkbox-control-input {
@@ -257,8 +262,8 @@ input[type='range'] {
 [contenteditable] {
   display: inline-block;
   cursor: text;
-  font-family: monospace;
   color: $green;
+  cursor: text;
 
   -webkit-touch-callout: auto;
   -webkit-user-select: auto;
@@ -270,6 +275,11 @@ input[type='range'] {
   &:empty:before {
     content: attr(placeholder);
     opacity: 0.5;
+  }
+
+  &[disabled] {
+    color: inherit;
+    cursor: inherit;
   }
 }
 
@@ -301,4 +311,32 @@ input[type='range'] {
 
 textarea.form-control {
   font-size: 12px;
+}
+
+.serie__scale-margins {
+  position: relative;
+  > input[type='range'] {
+    transform: rotateZ(90deg);
+    height: 8rem;
+    width: 3.5rem !important;
+    position: absolute;
+    right: 25%;
+    top: -25%;
+    cursor: ns-resize;
+
+    + input[type='range'] {
+      margin-top: 3.5rem;
+      transform: rotateZ(-90deg);
+    }
+
+    &::-webkit-slider-thumb {
+      height: 8rem;
+      cursor: ns-resize;
+    }
+
+    &::-moz-range-thumb {
+      height: 8rem;
+      cursor: ns-resize;
+    }
+  }
 }

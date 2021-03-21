@@ -1,77 +1,82 @@
 import '../../data/typedef'
 import { MAX_CHUNKS } from '../../utils/constants'
 import { getHms } from '../../utils/helpers'
+export default class ChartCache {
+  constructor() {
+    /**
+     * @type Chunk[]
+     * @public
+     */
+    this.chunks = []
 
-/**
- * @type Chunk[]
- */
-export const cache = []
-
-/**
- * @type Range
- */
-export const cacheRange = { from: null, to: null }
-
-/**
- * append or prepend chunk to cache array
- * and recalculate cacheRange
- * @param{Chunk} chunk Chunk to add
- */
-export function saveChunk(chunk) {
-  // console.log(`[cache/saveChunk]`, formatTime(chunk.from), formatTime(chunk.to), chunk.bars.length, 'bars', chunk.active ? '[active chunk]' : '')
-
-  let index
-
-  if (!cache.length || cache[cache.length - 1].to < chunk.from) {
-    // console.log(`\t-> push chunk at the end of cache array (chunk contain latest data)`)
-    index = cache.push(chunk) - 1
-  } else if (cache[0].from > chunk.to) {
-    // console.log(`\t-> prepend chunk at the beginning of cache array (chunk contain old data)`)
-    cache.unshift(chunk)
-    index = 0
-  } else {
-    console.warn(`\t-> couldn't push or prepend the chunk -> abort`)
-    return
+    /**
+     * @type Range
+     * @public
+     */
+    this.cacheRange = { from: null, to: null }
   }
 
-  if (index === 0) {
-    if (cacheRange.from) {
-      // console.log(`\t-> increase cacheRange (start) by ${getHms((cacheRange.from - chunk.from) * 1000)}`)
-    } else {
-      // console.log(`\t-> set cacheRange (start) = ${formatTime(chunk.from)}`)
-    }
-    cacheRange.from = chunk.from
-  }
+  /**
+   * append or prepend chunk to cache array
+   * and recalculate this.cacheRange
+   * @param{Chunk} chunk Chunk to add
+   */
+  saveChunk(chunk) {
+    // console.log(`[chartCache/saveChunk]`, formatTime(chunk.from), formatTime(chunk.to), chunk.bars.length, 'bars', chunk.active ? '[active chunk]' : '')
 
-  if (index === cache.length - 1) {
-    if (cacheRange.to) {
-      // console.log(`\t-> increase cacheRange (end) by ${getHms((chunk.to - cacheRange.to) * 1000)}`)
+    let index
+
+    if (!this.chunks.length || this.chunks[this.chunks.length - 1].to < chunk.from) {
+      // console.log(`\t-> push chunk at the end of this.chunks array (chunk contain latest data)`)
+      index = this.chunks.push(chunk) - 1
+    } else if (this.chunks[0].from > chunk.to) {
+      // console.log(`\t-> prepend chunk at the beginning of this.chunks array (chunk contain old data)`)
+      this.chunks.unshift(chunk)
+      index = 0
     } else {
-      // console.log(`\t-> set cacheRange (end) = ${formatTime(chunk.to)}`)
+      console.warn(`\t-> couldn't push or prepend the chunk -> abort`)
+      return
     }
 
-    cacheRange.to = chunk.to
+    if (index === 0) {
+      if (this.cacheRange.from) {
+        // console.log(`\t-> increase this.cacheRange (start) by ${getHms((this.cacheRange.from - chunk.from) * 1000)}`)
+      } else {
+        // console.log(`\t-> set this.cacheRange (start) = ${formatTime(chunk.from)}`)
+      }
+      this.cacheRange.from = chunk.from
+    }
+
+    if (index === this.chunks.length - 1) {
+      if (this.cacheRange.to) {
+        // console.log(`\t-> increase this.cacheRange (end) by ${getHms((chunk.to - this.cacheRange.to) * 1000)}`)
+      } else {
+        // console.log(`\t-> set this.cacheRange (end) = ${formatTime(chunk.to)}`)
+      }
+
+      this.cacheRange.to = chunk.to
+    }
+
+    return chunk
   }
 
-  return chunk
-}
+  clear() {
+    console.log(`[chartCache/this.chunks] clear this.chunks`)
 
-export function clearCache() {
-  console.log(`[chart/cache] clear cache`)
+    this.chunks.splice(0, this.chunks.length)
+    this.cacheRange.from = this.cacheRange.to = null
+  }
 
-  cache.splice(0, cache.length)
-  cacheRange.from = cacheRange.to = null
-}
+  trim() {
+    if (this.chunks.length > MAX_CHUNKS) {
+      const previousStart = this.chunks[0].from
 
-export function trimCache() {
-  if (cache.length > MAX_CHUNKS) {
-    const previousStart = cache[0].from
+      console.log(`[chartCache/trim] remove ${this.chunks.length - MAX_CHUNKS} expired chunks (max: ${MAX_CHUNKS})`)
+      this.chunks.splice(0, this.chunks.length - MAX_CHUNKS)
 
-    console.log(`[cache/trimCache] remove ${cache.length - MAX_CHUNKS} expired chunks (max: ${MAX_CHUNKS})`)
-    cache.splice(0, cache.length - MAX_CHUNKS)
+      console.log(`\t-> decrease this.cacheRange (start) by ${getHms(this.chunks[0].from - previousStart)}`)
 
-    console.log(`\t-> decrease cacheRange (start) by ${getHms(cache[0].from - previousStart)}`)
-
-    cacheRange.from = cache[0].from
+      this.cacheRange.from = this.chunks[0].from
+    }
   }
 }

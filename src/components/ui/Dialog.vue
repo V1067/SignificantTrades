@@ -34,7 +34,12 @@ export default {
   }),
   methods: {
     handleMenuDrag(event) {
-      if (event.button === 2) return
+      if (event.button === 2) {
+        return
+      }
+      if (event.target.classList.contains('-no-grab')) {
+        return
+      }
       event.preventDefault()
       const lastMove = Object.assign({}, this.delta)
       const startPosition = getEventCords(event)

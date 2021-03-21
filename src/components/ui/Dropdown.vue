@@ -1,27 +1,45 @@
 <template>
   <div class="dropdown">
     <div v-if="label" class="dropdown__label" @click="toggle" v-html="label"></div>
-    <div class="dropdown__selected" @click="toggle" v-html="options[selected] || placeholder || 'Selection'"></div>
-    <transition name="scale">
-      <div class="dropdown__options" v-show="isOpen">
-        <div class="dropdown__scroller custom-scrollbar">
-          <div
-            class="dropdown__option"
-            v-for="(value, index) in options"
-            :key="index"
-            :class="{ active: index === selected }"
-            @click="set(index)"
-            v-html="value"
-          ></div>
+    <div class="dropdown__selected" @click="toggle">
+      {{ (alwaysShowPlaceholder && options[selected]) || placeholder || 'Selection' }}
+      <transition name="scale">
+        <div class="dropdown__options" v-if="isOpen">
+          <div class="dropdown__scroller custom-scrollbar">
+            <div
+              class="dropdown__option"
+              v-for="(value, index) in options"
+              :key="index"
+              :class="{ active: alwaysShowPlaceholder && index === selected }"
+              @click="set(index)"
+              v-html="value"
+            ></div>
+          </div>
         </div>
-      </div>
-    </transition>
+      </transition>
+    </div>
   </div>
 </template>
 
 <script>
 export default {
-  props: ['options', 'label', 'selected', 'placeholder'],
+  props: {
+    options: {
+      required: true
+    },
+    label: {
+      required: false
+    },
+    selected: {
+      required: false
+    },
+    placeholder: {
+      required: false
+    },
+    alwaysShowPlaceholder: {
+      default: true
+    }
+  },
 
   data() {
     return {
@@ -70,7 +88,7 @@ export default {
     },
 
     set(index) {
-      this.selected = index
+      // this.selected = index
       this.$emit('output', index)
       this.hide()
     }

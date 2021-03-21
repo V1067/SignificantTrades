@@ -108,6 +108,10 @@ a {
   font-family: 'Barlow Semi Condensed';
 }
 
+.text-lowercase {
+  text-transform: lowercase;
+}
+
 ::-webkit-scrollbar {
   width: 0;
 }

@@ -515,7 +515,7 @@ export default {
     }
   },
   computed: {
-    ...mapState('app', ['actives', 'version', 'buildDate']),
+    ...mapState('app', ['version', 'buildDate']),
     ...mapState('settings', [
       'pair',
       'maxRows',

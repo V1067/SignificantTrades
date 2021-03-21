@@ -1,11 +1,20 @@
 <template>
-  <div contenteditable="true" @keydown="onKeyDown" @input="changed = true" @focus="onFocus" @blur="onBlur" @click="onClick" @wheel="onWheel"></div>
+  <div
+    :contenteditable="editable !== false"
+    :disabled="editable === false"
+    @keydown="onKeyDown"
+    @input="changed = true"
+    @focus="onFocus"
+    @blur="onBlur"
+    @click="onClick"
+    @wheel="onWheel"
+  ></div>
 </template>
 
 <script>
 import { countDecimals } from '../../utils/helpers'
 export default {
-  props: ['content', 'step', 'min', 'max'],
+  props: ['content', 'step', 'min', 'max', 'editable', 'disabled'],
   data() {
     return {
       changed: false
@@ -54,10 +63,12 @@ export default {
       }
     },
     onKeyDown(event) {
-      if (event.which === 13) {
+      if (this.disabled || event.which === 13) {
         event.preventDefault()
 
         this.$el.blur()
+
+        event.target.innerText = this.content
 
         return
       }

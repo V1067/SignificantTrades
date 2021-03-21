@@ -44,33 +44,39 @@ export const defaultChartOptions = {
   priceScale: {
     position: 'right',
     mode: 0,
-    borderColor: 'rgba(255, 255, 255, .2)'
-  },
-  volumePriceScale: {
+    borderColor: 'rgba(255, 255, 255, .2)',
     scaleMargins: {
-      top: 0.8,
-      bottom: 0
+      top: 0.1,
+      bottom: 0.2
     }
   }
 }
 
-export const defaultLineOptions = {
+export const defaultSerieOptions = {
   crosshairMarkerVisible: false,
   lastValueVisible: false,
-  priceLineVisible: false
+  priceLineVisible: false,
+  priceFormat: {
+    type: 'price',
+    minMove: '0.01',
+    precision: 2
+  },
+  scaleMargins: {
+    top: 0.1,
+    bottom: 0.2
+  }
+}
+
+export const defaultLineOptions = {
+  priceLineStyle: 1,
+  color: 'white',
+  lineWidth: 1,
+  lineStyle: 0,
+  lineType: 0
 }
 
 export const defaultCandlestickOptions = {
-  baseLineStyle: false,
-  lastValueVisible: true,
-  priceLineVisible: true,
-  priceLineWidth: 1,
   priceLineColor: 'rgba(255, 255, 255, .5)',
-  priceLineStyle: 2,
-  priceFormat: {
-    type: 'price',
-    precision: 2
-  },
   borderVisible: false,
   upColor: '#c3a87a',
   downColor: '#e53935',
@@ -82,16 +88,31 @@ export const defaultCandlestickOptions = {
 
 export const defaultHistogramOptions = {
   color: '#c3a87a',
-  lastValueVisible: false,
-  priceLineVisible: false,
   scaleMargins: {
     top: 0.8,
     bottom: 0
   }
 }
 
+export const defaultAreaOptions = {
+  topColor: 'rgba(21, 146, 230, 0.4)',
+  bottomColor: 'rgba(21, 146, 230, 0)',
+  lineColor: 'rgba(21, 146, 230, 1)',
+  lineStyle: 0,
+  lineWidth: 3
+}
+
+export const defaultBarOptions = {
+  thinBars: false,
+  upColor: 'rgba(37, 148, 51, 0.2)',
+  downColor: 'rgba(191, 55, 48, 0.2)',
+  openVisible: true
+}
+
 export const defaultPlotsOptions = {
   line: defaultLineOptions,
+  area: defaultAreaOptions,
   candlestick: defaultCandlestickOptions,
+  bar: defaultBarOptions,
   histogram: defaultHistogramOptions
 }

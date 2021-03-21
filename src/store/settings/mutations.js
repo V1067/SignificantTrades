@@ -264,26 +264,25 @@ export default {
   SET_TIMEZONE_OFFSET(state, value) {
     state.timezoneOffset = +value || 0
   },
-  TOGGLE_SERIE(state, { id, value }) {
-    if (!state.series[id]) {
-      state.series[id] = {}
-    }
-
-    Vue.set(state.series[id], 'enabled', value ? true : false)
+  CREATE_SERIE(state, serie) {
+    Vue.set(state.series, serie.id, serie)
+  },
+  TOGGLE_SERIE(state, id) {
+    Vue.set(state.series[id], 'enabled', typeof state.series[id].enabled === 'undefined' ? false : !state.series[id].enabled)
   },
   SET_SERIE_OPTION(state, { id, key, value }) {
     if (!state.series[id]) {
       state.series[id] = {}
     }
 
-    Vue.set(state.series[id], key, value)
+    Vue.set(state.series[id].options, key, value)
   },
   REMOVE_SERIE_OPTION(state, { id, key }) {
     if (!state.series[id]) {
       return
     }
 
-    Vue.delete(state.series[id], key)
+    Vue.delete(state.series[id].options, key)
   },
   SET_SERIE_TYPE(state, { id, value }) {
     if (!state.series[id]) {
@@ -298,6 +297,9 @@ export default {
     }
 
     Vue.set(state.series[id], 'input', value)
+  },
+  REMOVE_SERIE(state, id) {
+    Vue.delete(state.series, id)
   },
   TOGGLE_EXCHANGES_BAR(state, value) {
     state.showExchangesBar = value ? true : false

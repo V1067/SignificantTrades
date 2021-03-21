@@ -1,8 +1,9 @@
 export default {
   pairs: [],
   showSearch: false,
-  actives: [],
+  activeExchanges: {},
   activeSeries: [],
+  activeSeriesErrors: {},
   notices: [],
   isLoading: false,
   supportedPairs: [],

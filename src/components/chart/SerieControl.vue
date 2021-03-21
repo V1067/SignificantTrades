@@ -1,7 +1,19 @@
 <template>
-  <div class="serie">
-    <div class="serie__name" @click="edit">{{ id }}</div>
-    <div v-if="legend" class="serie__legend">{{ legend }}</div>
+  <div class="serie" :class="{ '-error': !!error, '-disabled': !visible }">
+    <div class="serie__name" @click="edit">{{ name }}</div>
+    <div class="serie__controls" v-if="!error">
+      <button class="btn -text -small" @click="toggleVisibility" v-tippy title="show/hide">
+        <i :class="{ 'icon-eye': !visible, 'icon-eye-crossed': visible }"></i>
+      </button>
+      <!--<button class="btn -text -small" @click="bringOnTop" v-tippy title="bring on top"><i class="icon-up"></i></button>-->
+      <button class="btn -text -small" @click="edit" v-tippy title="edit"><i class="icon-edit"></i></button>
+      <button class="btn -text -small" @click="remove" v-tippy title="disable"><i class="icon-cross"></i></button>
+      <div v-if="legend" class="serie__legend">{{ legend }}</div>
+    </div>
+    <template v-else>
+      <i class="icon-warning mr15"></i>
+      {{ error }}
+    </template>
   </div>
 </template>
 
@@ -11,9 +23,36 @@ import dialogService from '../../services/dialog'
 
 export default {
   props: ['id', 'legend'],
+  computed: {
+    serie: function() {
+      return this.$store.state.settings.series[this.id]
+    },
+    name: function() {
+      if (this.serie.name && this.serie.name.length) {
+        return this.serie.name
+      } else {
+        return this.id
+      }
+    },
+    visible: function() {
+      return typeof this.serie.options.visible === 'undefined' ? true : this.serie.options.visible
+    },
+    error: function() {
+      return this.$store.state.app.activeSeriesErrors[this.id]
+    }
+  },
   methods: {
     edit() {
       dialogService.open(SerieDialog, { id: this.id })
+    },
+    bringOnTop() {
+      alert('top')
+    },
+    toggleVisibility() {
+      this.$store.dispatch('settings/toggleSerieVisibility', this.id)
+    },
+    remove() {
+      this.$store.dispatch('settings/toggleSerie', this.id)
     }
   }
 }
@@ -22,22 +61,26 @@ export default {
 <style lang="scss">
 .serie {
   display: flex;
-  align-items: center;
   width: 0;
   white-space: nowrap;
+
+  &.-error {
+    color: $red;
+  }
+
+  &.-disabled {
+    opacity: 0.5;
+  }
 
   &__name {
     position: relative;
     cursor: pointer;
+    line-height: 1.5;
 
-    &:hover:before {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: -2px;
-      height: 2px;
-      background-color: white;
+    &:hover {
+      + .serie__controls {
+        display: inline-flex;
+      }
     }
   }
 
@@ -49,23 +92,12 @@ export default {
     pointer-events: none;
   }
 
-  &__control {
+  &__controls {
     display: none;
+    align-items: center;
 
-    a {
-      display: block;
-      margin: 0 0.2em;
-      color: white;
-
-      i {
-        font-size: 0.75em;
-      }
-    }
-  }
-
-  &:hover {
-    .serie__control {
-      display: flex;
+    &:hover {
+      display: inline-flex;
     }
   }
 }

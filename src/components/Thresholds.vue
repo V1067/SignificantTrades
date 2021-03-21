@@ -472,57 +472,6 @@ export default {
     }
   }
 
-  .vc-chrome {
-    position: absolute;
-    z-index: 1;
-    box-shadow: 0;
-    display: flex;
-    flex-direction: column;
-    height: 250px;
-    bottom: 0;
-    flex-grow: 1;
-    opacity: 0;
-    transition: all 0.2s $ease-out-expo;
-
-    .vc-chrome-fields .vc-input__label {
-      font-family: monospace;
-    }
-
-    .vc-input__input {
-      background: none;
-      border: 1px solid white;
-      border-radius: 2px;
-      color: white;
-      box-shadow: none;
-    }
-
-    .vc-chrome-body {
-      border-radius: 0 0 2px 2px;
-      background: lighten($dark, 18%) !important;
-    }
-
-    .vc-chrome-saturation-wrap {
-      flex-grow: 1;
-      padding: 0;
-      border-radius: 2px 2px 0 0;
-    }
-
-    .vc-chrome-toggle-icon-highlight {
-      background-color: rgba(black, 0.2);
-    }
-
-    .vc-chrome-toggle-icon {
-      path {
-        fill: white;
-      }
-    }
-
-    &,
-    .vc-chrome-body {
-      box-shadow: none;
-    }
-  }
-
   &.-dragging {
     .thresholds-gradients,
     .thresholds-slider__handler {

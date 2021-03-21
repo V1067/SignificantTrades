@@ -36,7 +36,6 @@ export default {
     }
   },
   computed: {
-    ...mapState('app', ['actives']),
     ...mapState('settings', ['preferQuoteCurrencySize', 'thresholds', 'liquidationsOnly', 'countersSteps', 'countersCount', 'countersGranularity']),
     activeSteps: function() {
       return this.steps.filter(a => a.hasData)

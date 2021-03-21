@@ -1,30 +1,15 @@
 import '../../data/typedef'
-import store from '../../store'
-import seriesData from '../../data/series'
-import { cache, saveChunk, clearCache, cacheRange } from './chartCache'
-import { formatAmount, formatTime, getHms, setValueByDotNotation, slugify } from '../../utils/helpers'
-import { defaultChartOptions, defaultPlotsOptions } from './chartOptions'
-import * as _serieFunctions from './serieFunctions'
-
-import * as TV from 'lightweight-charts'
-import dialogService from '../../services/dialog'
 import { formatRgb, toRgb } from 'color-fns'
 import { MAX_BARS_PER_CHUNKS } from '../../utils/constants'
-const serieFunctions = Object.keys(_serieFunctions).reduce((o, name) => {
-  o[name] = _serieFunctions[name]
-  return o
-}, {})
-
-const availableSerieFunctions = Object.keys(serieFunctions).reduce((obj, name) => {
-  obj[name] = {
-    needsMemory: ['cma', 'sma', 'ema'].indexOf(name) !== -1
-  }
-
-  return obj
-}, {})
-
-const noRedrawOptions = [/priceFormat/i, /color/i, /width/i, 'priceLineStyle', 'lastValueVisible', 'priceLineVisible', 'borderVisible']
-
+import { formatAmount, formatTime, getHms, setValueByDotNotation } from '../../utils/helpers'
+import { defaultChartOptions, defaultPlotsOptions, defaultSerieOptions } from './chartOptions'
+import store from '../../store'
+import * as seriesUtils from './serieUtils'
+import * as TV from 'lightweight-charts'
+import ChartCache from './chartCache'
+import SerieTranspiler from './serieTranspiler'
+import dialogService from '../../services/dialog'
+import SerieDialog from './SerieDialog.vue'
 export default class ChartController {
   constructor() {
     /** @type {TV.IChartApi} */
@@ -59,6 +44,11 @@ export default class ChartController {
      * @type Trade[]
      */
     this.queuedTrades = []
+
+    /* New instances required for the chart to work
+     */
+    this.chartCache = new ChartCache()
+    this.serieTranspiler = new SerieTranspiler()
   }
 
   createChart(containerElement, chartDimensions) {
@@ -149,6 +139,8 @@ export default class ChartController {
       [firstKey]: serie.options[firstKey]
     })
 
+    const noRedrawOptions = [/priceFormat/i, /scaleMargins/i, /color/i, /^linetype$/i, /width/i, /style$/i, /visible$/i]
+
     for (let i = 0; i < noRedrawOptions.length; i++) {
       if (noRedrawOptions[i] === firstKey || (noRedrawOptions[i] instanceof RegExp && noRedrawOptions[i].test(firstKey))) {
         return
@@ -171,35 +163,38 @@ export default class ChartController {
   }
 
   /**
-   * Update chart main scale (priceScale) margins
-   * @param {{top: number, bottom: number}} margins
-   */
-  setPriceMargins(margins) {
-    this.chartInstance.applyOptions({
-      priceScale: {
-        scaleMargins: margins
-      }
-    })
-  }
-
-  /**
    * Redraw one specific serie (and the series it depends on)
    * @param {string} id
    */
   redrawSerie(id) {
     let bars = []
 
-    for (let chunk of cache) {
+    for (let chunk of this.chartCache.chunks) {
       if (chunk.rendered) {
         bars = bars.concat(chunk.bars)
       }
     }
 
-    const series = this.getSerieDependencies(this.getSerie(id))
+    const series = this.getSeriesDependances(this.getSerie(id))
 
     series.push(id)
 
     this.renderBars(bars, series)
+  }
+
+  getVisibleRange() {
+    const visibleRange = this.chartInstance.timeScale().getVisibleRange()
+
+    if (!visibleRange) {
+      return visibleRange
+    }
+
+    const timezoneOffset = store.state.settings.timezoneOffset / 1000
+
+    visibleRange.from -= timezoneOffset
+    visibleRange.to -= timezoneOffset
+
+    return visibleRange
   }
 
   /**
@@ -211,186 +206,11 @@ export default class ChartController {
   }
 
   /**
-   * Return a list of available function that can be used in series inputs
-   * @returns {string[]} names of available functions
-   */
-  getAvailableSerieFunctions() {
-    return Object.keys(availableSerieFunctions)
-  }
-
-  /**
-   *
-   * @param {ActiveSerie} serie
-   */
-  prepareSerie(serie) {
-    let input = (serie.options.input || serie.input).toString().replace(/\n/g, '')
-
-    // eslint-disable-next-line no-useless-escape
-    const reg = new RegExp(`(${this.getAvailableSerieFunctions().join('|')})\\(([^\S]+)\\)`, 'g')
-
-    const memory = []
-
-    if (/\b(this)\b/i.test(input)) {
-      memory.push({
-        id: null
-      })
-    }
-
-    let match
-
-    do {
-      if ((match = reg.exec(input))) {
-        const args = match[2].split(',').map(a => a.trim())
-
-        const id = slugify(match[2])
-
-        if (availableSerieFunctions[match[1]].needsMemory) {
-          memory.push({
-            id,
-            args,
-            name: match[1],
-            input: match[2]
-          })
-
-          args.unshift(`bar.series.${serie.id}.memory[${memory.length - 1}]`)
-        }
-
-        input = input.replace(match[0], `fn.${match[1]}.call(this, ${args.join(',')})`)
-      }
-    } while (match)
-
-    serie.memory = memory
-
-    try {
-      serie.serieFunctionDefinition = this.buildSerieFunction(serie, input)
-    } catch (error) {
-      setTimeout(() => {
-        store.dispatch('app/showNotice', {
-          type: 'error',
-          icon: 'icon-warning',
-          title: `serie ${serie.id} contain an error<br>Error: ${error.message}`
-        })
-      })
-      console.error(error)
-
-      if (!dialogService.isDialogOpened('SerieDialog')) {
-        dialogService.open('chart/SerieDialog', {
-          id: serie.id
-        })
-      }
-
-      return false
-    }
-
-    return serie
-  }
-
-  buildSerieFunction(serie, input) {
-    const timestamp = Math.floor(+new Date() / 1000 / store.state.settings.timeframe) * store.state.settings.timeframe
-    const bar = {
-      timestamp: timestamp,
-      exchanges: {},
-      open: null,
-      high: null,
-      low: null,
-      close: null,
-      vbuy: 0,
-      vsell: 0,
-      cbuy: 0,
-      csell: 0,
-      lbuy: 0,
-      lsell: 0,
-      series: {
-        [serie.id]: {
-          value: 0,
-          memoryThis: {}
-        }
-      }
-    }
-
-    const dependencies = this.getSerieDependencies(serie)
-    dependencies.push(serie.id)
-
-    for (let i = 0; i < dependencies.length; i++) {
-      bar.series[dependencies[i]] = {
-        value: 0
-      }
-
-      if (dependencies[i] === serie.id && serie.memory.length) {
-        bar.series[serie.id].memory = serie.memory
-      }
-    }
-
-    // test run
-    const value = new Function('fn', 'bar', 'options', 'return ' + input.replace(/bar\.series\.[a-zA-Z0-9_]+\.point\.[a-z]+/g, 1)).apply(
-      bar.series[serie.id].memoryThis,
-      [serieFunctions, bar, serie.options]
-    )
-
-    const type = serie.options.type || serie.type
-
-    if (value !== null && typeof value !== 'object') {
-      input = `{ value: ${input} }`
-    } else if (typeof value.open !== 'undefined' && type !== 'candlestick' && type !== 'bars') {
-      input = `{ value: ${input}.close }`
-    } else if (typeof value.open === 'undefined' && (type === 'candlestick' || type === 'bars')) {
-      throw new Error('data is OHLC format but serie type is not')
-    }
-
-    return [null, 'fn', 'bar', 'options', 'return ' + input]
-  }
-
-  bindSerie(serie, renderer) {
-    if (!renderer || typeof renderer.series[serie.id] !== 'undefined') {
-      return
-    }
-
-    renderer.series[serie.id] = {
-      value: null
-    }
-
-    if (serie.memory.length) {
-      renderer.series[serie.id].memory = []
-    }
-
-    for (let i = 0; i < serie.memory.length; i++) {
-      const fn = serie.memory[i]
-
-      if (fn.id) {
-        renderer.series[serie.id].memory.push({
-          output: null,
-          length: eval(fn.args[2].toString().replace(/^options/, 'serie.options')),
-          points: [],
-          count: 0,
-          sum: 0
-        })
-      } else {
-        renderer.series[serie.id].memoryThis = {}
-      }
-    }
-
-    serie.adapter = (new (Function.prototype.bind.apply(Function, serie.serieFunctionDefinition))).bind(renderer.series[serie.id].memoryThis, serieFunctions) // prettier-ignore
-  }
-
-  /**
-   * Detach serie from renderer
-   * @param {ActiveSerie} serie
-   * @param {Renderer} renderer
-   */
-  unbindSerie(serie, renderer) {
-    if (!renderer || typeof renderer.series[serie.id] === 'undefined') {
-      return
-    }
-
-    delete renderer.series[serie.id]
-  }
-
-  /**
    * Add all enabled series
    */
   addEnabledSeries() {
-    for (let id in seriesData) {
-      if (!store.state.settings.series[id] || store.state.settings.series[id].enabled === false) {
+    for (let id in store.state.settings.series) {
+      if (store.state.settings.series[id].enabled === false) {
         continue
       }
 
@@ -426,21 +246,8 @@ export default class ChartController {
    * @param {ActiveSerie} serie
    * @returns {string[]} id of series
    */
-  getSerieDependencies(serie) {
-    const functionString = serie.input.toString()
-    const reg = new RegExp(`bar\\.series\\.([a-z0-9_]+)\\.`, 'g')
-
-    const depencencies = []
-
-    let match
-
-    do {
-      if ((match = reg.exec(functionString)) && match[1] !== serie.id) {
-        depencencies.push(match[1])
-      }
-    } while (match)
-
-    return depencencies
+  getSeriesDependances(serie) {
+    return serie.model.references
   }
 
   /**
@@ -455,43 +262,147 @@ export default class ChartController {
 
     return !!functionString.match(reg)
   }
+
   /**
    * register serie and create serie api12
    * @param {string} serieId serie id
    * @returns {boolean} success if true
    */
   addSerie(id) {
-    const serieData = seriesData[id]
-    const serieOptions = Object.assign(
-      {},
-      defaultPlotsOptions[serieData.type] || {},
-      seriesData[id].options || {},
-      store.state.settings.series[id] || {}
-    )
-    const serieType = serieOptions.type || seriesData[id].type
+    const serieSettings = store.state.settings.series[id]
+    const serieOptions = Object.assign({}, defaultSerieOptions, defaultPlotsOptions[serieSettings.type] || {}, serieSettings.options || {})
+    const serieType = serieSettings.type
+    const serieInput = serieSettings.input
 
-    const apiMethodName = 'add' + (serieType.charAt(0).toUpperCase() + serieType.slice(1)) + 'Series'
+    if (id === 'price' && !serieOptions.title) {
+      serieOptions.title = store.state.app.pairs.join('+')
+    }
 
-    const serie = this.prepareSerie({
+    console.info(`[chart/addSerie] adding ${id}`)
+    console.info(`\t-> TYPE: ${serieType}`)
+
+    const serie = {
       id,
       type: serieType,
-      input: serieData.input,
+      input: serieInput,
       options: serieOptions
-    })
-
-    if (!serie) {
-      return false
     }
+
+    store.commit('app/ENABLE_SERIE', id)
+
+    if (!this.prepareSerie(serie)) {
+      return
+    }
+
+    const apiMethodName = 'add' + (serieType.charAt(0).toUpperCase() + serieType.slice(1)) + 'Series'
 
     serie.api = this.chartInstance[apiMethodName](serieOptions)
 
     this.activeSeries.push(serie)
 
-    store.state.app.activeSeries.push(id)
-
     this.bindSerie(serie, this.activeRenderer)
 
     return true
+  }
+
+  prepareSerie(serie) {
+    console.info(`[chart/prepareSerie] preparing serie "${serie.id}"\n\t-> ${serie.input}\n...`)
+
+    try {
+      let { output, type, functions, variables, references } = this.serieTranspiler.transpile(serie)
+      console.info(`[chart/prepareSerie] success!`)
+      console.log(`\t-> ${output}`)
+      console.log(`\t ${variables.length} variable(s)`)
+      console.log(`\t ${functions.length} function(s)`)
+      console.log(`\t ${references.length} references(s)`)
+
+      store.commit('app/SET_SERIE_ERROR', {
+        id: serie.id,
+        error: null
+      })
+
+      if (type === 'ohlc' && serie.type !== 'candlestick' && serie.type !== 'bar') {
+        output += '.close'
+        type = 'value'
+      } else if (type === 'value' && (serie.type === 'candlestick' || serie.type === 'bar')) {
+        throw new Error('code output is a single value but ohlc object ({open, high, low, close}) was expected')
+      }
+
+      serie.model = {
+        output,
+        type,
+        functions,
+        references,
+        variables
+      }
+
+      return true
+    } catch (error) {
+      console.error(`[chart/prepareSerie] transpilation failed`)
+      console.error(`\t->`, error)
+
+      store.commit('app/SET_SERIE_ERROR', {
+        id: serie.id,
+        error: error.message
+      })
+
+      if (!dialogService.isDialogOpened('SerieDialog')) {
+        dialogService.open(SerieDialog, {
+          id: serie.id
+        })
+      }
+
+      return false
+    }
+  }
+
+  /**
+   *
+   * @param {ActiveSerie} serie
+   * @param {Renderer} renderer
+   * @returns
+   */
+  bindSerie(serie, renderer) {
+    if (!renderer || typeof renderer.series[serie.id] !== 'undefined' || !serie.model) {
+      return
+    }
+
+    const { functions, variables } = JSON.parse(JSON.stringify(serie.model))
+
+    this.serieTranspiler.updateInstructionsArguments(functions, serie.options)
+
+    console.log(`[chart/bindSerie] binding ${serie.id} ...`)
+
+    renderer.series[serie.id] = {
+      value: null,
+      point: null,
+      functions,
+      variables
+    }
+
+    serie.adapter = this.serieTranspiler.getAdapter(serie.model.output)
+    serie.outputType = serie.model.type
+
+    /*let priority = 0
+
+    for (const reference of serie.model.references) {
+      
+    }*/
+
+    return serie
+  }
+
+  /**
+   * Detach serie from renderer
+   * @param {ActiveSerie} serie
+   * @param {Renderer} renderer
+   */
+  unbindSerie(serie, renderer) {
+    if (!renderer || typeof renderer.series[serie.id] === 'undefined') {
+      return
+    }
+
+    delete renderer.series[serie.id]
   }
 
   /**
@@ -511,13 +422,12 @@ export default class ChartController {
     this.unbindSerie(serie, this.activeRenderer)
 
     // update store (runtime prop)
-    store.state.app.activeSeries.splice(store.state.app.activeSeries.indexOf(serie.id), 1)
-    store.state.app.activeSeries = store.state.app.activeSeries.slice(0, store.state.app.activeSeries.length)
+    store.commit('app/DISABLE_SERIE', serie.id)
 
     // recursive remove of dependent series
-    for (let dependentId of this.getSeriesDependendingOn(serie)) {
+    /* for (let dependentId of this.getSeriesDependendingOn(serie)) {
       this.removeSerie(this.getSerie(dependentId))
-    }
+    } */
 
     // remove from active series model
     this.activeSeries.splice(this.activeSeries.indexOf(serie), 1)
@@ -530,79 +440,20 @@ export default class ChartController {
    * @param {string} obj.id serie id
    * @param {boolean} obj.value true = enable serie, false = disable
    */
-  toggleSerie({ id, value }) {
-    if (!value) {
+  toggleSerie(id) {
+    let enabled = true
+
+    if (!store.state.settings.series[id] || store.state.settings.series[id].enabled === false) {
+      enabled = false
+    }
+
+    if (!enabled) {
       this.removeSerie(this.getSerie(id))
     } else {
       if (this.addSerie(id)) {
         this.redrawSerie(id)
       }
     }
-  }
-
-  /**
-   * get visible range (or optimal range if this.chartInstance has no range0)
-   * @return {Range} range
-   */
-  getVisibleRange() {
-    const visibleRange = this.getUTCVisibleRange()
-
-    if (visibleRange) {
-      const scrollPosition = this.chartInstance.timeScale().scrollPosition()
-      if (scrollPosition > 0) {
-        visibleRange.to =
-          Math.floor((visibleRange.to + scrollPosition * store.state.settings.timeframe) / store.state.settings.timeframe) *
-          store.state.settings.timeframe
-      }
-
-      return { from: visibleRange.from, to: visibleRange.to, median: visibleRange.from + (visibleRange.to - visibleRange.from) / 2 }
-    } else {
-      return this.getRealtimeRange()
-    }
-  }
-
-  getUTCVisibleRange() {
-    const visibleRange = this.chartInstance.timeScale().getVisibleRange()
-    const offset = store.state.settings.timezoneOffset / 1000
-
-    return visibleRange
-      ? {
-          from: visibleRange.from - offset,
-          to: visibleRange.to - offset
-        }
-      : null
-  }
-
-  /**
-   * get the optimal range for realtime bars
-   * @return {number} range
-   */
-  getRealtimeRange() {
-    const optimalRange = this.getOptimalRangeLength()
-    let to = +new Date() / 1000
-    let from = Math.ceil(to / store.state.settings.timeframe) * store.state.settings.timeframe - optimalRange
-
-    return { from, to, median: from + (to - from) / 2, incomplete: true }
-  }
-
-  /**
-   * get optimal range (difference between to and from) based on current timeframe, container dimensions and bar width
-   * @return {number} range
-   */
-  getOptimalRangeLength() {
-    return (
-      Math.floor(
-        ((this.chartElement.offsetWidth / this.chartInstance.options().timeScale.barSpacing) * store.state.settings.timeframe) /
-          store.state.settings.timeframe
-      ) * store.state.settings.timeframe
-    )
-  }
-
-  /**
-   * is chart contains rendered stuff
-   */
-  isEmpty() {
-    return !this.chartInstance.timeScale().getVisibleRange()
   }
 
   /**
@@ -637,7 +488,7 @@ export default class ChartController {
   clear() {
     console.log(`[chart/controller] clear all (cache+activedata+chart)`)
 
-    clearCache()
+    this.chartCache.clear()
     this.clearData()
     this.clearChart()
   }
@@ -648,7 +499,7 @@ export default class ChartController {
   destroy() {
     console.log(`[chart/controller] destroy`)
 
-    clearCache()
+    this.chartCache.clear()
     this.clearData()
     this.clearChart()
     this.removeChart()
@@ -756,22 +607,22 @@ export default class ChartController {
               console.log(`[chart/renderRealtimeTrades] current active chunk is too large (${this.activeChunk.bars.length} bars)`)
             }
 
-            if (!this.activeChunk && cacheRange.to === this.activeRenderer.timestamp) {
-              cache[cache.length - 1].active = true
-              this.activeChunk = cache[cache.length - 1]
+            if (!this.activeChunk && this.chartCache.cacheRange.to === this.activeRenderer.timestamp) {
+              this.chartCache.chunks[this.chartCache.chunks.length - 1].active = true
+              this.activeChunk = this.chartCache.chunks[this.chartCache.chunks.length - 1]
               this.activeChunk.active = true
               console.log(`\t-> set last chunk as activeChunk (same timestamp, ${this.activeChunk.bars.length} bars)`)
             } else {
               if (this.activeChunk) {
                 console.log(
-                  `\t-> mark current active chunk as inactive (#${cache.indexOf(this.activeChunk)} | FROM: ${formatTime(
+                  `\t-> mark current active chunk as inactive (#${this.chartCache.chunks.indexOf(this.activeChunk)} | FROM: ${formatTime(
                     this.activeChunk.from
                   )} | TO: ${formatTime(this.activeChunk.to)})\n\t-> then create new chunk as activeChunk`
                 )
                 this.activeChunk.active = false
               }
 
-              this.activeChunk = saveChunk({
+              this.activeChunk = this.chartCache.saveChunk({
                 from: this.activeRenderer.timestamp,
                 to: this.activeRenderer.timestamp,
                 active: true,
@@ -780,25 +631,25 @@ export default class ChartController {
               })
 
               console.log(
-                `[chart/renderRealtimeTrades] create new active chunk (#${cache.indexOf(this.activeChunk)} | FROM: ${formatTime(
+                `[chart/renderRealtimeTrades] create new active chunk (#${this.chartCache.chunks.indexOf(this.activeChunk)} | FROM: ${formatTime(
                   this.activeChunk.from
                 )} | TO: ${formatTime(this.activeChunk.to)})`
               )
             }
           }
 
-          if (this.activeRenderer.hasData) {
+          if (this.activeRenderer.bar.hasData) {
             formatedBars.push(this.computeBar(this.activeRenderer))
           }
 
           // feed activeChunk with active bar exchange snapshot
           for (let exchange in this.activeRenderer.exchanges) {
             if (this.activeRenderer.exchanges[exchange].hasData) {
-              this.activeChunk.bars.push(this.cloneBar(this.activeRenderer.exchanges[exchange], this.activeRenderer.timestamp))
+              this.activeChunk.bars.push(this.cloneExchangeBar(this.activeRenderer.exchanges[exchange], this.activeRenderer.timestamp))
             }
           }
 
-          this.activeChunk.to = cacheRange.to = this.activeRenderer.timestamp
+          this.activeChunk.to = this.chartCache.cacheRange.to = this.activeRenderer.timestamp
 
           if (this.renderedRange.to < this.activeRenderer.timestamp) {
             this.renderedRange.to = this.activeRenderer.timestamp
@@ -806,7 +657,7 @@ export default class ChartController {
 
           this.nextBar(timestamp, this.activeRenderer)
         } else {
-          this.activeRenderer = this.newBar(timestamp)
+          this.activeRenderer = this.createRenderer(timestamp)
         }
 
         this.preventPan()
@@ -825,14 +676,14 @@ export default class ChartController {
 
       this.activeRenderer.exchanges[trade.exchange].hasData = true
 
-      const isActive = store.state.app.actives.indexOf(trade.exchange) !== -1
+      const isActive = store.state.app.activeExchanges[trade.exchange]
 
       if (trade.liquidation) {
         this.activeRenderer.exchanges[trade.exchange]['l' + trade.side] += amount
 
         if (isActive) {
-          this.activeRenderer['l' + trade.side] += amount
-          this.activeRenderer.hasData = true
+          this.activeRenderer.bar['l' + trade.side] += amount
+          this.activeRenderer.bar.hasData = true
         }
 
         continue
@@ -846,13 +697,13 @@ export default class ChartController {
       this.activeRenderer.exchanges[trade.exchange]['v' + trade.side] += amount
 
       if (isActive) {
-        this.activeRenderer['v' + trade.side] += amount
-        this.activeRenderer['c' + trade.side]++
-        this.activeRenderer.hasData = true
+        this.activeRenderer.bar['v' + trade.side] += amount
+        this.activeRenderer.bar['c' + trade.side]++
+        this.activeRenderer.bar.hasData = true
       }
     }
 
-    if (this.activeRenderer.hasData) {
+    if (this.activeRenderer.bar.hasData) {
       formatedBars.push(this.computeBar(this.activeRenderer))
 
       if (this.renderedRange.to < this.activeRenderer.timestamp) {
@@ -910,8 +761,8 @@ export default class ChartController {
 
       if (bar.timestamp < timestamp) {
         for (let exchange in bar.exchanges) {
-          if (bar.timestamp && bar.exchanges[exchange].hasData) {
-            bars.push(this.cloneBar(bar.exchanges[exchange], bar.timestamp))
+          if (bar.timestamp && bar.exchanges[exchange].bar.hasData) {
+            bars.push(this.cloneExchangeBar(bar.exchanges[exchange], bar.timestamp))
             this.resetBar(bar.exchanges[exchange])
           }
         }
@@ -931,7 +782,7 @@ export default class ChartController {
 
       const side = trades[j][4] > 0 ? 'buy' : 'sell'
 
-      bar.exchanges[exchange].hasData = true
+      bar.exchanges[exchange].bar.hasData = true
 
       if (trades[j][5] === 1) {
         bar.exchanges[exchange]['l' + side] += trades[j][3] * trades[j][2]
@@ -965,23 +816,21 @@ export default class ChartController {
    * @param {Bar} bar do copy
    * @param {number} [timestamp] apply timestamp to returned bar
    */
-  cloneBar(bar, timestamp) {
-    const barData = {
-      exchange: bar.exchange,
-      timestamp: timestamp || bar.timestamp,
-      open: bar.open,
-      high: bar.high,
-      low: bar.low,
-      close: bar.close,
-      vbuy: bar.vbuy,
-      vsell: bar.vsell,
-      cbuy: bar.cbuy,
-      csell: bar.csell,
-      lbuy: bar.lbuy,
-      lsell: bar.lsell
+  cloneExchangeBar(exchangeBar, timestamp) {
+    return {
+      exchange: exchangeBar.exchange,
+      timestamp: timestamp || exchangeBar.timestamp,
+      open: exchangeBar.open,
+      high: exchangeBar.high,
+      low: exchangeBar.low,
+      close: exchangeBar.close,
+      vbuy: exchangeBar.vbuy,
+      vsell: exchangeBar.vsell,
+      cbuy: exchangeBar.cbuy,
+      csell: exchangeBar.csell,
+      lbuy: exchangeBar.lbuy,
+      lsell: exchangeBar.lsell
     }
-
-    return barData
   }
 
   /**
@@ -1007,7 +856,7 @@ export default class ChartController {
       const bar = bars[i]
 
       if (!bar || !temporaryRenderer || bar.timestamp > temporaryRenderer.timestamp) {
-        if (temporaryRenderer && temporaryRenderer.hasData) {
+        if (temporaryRenderer && temporaryRenderer.bar.hasData) {
           if (from === null) {
             from = temporaryRenderer.timestamp
           }
@@ -1032,23 +881,23 @@ export default class ChartController {
         if (temporaryRenderer) {
           this.nextBar(bar.timestamp, temporaryRenderer)
         } else {
-          temporaryRenderer = this.newBar(bar.timestamp, series)
+          temporaryRenderer = this.createRenderer(bar.timestamp, series)
         }
       }
 
-      if (store.state.app.actives.indexOf(bar.exchange) === -1) {
+      if (!store.state.app.activeExchanges[bar.exchange]) {
         continue
       }
 
-      temporaryRenderer.hasData = true
-      temporaryRenderer.vbuy += bar.vbuy
-      temporaryRenderer.vsell += bar.vsell
-      temporaryRenderer.cbuy += bar.cbuy
-      temporaryRenderer.csell += bar.csell
-      temporaryRenderer.lbuy += bar.lbuy
-      temporaryRenderer.lsell += bar.lsell
+      temporaryRenderer.bar.hasData = true
+      temporaryRenderer.bar.vbuy += bar.vbuy
+      temporaryRenderer.bar.vsell += bar.vsell
+      temporaryRenderer.bar.cbuy += bar.cbuy
+      temporaryRenderer.bar.csell += bar.csell
+      temporaryRenderer.bar.lbuy += bar.lbuy
+      temporaryRenderer.bar.lsell += bar.lsell
 
-      temporaryRenderer.exchanges[bar.exchange] = this.cloneBar(bar)
+      temporaryRenderer.exchanges[bar.exchange] = this.cloneExchangeBar(bar)
     }
 
     if (!series) {
@@ -1086,24 +935,38 @@ export default class ChartController {
    * Renders chunks that collides with visible range
    */
   renderVisibleChunks() {
-    if (!cache.length || !this.chartInstance) {
+    if (!this.chartCache.chunks.length || !this.chartInstance) {
       return
     }
 
-    const visibleRange = this.chartInstance.timeScale().getVisibleRange()
+    const visibleRange = this.getVisibleRange()
+    const visibleLogicalRange = this.chartInstance.timeScale().getVisibleLogicalRange()
+
+    let from = null
 
     if (visibleRange) {
       console.log('[chart/renderVisibleChunks] VisibleRange: ', `from: ${formatTime(visibleRange.from)} -> to: ${formatTime(visibleRange.to)}`)
+
+      from = visibleRange.from
+
+      if (visibleLogicalRange.from < 0) {
+        from += store.state.settings.timeframe * visibleLogicalRange.from
+
+        console.log(
+          '[chart/renderVisibleChunks] Ajusted visibleRange using visibleLogicalRange: ',
+          `bars offset: ${visibleLogicalRange.from} === from: ${formatTime(from)}`
+        )
+      }
     }
 
     let selection = ['------------------------']
-    const bars = cache
+    const bars = this.chartCache.chunks
       .filter(c => {
-        c.rendered = !visibleRange || c.to > visibleRange.from - store.state.settings.timeframe * 20
+        c.rendered = !visibleRange || c.to > from - store.state.settings.timeframe * 20
         selection.push(
-          `${c.rendered ? '[selected] ' : ''} #${cache.indexOf(c)} | FROM: ${formatTime(c.from)} | TO: ${formatTime(c.to)} (${formatAmount(
-            c.bars.length
-          )} bars)`
+          `${c.rendered ? '[selected] ' : ''} #${this.chartCache.chunks.indexOf(c)} | FROM: ${formatTime(c.from)} | TO: ${formatTime(
+            c.to
+          )} (${formatAmount(c.bars.length)} bars)`
         )
 
         return c.rendered
@@ -1194,23 +1057,55 @@ export default class ChartController {
 
   /**
    * Process bar data and compute series values for this bar
-   * @param {Bar} bar
-   * @param {{[id: string]: TV.BarData | TV.LineData}} series
+   * @param {Renderer} renderer
+   * @param {string[]} series
    */
-  computeBar(bar, series) {
+  computeBar(renderer, series) {
     const points = {}
+
+    const time = renderer.timestamp + store.state.settings.timezoneOffset / 1000
 
     for (let serie of this.activeSeries) {
       if (series && series.indexOf(serie.id) === -1) {
         continue
       }
 
-      const serieData = bar.series[serie.id]
+      const serieData = renderer.series[serie.id]
 
-      serieData.point = serie.adapter(bar, serie.options)
+      serieData.point = serie.adapter(renderer, serieData.functions, serieData.variables, serie.options, seriesUtils)
 
-      if (serieData.point.value || serieData.point.open) {
-        points[serie.id] = { time: bar.timestamp + store.state.settings.timezoneOffset / 1000, ...serieData.point }
+      let value
+
+      if (serie.outputType === 'value') {
+        serieData.value = serieData.point
+        points[serie.id] = { time, value: serieData.point }
+      } else if (serie.outputType === 'ohlc') {
+        serieData.value = serieData.point.close
+        points[serie.id] = { time, open: serieData.point.open, high: serieData.point.high, low: serieData.point.low, close: serieData.point.close }
+      } else if (serie.outputType === 'custom') {
+        serieData.value = serieData.point.value
+        points[serie.id] = { time, ...serieData.point }
+      }
+
+      if (isNaN(serieData.value)) {
+        this.unbindSerie(serie, this.activeRenderer)
+
+        store.commit('app/SET_SERIE_ERROR', {
+          id: serie.id,
+          error: `${serie.id} is NaN
+          \t-> output: ${serie.model.output}
+          \t-> series: ${JSON.stringify(renderer.series, null, 2)}`
+        })
+
+        if (!dialogService.isDialogOpened('SerieDialog')) {
+          dialogService.open(SerieDialog, {
+            id: serie.id
+          })
+        }
+
+        continue
+      } else if (value === null || (serie.type === 'histogram' && value === 0)) {
+        delete points[serie.id]
       }
     }
 
@@ -1222,21 +1117,20 @@ export default class ChartController {
    * @param {number} timestamp start timestamp
    * @param {string[]} series series to bind
    */
-  newBar(timestamp, series) {
+  createRenderer(firstBarTimestamp, series) {
     const renderer = {
-      timestamp: timestamp,
+      timestamp: firstBarTimestamp,
       series: {},
       exchanges: {},
-      open: null,
-      high: null,
-      low: null,
-      close: null,
-      vbuy: 0,
-      vsell: 0,
-      cbuy: 0,
-      csell: 0,
-      lbuy: 0,
-      lsell: 0
+
+      bar: {
+        vbuy: 0,
+        vsell: 0,
+        cbuy: 0,
+        csell: 0,
+        lbuy: 0,
+        lsell: 0
+      }
     }
 
     for (let serie of this.activeSeries) {
@@ -1251,41 +1145,47 @@ export default class ChartController {
   }
 
   /**
-   * prepare bar for next timestamp
+   * prepare renderer for next bar
    * @param {number} timestamp timestamp of the next bar
    * @param {Renderer?} renderer bar to use as reference
    */
   nextBar(timestamp, renderer) {
-    if (renderer.hasData) {
+    if (renderer.bar.hasData) {
       for (let i = 0; i < this.activeSeries.length; i++) {
-        const barSerieData = renderer.series[this.activeSeries[i].id]
+        const rendererSerieData = renderer.series[this.activeSeries[i].id]
 
-        if (!barSerieData) {
+        if (!rendererSerieData) {
           continue
         }
 
-        barSerieData.value = barSerieData.point.value || barSerieData.point.close
+        for (let f = 0; f < rendererSerieData.functions.length; f++) {
+          const instruction = rendererSerieData.functions[f]
 
-        if (barSerieData.memory) {
-          for (let i = 0; i < barSerieData.memory.length; i++) {
-            const fn = barSerieData.memory[i]
+          if (instruction.type === 'average_function') {
+            instruction.state.points.push(instruction.state.output)
+            instruction.state.sum += instruction.state.output
+            instruction.state.count++
 
-            fn.points.push(fn.output)
-            fn.sum += fn.output
-            fn.count++
-
-            if (fn.count > fn.length) {
-              fn.sum -= fn.points.shift()
-              fn.count--
+            if (instruction.state.count > instruction.args.length) {
+              instruction.state.sum -= instruction.state.points.shift()
+              instruction.state.count--
             }
+          } else if (instruction.type === 'ohlc') {
+            instruction.state.open = instruction.state.close
+            instruction.state.high = instruction.state.close
+            instruction.state.low = instruction.state.close
           }
         }
 
-        if (barSerieData.memoryThis) {
-          if (typeof barSerieData.memoryThis.open !== 'undefined') {
-            barSerieData.memoryThis.open = barSerieData.memoryThis.close
-            barSerieData.memoryThis.high = barSerieData.memoryThis.close
-            barSerieData.memoryThis.low = barSerieData.memoryThis.close
+        for (let v = 0; v < rendererSerieData.variables.length; v++) {
+          const instruction = rendererSerieData.variables[v]
+
+          if (instruction.type === 'array') {
+            instruction.state.unshift(instruction.state[0])
+
+            if (instruction.state.length > instruction.length) {
+              instruction.state.pop()
+            }
           }
         }
       }
@@ -1293,11 +1193,33 @@ export default class ChartController {
 
     renderer.timestamp = timestamp
 
-    this.resetBar(renderer)
+    this.resetRendererBar(renderer)
   }
 
   /**
-   * @param {Bar | ActiveBar} bar bar to clear for next timestamp
+   * @param {Renderer} bar bar to clear for next timestamp
+   */
+  resetRendererBar(renderer) {
+    renderer.bar = {
+      vbuy: 0,
+      vsell: 0,
+      cbuy: 0,
+      csell: 0,
+      lbuy: 0,
+      lsell: 0,
+      hasData: false
+    }
+
+    if (typeof renderer.exchanges !== 'undefined') {
+      for (let exchange in renderer.exchanges) {
+        this.resetBar(renderer.exchanges[exchange])
+      }
+    }
+  }
+
+  /**
+   *
+   * @param {Bar} bar
    */
   resetBar(bar) {
     bar.open = bar.close
@@ -1310,12 +1232,6 @@ export default class ChartController {
     bar.lbuy = 0
     bar.lsell = 0
     bar.hasData = false
-
-    if (bar.exchanges) {
-      for (let exchange in bar.exchanges) {
-        this.resetBar(bar.exchanges[exchange])
-      }
-    }
   }
 
   getChartColorOptions(color) {

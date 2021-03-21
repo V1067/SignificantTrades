@@ -17,7 +17,6 @@ import Bybit from '../exchanges/bybit'
 import Ftx from '../exchanges/ftx'
 
 import store from '../store'
-import { formatAmount } from '../utils/helpers'
 
 const QUEUE = {}
 const REFS = {}
@@ -86,8 +85,8 @@ const emitter = new Vue({
     apiSupportedPairs() {
       return store.state.app.apiSupportedPairs
     },
-    actives() {
-      return store.state.app.actives
+    activeExchanges() {
+      return store.state.app.activeExchanges
     },
     isLoading() {
       return store.state.app.isLoading
@@ -103,38 +102,8 @@ const emitter = new Vue({
     }
   },
   created() {
-    window.testapi = () => {
-      this.testapi()
-    }
-    window.emitTrade = (exchange, price, amount = 1, side = 1, type = null) => {
-      exchange = exchange || 'bitmex'
-
-      if (price === null) {
-        price = this.getExchangeById(exchange).price
-      }
-
-      let trade = {
-        exchange: exchange,
-        timestamp: +new Date(),
-        price: price,
-        size: amount,
-        side: side ? 'buy' : 'sell'
-      }
-
-      if (type === 1) {
-        trade.liquidation = true
-      }
-
-      console.log(price * amount, formatAmount(price * amount))
-
-      this.$emit('trades', [trade])
-      this.$emit('trades.aggr', [trade])
-    }
     store.subscribe(mutation => {
       switch (mutation.type) {
-        case 'app/EXCHANGE_UPDATED':
-          activeExchanges = this.actives.slice(0, this.actives.length)
-          break
         case 'settings/TOGGLE_STATS':
         case 'settings/TOGGLE_COUNTERS':
           if (!this.showStats && !this.showCounters && sumsInterval) {
@@ -161,7 +130,7 @@ const emitter = new Vue({
           for (let i = 0; i < length; i++) {
             const trade = trades[i]
 
-            if (sumsInterval !== null && activeExchanges.indexOf(trade.exchange) !== -1) {
+            if (sumsInterval !== null && activeExchanges[trade.exchange]) {
               const size = (this.preferQuoteCurrencySize ? trade.price : 1) * trade.size
 
               if (!SUMS.timestamp) {
@@ -188,7 +157,7 @@ const emitter = new Vue({
           for (let i = 0; i < length; i++) {
             const trade = trades[i]
 
-            if (sumsInterval !== null && activeExchanges.indexOf(trade.exchange) !== -1) {
+            if (sumsInterval !== null && activeExchanges[trade.exchange]) {
               const size = (this.preferQuoteCurrencySize ? trade.price : 1) * trade.size
 
               if (!SUMS.timestamp) {
@@ -426,7 +395,12 @@ const emitter = new Vue({
       url = url.replace(/\{to\}/, to)
       url = url.replace(/\{timeframe\}/, this.timeframe * 1000)
       url = url.replace(/\{pair\}/, this.pair.toLowerCase())
-      url = url.replace(/\{exchanges\}/, this.actives.join('+'))
+      url = url.replace(
+        /\{exchanges\}/,
+        Object.keys(activeExchanges)
+          .filter(id => !!activeExchanges[id])
+          .join('+')
+      )
 
       return url
     },
@@ -457,14 +431,14 @@ const emitter = new Vue({
         })
           .then(response => {
             if (!response.data || typeof response.data !== 'object') {
-              return reject()
+              return reject('invalid-data')
             }
 
             const format = response.data.format
             let data = response.data.results
 
             if (!data.length) {
-              return reject()
+              return reject('no-more-data')
             }
 
             switch (response.data.format) {
@@ -495,7 +469,7 @@ const emitter = new Vue({
                 })`
               })
 
-            reject()
+            reject(err)
           })
           .then(() => {
             this._fetchedTime += to - from

@@ -18,17 +18,18 @@
       <SerieControl v-for="(serie, index) in activeSeries" :key="index" :id="serie" :legend="legend[serie]" />
 
       <dropdown
-        class="available-series mt15 -left"
-        v-if="availableSeries.length"
-        :options="availableSeries"
-        placeholder="+ serie"
-        @output="$store.commit('settings/TOGGLE_SERIE', { id: availableSeries[$event], value: true })"
+        class="available-series -left"
+        v-if="inactiveSeries.length"
+        :options="inactiveSeries"
+        :alwaysShowPlaceholder="false"
+        placeholder="+ Add serie"
+        @output="addSerie"
       ></dropdown>
     </div>
     <div class="chart__controls">
       <button class="btn -small" @click="refreshChart">Refresh</button>
     </div>
-    <div class="chart__positions">
+    <!--<div class="chart__positions">
       <div>
         from: {{ visibleRangeFrom }}<br />
         logicalfrom: {{ visibleRangeLogicalFrom }}
@@ -40,23 +41,23 @@
         to: {{ visibleRangeTo }}<br />
         logicalto: {{ visibleRangeLogicalTo }}
       </div>
-    </div>
+    </div>-->
   </div>
 </template>
 
 <script>
 import '../../data/typedef'
 import { mapState } from 'vuex'
-// import VueGridLayout from 'vue-grid-layout';
 import ChartController from './chartController'
-import { cacheRange, trimCache, saveChunk } from './chartCache'
-import seriesData from '../../data/series'
 import socket from '../../services/socket'
 
+import dialogService from '../../services/dialog'
 import { formatPrice, formatAmount, formatTime } from '../../utils/helpers'
 
 import SerieControl from './SerieControl.vue'
 import { MAX_BARS_PER_CHUNKS } from '../../utils/constants'
+import SerieDialog from './SerieDialog.vue'
+import CreateSerieDialog from './CreateSerieDialog.vue'
 
 /**
  * @type {ChartController}
@@ -66,8 +67,6 @@ let chart = null
 export default {
   components: {
     SerieControl
-    /* GridLayout: VueGridLayout.GridLayout,
-    GridItem: VueGridLayout.GridItem */
   },
 
   data() {
@@ -75,7 +74,6 @@ export default {
       resizing: {},
       fetching: false,
       legend: {},
-      seriesLayout: null,
       visibleRangeFrom: null,
       visibleRangeTo: null,
       visibleRangeLogicalFrom: null,
@@ -85,7 +83,7 @@ export default {
   },
 
   computed: {
-    ...mapState('app', ['actives', 'activeSeries']),
+    ...mapState('app', ['activeSeries']),
     ...mapState('settings', [
       'debug',
       'pair',
@@ -99,15 +97,17 @@ export default {
       'series',
       'chartTheme'
     ]),
-    availableSeries: function() {
-      return Object.keys(seriesData).filter(id => this.activeSeries.indexOf(id) === -1)
+    inactiveSeries: function() {
+      return Object.keys(this.$store.state.settings.series)
+        .filter(id => this.$store.state.settings.series[id].enabled === false)
+        .concat(['+ Create'])
     }
   },
 
   created() {
     chart = new ChartController()
 
-    setInterval(this.debugPosition.bind(this), 1000)
+    // setInterval(this.debugPosition.bind(this), 1000)
 
     socket.$on('trades', this.onTrades)
 
@@ -152,30 +152,28 @@ export default {
         case 'settings/TOGGLE_EXCHANGES_BAR':
           setTimeout(this.refreshChartDimensions.bind(this))
           break
-        case 'app/SET_OPTIMAL_DECIMAL':
+        /* case 'app/SET_OPTIMAL_DECIMAL':
         case 'settings/SET_DECIMAL_PRECISION':
           // eslint-disable-next-line no-case-declarations
           const priceFormat = { precision: mutation.payload, minMove: 1 / Math.pow(10, mutation.payload) }
 
-          chart.setSerieOption({
-            id: 'price',
-            key: 'priceFormat.precision',
-            value: priceFormat.precision
-          })
+          for (const serie of this.activeSeries) {
+            if (serie.options.priceScaleId === 'right') {
+              chart.setSerieOption({
+                id: serie.id,
+                key: 'priceFormat.precision',
+                value: priceFormat.precision
+              })
 
-          chart.setSerieOption({
-            id: 'price',
-            key: 'priceFormat.minMove',
-            value: priceFormat.minMove
-          })
-
-          if (!this.$store.state.settings.series['price']) {
-            this.$store.state.settings.series['price'] = {}
+              chart.setSerieOption({
+                id: serie.id,
+                key: 'priceFormat.minMove',
+                value: priceFormat.minMove
+              })
+            }
           }
 
-          this.$store.state.settings.series['price'].priceFormat = priceFormat
-
-          break
+          break */
       }
     })
   },
@@ -185,14 +183,13 @@ export default {
 
     chart.createChart(this.$refs.chartContainer, this.getChartDimensions())
     chart.setupQueue()
-    this.keepAlive()
-
-    this.refreshSeriesLayout()
 
     this.bindChartEvents()
     this.bindBrowserResize()
 
     this.fetch()
+
+    this.keepAlive()
   },
 
   beforeDestroy() {
@@ -228,21 +225,6 @@ export default {
       }
       this.scrollPosition = Math.round(scrollPosition)
     },
-    refreshSeriesLayout() {
-      const layout = []
-
-      for (let serie of chart.activeSeries) {
-        layout.push({
-          x: 0,
-          y: layout.length,
-          w: 1,
-          h: 1,
-          i: serie.id
-        })
-      }
-
-      this.seriesLayout = layout
-    },
 
     /**
      * fetch whatever is missing based on visiblerange
@@ -261,10 +243,10 @@ export default {
 
         let leftTime
 
-        if (cacheRange && cacheRange.from) {
-          leftTime = cacheRange.from
+        if (chart.chartCache.cacheRange && chart.chartCache.cacheRange.from) {
+          leftTime = chart.chartCache.cacheRange.from
         } else if (visibleRange && visibleRange.from) {
-          leftTime = visibleRange.from
+          leftTime = visibleRange.from + this.timezoneOffset / 1000
         } else {
           leftTime = +new Date() / 1000
         }
@@ -324,6 +306,8 @@ export default {
             while (chunk.bars.length) {
               const bar = chunk.bars.shift()
 
+              bar.timestamp
+
               if (chunks[0].bars.length >= MAX_BARS_PER_CHUNKS && chunks[0].to < bar.timestamp) {
                 chunks.unshift({
                   from: bar.timestamp,
@@ -349,9 +333,11 @@ export default {
                 chunks[chunks.length - 1].bars.length
               )} bars)`
             )
-            console.log(`\t-> [current cacheRange] FROM: ${formatTime(cacheRange.from)} | TO: ${formatTime(cacheRange.to)}`)
+            console.log(
+              `\t-> [current cacheRange] FROM: ${formatTime(chart.chartCache.cacheRange.from)} | TO: ${formatTime(chart.chartCache.cacheRange.to)}`
+            )
             for (const chunk of chunks) {
-              saveChunk(chunk)
+              chart.chartCache.saveChunk(chunk)
             }
 
             chart.renderVisibleChunks()
@@ -564,9 +550,9 @@ export default {
      * on chart pan
      */
     onPan(visibleLogicalRange) {
-      this.debugPosition()
+      // this.debugPosition()
 
-      if (chart.panPrevented) {
+      if (!visibleLogicalRange || chart.panPrevented) {
         return
       }
 
@@ -576,7 +562,7 @@ export default {
       }
 
       this._onPanTimeout = setTimeout(() => {
-        if (cacheRange.from === null) {
+        if (chart.chartCache.cacheRange.from === null) {
           return
         }
         // const visibleRangeLogical = chart.chartInstance.timeScale().getVisibleLogicalRange()
@@ -587,22 +573,25 @@ export default {
 
         const barsToLoad = Math.abs(visibleLogicalRange.from)
         const rangeToFetch = {
-          from: cacheRange.from - barsToLoad * this.$store.state.settings.timeframe,
-          to: cacheRange.from
+          from: chart.chartCache.cacheRange.from - barsToLoad * this.$store.state.settings.timeframe,
+          to: chart.chartCache.cacheRange.from
         }
 
         console.log(`[chart/pan] timeout fired`)
         console.log(`\t-> barsToLoad: ${barsToLoad}`)
         console.log(`\t-> rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
-        console.log(`\t-> current cacheRange: FROM: ${formatTime(cacheRange.from)} | TO: ${formatTime(cacheRange.to)}`)
+        console.log(
+          `\t-> current cacheRange: FROM: ${formatTime(chart.chartCache.cacheRange.from)} | TO: ${formatTime(chart.chartCache.cacheRange.to)}`
+        )
+        // this.debugPosition()
 
-        if (!cacheRange.from || rangeToFetch.to <= cacheRange.from) {
+        if (!chart.chartCache.cacheRange.from || rangeToFetch.to <= chart.chartCache.cacheRange.from) {
           this.fetch(rangeToFetch)
         } else {
           console.warn(
-            `[chart/pan] wont fetch this range\n\t-> rangeToFetch.to (${formatTime(rangeToFetch.to)}) > cacheRange.from (${formatTime(
-              cacheRange.from
-            )})`
+            `[chart/pan] wont fetch this range\n\t-> rangeToFetch.to (${formatTime(
+              rangeToFetch.to
+            )}) > chart.chartCache.cacheRange.from (${formatTime(chart.chartCache.cacheRange.from)})`
           )
           console.warn('(might trigger redraw with more cached chunks here...)')
 
@@ -634,7 +623,7 @@ export default {
 
     keepAlive() {
       if (this._keepAliveTimeout) {
-        trimCache()
+        chart.trimCache()
 
         chart.redraw()
       }
@@ -643,9 +632,26 @@ export default {
     },
 
     refreshChart() {
-      trimCache()
+      chart.chartCache.trimCache()
 
       chart.redraw()
+    },
+
+    async addSerie(index) {
+      if (index === this.inactiveSeries.length - 1) {
+        const serie = await dialogService.openAsPromise(CreateSerieDialog)
+
+        if (serie) {
+          this.$store.dispatch('settings/createSerie', serie)
+          dialogService.open(SerieDialog, { id: serie.id })
+        }
+
+        return
+      }
+
+      const id = this.inactiveSeries[index]
+
+      this.$store.dispatch('settings/toggleSerie', id)
     }
   }
 }
