@@ -325,7 +325,11 @@ export default {
       let finalValue = ''
 
       if (typeof preferedValue !== 'undefined') {
-        finalValue = preferedValue
+        if (preferedValue && typeof preferedValue === 'object' && defaultValue && typeof defaultValue === 'object') {
+          finalValue = Object.assign({}, defaultValue, preferedValue)
+        } else {
+          finalValue = preferedValue
+        }
       } else if (typeof defaultValue !== 'undefined') {
         finalValue = defaultValue
       }

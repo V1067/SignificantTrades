@@ -16,11 +16,10 @@
       "type": "candlestick",
       "input": "cum_ohlc(vbuy - vsell)",
       "options": {
+        "valueAsVolume": true,
         "priceScaleId": "right",
         "priceFormat": {
-          "type": "volume",
-          "minMove": "0.01",
-          "precision": 2
+          "type": "volume"
         },
         "upColor": "rgba(165,214,167,0)",
         "borderUpColor": "rgb(255,235,59)",
@@ -45,18 +44,13 @@
         "lineStyle": 0,
         "priceLineVisible": true,
         "lastValueVisible": true,
-        "priceFormat": {
-          "type": "price",
-          "minMove": "0.01",
-          "precision": 0.01
-        },
         "topColor": "rgba(33,150,243,0.26)",
         "lineColor": "rgb(33,150,243)",
         "bottomColor": "rgba(33,150,243,0)"
       }
     },
     "bitmex": {
-      "name": "Bitmex",
+      "name": "Bitmex (example)",
       "type": "line",
       "input": "bitmex.close",
       "enabled": false,
@@ -65,7 +59,7 @@
       }
     },
     "kraken": {
-      "name": "Kraken",
+      "name": "Kraken (example)",
       "type": "line",
       "input": "kraken.close",
       "enabled": false,
@@ -77,47 +71,41 @@
     "volume_sell_ema": {
       "type": "line",
       "name": "Volume Sell EMA",
+      "enabled": false,
       "input": "ema(vsell,options.emaLength)",
       "options": {
-        "valueAsVolume": true,
+        "priceFormat": {
+          "type": "volume"
+        },
+        "scaleMargins": {
+          "top": 0.8,
+          "bottom": 0
+        },
         "lineType": 1,
         "emaLength": 14,
         "priceScaleId": "volume_ema",
         "color": "#c14047",
-        "lineWidth": 1,
-        "scaleMargins": {
-          "top": 0.8,
-          "bottom": 0
-        }
+        "lineWidth": 1
       }
     },
     "volume_buy_ema": {
       "type": "line",
       "name": "Volume Buy EMA",
+      "enabled": false,
       "input": "ema(vbuy,options.emaLength)",
       "options": {
-        "valueAsVolume": true,
+        "priceFormat": {
+          "type": "volume"
+        },
+        "scaleMargins": {
+          "top": 0.8,
+          "bottom": 0
+        },
         "emaLength": 14,
         "lineType": 1,
         "priceScaleId": "volume_ema",
         "color": "rgb(129,199,132)",
-        "lineWidth": 1,
-        "scaleMargins": {
-          "top": 0.8,
-          "bottom": 0
-        }
-      }
-    },
-    "volume_delta": {
-      "name": "Volume Delta",
-      "type": "histogram",
-      "enabled": false,
-      "input": "{value: Math.abs(vbuy-vsell),color: bar.vbuy - bar.vsell > 0 ? options.upColor : options.downColor}",
-      "options": {
-        "valueAsVolume": true,
-        "upColor": "#c3a87a",
-        "downColor": "#e53935",
-        "priceScaleId": "volume"
+        "lineWidth": 1
       }
     },
     "volume": {
@@ -126,7 +114,9 @@
       "input": "vbuy + vsell",
       "enabled": true,
       "options": {
-        "valueAsVolume": true,
+        "priceFormat": {
+          "type": "volume"
+        },
         "color": "rgba(255, 255, 255, .15)",
         "priceScaleId": "volume"
       }
@@ -137,15 +127,30 @@
       "input": "{value: lbuy+lsell,color: lbuy - lsell > 0 ? options.upColor : options.downColor}",
       "enabled": true,
       "options": {
-        "valueAsVolume": true,
-        "priceScaleId": "volume-liquidations",
-        "upColor": "rgb(244,67,54)",
-        "downColor": "rgb(103,58,183)",
-        "color": "#9c27b0",
+        "priceFormat": {
+          "type": "volume"
+        },
+        "priceScaleId": "volume_liquidations",
+        "upColor": "rgba(255,235,59,0.72)",
+        "downColor": "rgba(103,58,183,0.69)",
         "scaleMargins": {
           "top": 0.9,
           "bottom": 0
         }
+      }
+    },
+    "volume_delta": {
+      "name": "Volume Delta",
+      "type": "histogram",
+      "enabled": true,
+      "input": "{value: Math.abs(vbuy-vsell),color: vbuy - vsell > 0 ? options.upColor : options.downColor}",
+      "options": {
+        "priceFormat": {
+          "type": "volume"
+        },
+        "upColor": "#c3a87a",
+        "downColor": "#e53935",
+        "priceScaleId": "volume"
       }
     },
     "ctd": {

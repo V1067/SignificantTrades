@@ -374,7 +374,7 @@ export default {
             continue
           }
 
-          let formatFunction = serie.options.valueAsVolume ? formatAmount : formatPrice
+          let formatFunction = serie.options.priceFormat && serie.options.priceFormat.type === 'volume' ? formatAmount : formatPrice
 
           if (data.close) {
             this.$set(

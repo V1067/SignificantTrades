@@ -4,12 +4,12 @@
 
     <template v-if="!error">
       <div class="serie__controls">
-        <button class="btn -small" @click="toggleVisibility" v-tippy title="show/hide">
+        <button class="btn -small" @click="toggleVisibility" v-tippy :title="visible ? 'Hide' : 'Show'">
           <i :class="{ 'icon-eye': !visible, 'icon-eye-crossed': visible }"></i>
         </button>
         <!--<button class="btn -small" @click="bringOnTop" v-tippy title="bring on top"><i class="icon-up"></i></button>-->
-        <button class="btn -small" @click="edit" v-tippy title="edit"><i class="icon-edit"></i></button>
-        <button class="btn -small" @click="remove" v-tippy title="disable"><i class="icon-cross"></i></button>
+        <button class="btn -small" @click="edit" v-tippy title="Edit"><i class="icon-edit"></i></button>
+        <button class="btn -small" @click="remove" v-tippy title="Disable"><i class="icon-cross"></i></button>
       </div>
       <div v-if="legend" class="serie__legend">{{ legend }}</div>
     </template>
