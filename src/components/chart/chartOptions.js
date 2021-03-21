@@ -99,13 +99,13 @@ export const defaultAreaOptions = {
   bottomColor: 'rgba(21, 146, 230, 0)',
   lineColor: 'rgba(21, 146, 230, 1)',
   lineStyle: 0,
-  lineWidth: 3
+  lineWidth: 2
 }
 
 export const defaultBarOptions = {
   thinBars: false,
-  upColor: 'rgba(37, 148, 51, 0.2)',
-  downColor: 'rgba(191, 55, 48, 0.2)',
+  upColor: '#a5d6a7',
+  downColor: '#e57373',
   openVisible: true
 }
 

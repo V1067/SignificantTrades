@@ -18,7 +18,9 @@
       "options": {
         "priceScaleId": "right",
         "priceFormat": {
-          "type": "volume"
+          "type": "volume",
+          "minMove": "0.01",
+          "precision": 2
         }
       }
     },

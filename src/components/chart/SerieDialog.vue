@@ -286,28 +286,28 @@ export default {
     getDefaultValue(key) {
       let value
 
-      if (typeof defaultPlotsOptions[this.type] !== 'undefined') {
-        value = defaultPlotsOptions[this.type][key]
+      if (typeof defaultPlotsOptions[this.type] !== 'undefined' && typeof defaultPlotsOptions[this.type][key] !== 'undefined') {
+        return defaultPlotsOptions[this.type][key]
       }
 
       if (typeof value === 'undefined' && typeof defaultSerieOptions[key] !== 'undefined') {
-        value = defaultSerieOptions[key]
+        return defaultSerieOptions[key]
       }
 
       if (typeof value === 'undefined' && /length$/i.test(key)) {
-        value = 14
+        return 14
       }
 
       if (typeof value === 'undefined' && /color$/i.test(key)) {
-        value = '#c3a87a'
+        return '#c3a87a'
       }
 
       if (typeof value === 'undefined' && /width$/i.test(key)) {
-        value = 1
+        return 1
       }
 
       if (typeof value === 'undefined' && key === 'scaleMargins') {
-        value = {
+        return {
           top: 0.1,
           bottom: 0.2
         }
@@ -436,6 +436,20 @@ export default {
 
       this.colorOptionsKeys = colorOptionsKeys
       this.otherOptionsKeys = otherOptionsKeys
+
+      for (let i = 0; i < this.otherOptions.length; i++) {
+        if (this.otherOptionsKeys.indexOf(this.otherOptions[i].key) === -1) {
+          this.otherOptions.splice(this.otherOptions.indexOf(this.otherOptions[i]), 1)
+          i--
+        }
+      }
+
+      for (let i = 0; i < this.colorOptions.length; i++) {
+        if (this.colorOptionsKeys.indexOf(this.colorOptions[i].key) === -1) {
+          this.colorOptions.splice(this.colorOptions.indexOf(this.colorOptions[i]), 1)
+          i--
+        }
+      }
     },
     async removeSerie() {
       await this.close()
