@@ -1092,9 +1092,7 @@ export default class ChartController {
 
         store.commit('app/SET_SERIE_ERROR', {
           id: serie.id,
-          error: `${serie.id} is NaN
-          \t-> output: ${serie.model.output}
-          \t-> series: ${JSON.stringify(renderer.series, null, 2)}`
+          error: `${serie.id} is NaN`
         })
 
         if (!dialogService.isDialogOpened('SerieDialog')) {

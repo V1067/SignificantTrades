@@ -303,12 +303,21 @@ export default {
     }
   },
   created() {
+    console.info(this.value)
+
     const stepSplited = this.step.toString().split('.')[1]
     this.currentValue = this.value
     this.decimalsCount = stepSplited ? stepSplited.length : 0
   },
   mounted() {
     this.init()
+
+    this._updateWidthTimeout = window.setTimeout(() => {
+      this._updateWidthTimeout = null
+      this.updateWidth()
+      this.updateValue(undefined, true)
+    }, 200)
+
     this.$nextTick(() => {
       this.updateWidth()
       this.updateValue(undefined, true)
@@ -316,14 +325,15 @@ export default {
   },
   destroyed() {
     window.removeEventListener('resize', this.handleResize)
+
+    if (this._updateWidthTimeout) {
+      clearTimeout(this._updateWidthTimeout)
+    }
   }
 }
 </script>
 
 <style lang="scss">
-$checkerboard: linear-gradient(45deg, $accent 25%, transparent 25%), linear-gradient(45deg, transparent 75%, $accent 75%),
-  linear-gradient(-45deg, $accent 25%, transparent 25%), linear-gradient(-45deg, transparent 75%, $accent 75%);
-
 .slider {
   position: relative;
   display: flex;

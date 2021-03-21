@@ -21,6 +21,12 @@ body {
       opacity: 0.9;
     }
   }
+
+  &.-light {
+    #trades {
+      background-color: rgba(white, .2)
+    }
+  }
 }
 
 .app__wrapper {

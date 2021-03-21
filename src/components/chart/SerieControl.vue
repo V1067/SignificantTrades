@@ -1,15 +1,19 @@
 <template>
   <div class="serie" :class="{ '-error': !!error, '-disabled': !visible }">
     <div class="serie__name" @click="edit">{{ name }}</div>
-    <div class="serie__controls" v-if="!error">
-      <button class="btn -text -small" @click="toggleVisibility" v-tippy title="show/hide">
-        <i :class="{ 'icon-eye': !visible, 'icon-eye-crossed': visible }"></i>
-      </button>
-      <!--<button class="btn -text -small" @click="bringOnTop" v-tippy title="bring on top"><i class="icon-up"></i></button>-->
-      <button class="btn -text -small" @click="edit" v-tippy title="edit"><i class="icon-edit"></i></button>
-      <button class="btn -text -small" @click="remove" v-tippy title="disable"><i class="icon-cross"></i></button>
+
+    <template v-if="!error">
       <div v-if="legend" class="serie__legend">{{ legend }}</div>
-    </div>
+
+      <div class="serie__controls">
+        <button class="btn -small" @click="toggleVisibility" v-tippy title="show/hide">
+          <i :class="{ 'icon-eye': !visible, 'icon-eye-crossed': visible }"></i>
+        </button>
+        <!--<button class="btn -small" @click="bringOnTop" v-tippy title="bring on top"><i class="icon-up"></i></button>-->
+        <button class="btn -small" @click="edit" v-tippy title="edit"><i class="icon-edit"></i></button>
+        <button class="btn -small" @click="remove" v-tippy title="disable"><i class="icon-cross"></i></button>
+      </div>
+    </template>
     <template v-else>
       <i class="icon-warning mr15"></i>
       {{ error }}
@@ -79,7 +83,9 @@ export default {
 
     &:hover {
       + .serie__controls {
-        display: inline-flex;
+        visibility: visible;
+        pointer-events: all;
+        transition-delay: 0s;
       }
     }
   }
@@ -88,17 +94,47 @@ export default {
     color: lighten($green, 20%);
     margin-left: 0.4em;
     font-family: monospace;
-    text-shadow: 1px 1px black;
     pointer-events: none;
+    line-height: 1.8;
+    letter-spacing: 0px;
+
+    text-shadow: 1px 1px black;
   }
 
   &__controls {
-    display: none;
+    //padding-left: 1rem;
+    display: inline-flex;
     align-items: center;
+    pointer-events: none;
+    visibility: hidden;
+    transition: visibility;
+    transition-delay: 1s;
 
     &:hover {
-      display: inline-flex;
+      pointer-events: all;
+      visibility: visible;
+      transition-delay: 0s;
+    }
+
+    > .btn {
+      background-color: $orange;
+      border-radius: 0;
+
+      &:first-child {
+        border-top-left-radius: 2px;
+        border-bottom-left-radius: 2px;
+      }
+
+      &:last-child {
+        border-top-right-radius: 2px;
+        border-bottom-right-radius: 2px;
+      }
     }
   }
+}
+
+#app.-light .serie__legend {
+  color: $blue;
+  text-shadow: none;
 }
 </style>

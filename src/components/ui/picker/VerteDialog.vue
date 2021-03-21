@@ -12,6 +12,7 @@
         :max="1"
         :step="0.01"
         :editable="false"
+        :value="alpha"
         v-model="alpha"
       >
       </Slider>

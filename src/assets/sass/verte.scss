@@ -79,3 +79,10 @@
 .dialog.-picker .dialog-body::-webkit-scrollbar {
   width: 0;
 }
+
+.btn[picker] {
+  background-color: transparent;
+  background-image: $checkerboard;
+  background-size: 6px 6px;
+  background-position: 0 0, 3px -3px, 0 3px, -3px 0px;
+}

@@ -27,7 +27,7 @@
       ></dropdown>
     </div>
     <div class="chart__controls">
-      <button class="btn -small" @click="refreshChart">Refresh</button>
+      <!--<button class="btn -small" @click="refreshChart">Refresh</button>-->
     </div>
     <!--<div class="chart__positions">
       <div>

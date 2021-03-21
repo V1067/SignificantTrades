@@ -83,9 +83,6 @@ export function avg_close$(state, renderer) {
  * @param {Renderer} renderer
  */
 export function ohlc$(state, value) {
-  if (isNaN(value)) {
-    throw new Error('is NaN!')
-  }
   if (typeof state.open === 'undefined') {
     state.open = value
     state.high = value
@@ -95,9 +92,6 @@ export function ohlc$(state, value) {
   state.high = Math.max(state.high, value)
   state.low = Math.min(state.low, value)
   state.close = value
-  if (isNaN(value)) {
-    throw new Error('is NaN!')
-  }
 
   return { open: state.open, high: state.high, low: state.low, close: state.close }
 }
@@ -108,18 +102,12 @@ export function ohlc$(state, value) {
  * @param {Renderer} renderer
  */
 export function cum_ohlc$(state, value) {
-  if (isNaN(value)) {
-    throw new Error('is NaN!')
-  }
   if (typeof state.open === 'undefined') {
     state.open = value
     state.high = value
     state.low = value
   } else {
     value = state.open + value
-  }
-  if (isNaN(value)) {
-    throw new Error('is NaN!')
   }
 
   state.high = Math.max(state.high, value)
@@ -135,16 +123,13 @@ export function cum_ohlc$(state, value) {
  * @param {Renderer} renderer
  */
 export function cum$(state, value) {
-  if (isNaN(value)) {
-    throw new Error('is NaN!')
-  }
-  if (typeof state.value === 'undefined') {
-    state.value = value
-  } else {
-    state.value += value
+  if (typeof state.open === 'undefined') {
+    state.open = value
   }
 
-  return state.value
+  state.close = state.open + value
+
+  return state.close
 }
 
 /**
@@ -153,9 +138,6 @@ export function cum$(state, value) {
  * @param {number} value
  */
 export function ema$(state, value, length) {
-  if (isNaN(value)) {
-    throw new Error('is NaN!')
-  }
   const k = 2 / (length + 1)
 
   if (state.count) {
@@ -174,9 +156,6 @@ export function ema$(state, value, length) {
  * @param {number} value
  */
 export function sma$(state, value, length) {
-  if (isNaN(value)) {
-    throw new Error('is NaN!')
-  }
   const average = (state.sum + value) / (state.count + 1)
   state.output = value
   return average
@@ -188,9 +167,6 @@ export function sma$(state, value, length) {
  * @param {number} value
  */
 export function cma$(state, value, length) {
-  if (isNaN(value)) {
-    throw new Error('is NaN!')
-  }
   state.output = (state.sum + value) / (state.count + 1)
   return state.output
 }
