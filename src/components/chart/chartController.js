@@ -393,7 +393,7 @@ export default class ChartController {
 
     const { functions, variables } = JSON.parse(JSON.stringify(serie.model))
 
-    this.serieTranspiler.updateInstructionsArguments(functions, serie.options)
+    this.serieTranspiler.updateInstructionsArgument(functions, serie.options)
 
     console.log(`[chart/bindSerie] binding ${serie.id} ...`)
 
@@ -1181,7 +1181,7 @@ export default class ChartController {
             instruction.state.sum += instruction.state.output
             instruction.state.count++
 
-            if (instruction.state.count > instruction.args.length) {
+            if (instruction.state.count > instruction.arg) {
               instruction.state.sum -= instruction.state.points.shift()
               instruction.state.count--
             }

@@ -14,6 +14,7 @@ module.exports = {
     // https: true,
     // port: 8081,
     historyApiFallback: true,
+    productionSourceMap: false,
     proxy: [
       'https://api.kraken.com',
       'https://api.binance.com',

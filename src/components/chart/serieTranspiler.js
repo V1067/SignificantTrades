@@ -158,13 +158,15 @@ export default class SerieTranspiler {
           )
           .replace(/\(.*\)/g, '')
           .split(',')
-          .reduce((argumentMap, argumentValue, index) => {
+        /*.reduce((argumentMap, argumentValue, index) => {
             argumentMap[functionArgumentsNames[index]] = argumentValue
 
             return argumentMap
-          }, {})
+          }, {})*/
 
-        instruction.args = functionArguments
+        if (functionArguments.length == 2) {
+          instruction.arg = functionArguments[1]
+        }
 
         output = output.replace(FUNCTION_REGEX, `utils.$1$(${FUNCTIONS_VAR_NAME}[${instructions.length}].state,`)
         instructions.push(instruction)
@@ -417,16 +419,16 @@ export default class SerieTranspiler {
   }
 
   // eslint-disable-next-line no-unused-vars
-  updateInstructionsArguments(functions, options) {
+  updateInstructionsArgument(functions, options) {
     for (const instruction of functions) {
-      for (const prop in instruction.args) {
-        try {
-          instruction.args[prop] = eval(instruction.args[prop])
+      if (typeof instruction.arg === 'undefined') {
+        continue
+      }
 
-          console.info('updated argument', prop, instruction.args[prop])
-        } catch (error) {
-          // nothing to see here
-        }
+      try {
+        instruction.arg = eval(instruction.arg)
+      } catch (error) {
+        // nothing to see here
       }
     }
   }
