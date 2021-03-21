@@ -1065,8 +1065,6 @@ export default class ChartController {
 
       serieData.point = serie.adapter(renderer, serieData.functions, serieData.variables, serie.options, seriesUtils)
 
-      let value
-
       if (serie.outputType === 'value') {
         serieData.value = serieData.point
         points[serie.id] = { time, value: serieData.point }
@@ -1093,7 +1091,7 @@ export default class ChartController {
         }
 
         continue
-      } else if (value === null || (serie.type === 'histogram' && value === 0)) {
+      } else if (serieData.value === null || (serie.type === 'histogram' && serieData.value === 0)) {
         delete points[serie.id]
       }
     }
@@ -1229,7 +1227,7 @@ export default class ChartController {
     borderColor.alpha = 0.2
     borderColor = formatRgb(borderColor)
 
-    const crossHairColor = store.state.settings.chartTheme === 'light' ? 'rgba(0, 0, 0, .25)' : 'rgba(255, 255, 255, .75)'
+    const crossHairColor = store.state.settings.chartTheme === 'light' ? 'rgba(0, 0, 0, .25)' : 'rgba(255, 255, 255, .25)'
 
     return {
       crosshair: {

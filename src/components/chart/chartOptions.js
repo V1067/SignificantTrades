@@ -1,14 +1,14 @@
 export const defaultChartOptions = {
   crosshair: {
     vertLine: {
-      color: 'rgba(255, 255, 255, .75)',
+      color: 'rgba(255, 255, 255, .5)',
       width: 0.5,
       style: 2,
       visible: true,
       labelVisible: true
     },
     horzLine: {
-      color: 'rgba(255, 255, 255, .75)',
+      color: 'rgba(255, 255, 255, .5)',
       width: 0.5,
       style: 2,
       visible: true,

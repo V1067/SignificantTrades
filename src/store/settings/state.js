@@ -41,4 +41,16 @@ if (MASTER_DOMAIN) {
   }
 }
 
+if (STORED && STORED.series) {
+  for (const serieId in STORED.series) {
+    if (!STORED.series[serieId].input) {
+      delete STORED.series[serieId]
+    }
+  }
+
+  if (!Object.keys(STORED.series).length) {
+    STORED.series = DEFAULTS.series
+  }
+}
+
 export default Object.assign({}, DEFAULTS, EXTRA, STORED, QUERY_STRING)

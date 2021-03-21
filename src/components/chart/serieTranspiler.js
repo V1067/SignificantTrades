@@ -189,6 +189,10 @@ export default class SerieTranspiler {
       }
     } while (free < 10 && exchangeMatch)
 
+    for (const exchange of exchanges) {
+      output = `(renderer.exchanges.${exchange} ? ${output} : null)`
+    }
+
     return output
   }
   parseReferences(output, references) {
