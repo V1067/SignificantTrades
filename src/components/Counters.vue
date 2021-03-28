@@ -2,23 +2,23 @@
   <ul class="counters">
     <li v-for="(step, index) in activeSteps" :key="index" v-bind:duration="step.duration" class="counter">
       <div class="counter__side -buy" v-bind:style="{ width: (step.buy / (step.buy + step.sell)) * 100 + '%' }">
-        <span v-if="!countersCount">{{ $root.formatAmount(step.buy) }}</span>
+        <span v-if="!countersCount">{{ formatAmount(step.buy) }}</span>
         <span v-else>{{ step.buy }}</span>
       </div>
       <div class="counter__side -sell" v-bind:style="{ width: (step.sell / (step.buy + step.sell)) * 100 + '%' }">
-        <span v-if="!countersCount">{{ $root.formatAmount(step.sell) }}</span>
+        <span v-if="!countersCount">{{ formatAmount(step.sell) }}</span>
         <span v-else>{{ step.sell }}</span>
       </div>
     </li>
   </ul>
 </template>
 
-<script>
-import { mapState } from 'vuex'
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
 
-import { getHms } from '../utils/helpers'
+import { formatAmount, formatPrice, getHms } from '../utils/helpers'
 
-import socket from '../services/socket'
+import aggregatorService from '@/services/aggregatorService'
 
 const CHUNK = {
   timestamp: null,
@@ -28,27 +28,49 @@ const CHUNK = {
 
 const COUNTERS = []
 
-export default {
-  data() {
-    return {
-      topElement: {},
-      steps: []
-    }
-  },
-  computed: {
-    ...mapState('settings', ['preferQuoteCurrencySize', 'thresholds', 'liquidationsOnly', 'countersSteps', 'countersCount', 'countersGranularity']),
-    activeSteps: function() {
-      return this.steps.filter(a => a.hasData)
-    }
-  },
+@Component({
+  name: 'Counters'
+})
+export default class extends Vue {
+  steps = []
+
+  private onStoreMutation: () => void
+  private _populateCountersInterval: number
+
+  get preferQuoteCurrencySize() {
+    return this.$store.state.settings.preferQuoteCurrencySize
+  }
+
+  get thresholds() {
+    return this.$store.state.settings.thresholds
+  }
+
+  get liquidationsOnly() {
+    return this.$store.state.settings.liquidationsOnly
+  }
+
+  get countersSteps() {
+    return this.$store.state.settings.countersSteps
+  }
+
+  get countersCount() {
+    return this.$store.state.settings.countersCount
+  }
+
+  get countersGranularity() {
+    return this.$store.state.settings.countersGranularity
+  }
+
+  get activeSteps() {
+    return this.steps.filter(a => a.hasData)
+  }
+
   created() {
-    socket.$on('sums', this.onSums)
+    aggregatorService.on('sums', this.onSums)
 
     this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
         case 'settings/SET_PAIR':
-          this.createCounters()
-          break
         case 'settings/REPLACE_COUNTERS':
         case 'settings/TOGGLE_LIQUIDATIONS_ONLY':
         case 'settings/TOGGLE_COUNTERS_COUNT':
@@ -60,136 +82,131 @@ export default {
     this.createCounters()
 
     this._populateCountersInterval = setInterval(this.populateCounters.bind(this), this.countersGranularity)
-  },
-  mounted() {},
+  }
+
   beforeDestroy() {
-    socket.$off('sums', this.onSums)
+    aggregatorService.off('sums', this.onSums)
 
     this.onStoreMutation()
 
     clearInterval(this._populateCountersInterval)
-  },
-  methods: {
-    onSums(sums) {
-      const volume = {
-        buy: sums.vbuy,
-        sell: sums.vsell
+  }
+
+  onSums(sums) {
+    const volume = {
+      buy: sums.vbuy,
+      sell: sums.vsell
+    }
+
+    if (this.liquidationsOnly) {
+      volume.buy = sums.lbuy
+      volume.sell = sums.lsell
+    } else if (this.countersCount) {
+      volume.buy = sums.cbuy
+      volume.sell = sums.csell
+    }
+
+    if (volume.buy || volume.sell) {
+      if (!CHUNK.timestamp) {
+        CHUNK.timestamp = sums.timestamp
       }
 
-      if (this.liquidationsOnly) {
-        volume.buy = sums.lbuy
-        volume.sell = sums.lsell
-      } else if (this.countersCount) {
-        volume.buy = sums.cbuy
-        volume.sell = sums.csell
-      }
+      CHUNK.buy += volume.buy
+      CHUNK.sell += volume.sell
 
-      if (volume.buy || volume.sell) {
-        if (!CHUNK.timestamp) {
-          CHUNK.timestamp = sums.timestamp
-        }
-
-        CHUNK.buy += volume.buy
-        CHUNK.sell += volume.sell
-
-        for (let i = 0; i < this.steps.length; i++) {
-          this.steps[i].buy += volume.buy
-          this.steps[i].sell += volume.sell
-        }
-      }
-    },
-    clearCounters() {
-      COUNTERS.splice(0, COUNTERS.length)
-      CHUNK.timestamp = null
-      CHUNK.buy = CHUNK.sell = 0
-
-      this.steps.splice(0, this.steps.length)
-    },
-    createCounters() {
-      this.clearCounters()
-
-      for (let step of this.countersSteps) {
-        COUNTERS.push({
-          duration: step,
-          chunks: []
-        })
-      }
-
-      for (let counter of COUNTERS) {
-        const first = COUNTERS.indexOf(counter) === 0
-
-        this.steps.push({
-          duration: getHms(counter.duration),
-          buy: 0,
-          sell: 0,
-          hasData: first
-        })
-      }
-
-      setTimeout(() => {
-        const counterElement = this.$el.querySelector('.counter:first-child')
-        this.topElement.buy = counterElement.children[0]
-        this.topElement.sell = counterElement.children[1]
-      })
-    },
-    populateCounters() {
-      const now = +new Date()
-
-      if (CHUNK.timestamp) {
-        COUNTERS[0].chunks.push({
-          timestamp: CHUNK.timestamp,
-          buy: CHUNK.buy,
-          sell: CHUNK.sell
-        })
-
-        CHUNK.timestamp = null
-        CHUNK.buy = 0
-        CHUNK.sell = 0
-      }
-
-      let chunksToDecrease = []
-      let downgradeBuy
-      let downgradeSell
-
-      for (let i = 0; i < COUNTERS.length; i++) {
-        if (chunksToDecrease.length) {
-          Array.prototype.push.apply(COUNTERS[i].chunks, chunksToDecrease.splice(0, chunksToDecrease.length))
-
-          if (!this.steps[i].hasData) {
-            this.steps[i].hasData = true
-          }
-        }
-
-        downgradeBuy = 0
-        downgradeSell = 0
-
-        let to = 0
-
-        for (let j = 0; j < COUNTERS[i].chunks.length; j++) {
-          downgradeBuy += COUNTERS[i].chunks[j].buy
-          downgradeSell += COUNTERS[i].chunks[j].sell
-          if (COUNTERS[i].chunks[j].timestamp >= now - COUNTERS[i].duration) {
-            to = j
-            break
-          }
-        }
-
-        if (to) {
-          chunksToDecrease = COUNTERS[i].chunks.splice(0, to + 1)
-          if (isNaN(this.steps[i].buy - downgradeBuy) || isNaN(this.steps[i].sell - downgradeSell)) debugger
-          this.steps[i].buy -= downgradeBuy
-          this.steps[i].sell -= downgradeSell
-        }
+      for (let i = 0; i < this.steps.length; i++) {
+        this.steps[i].buy += volume.buy
+        this.steps[i].sell += volume.sell
       }
     }
-  },
+  }
+  clearCounters() {
+    COUNTERS.splice(0, COUNTERS.length)
+    CHUNK.timestamp = null
+    CHUNK.buy = CHUNK.sell = 0
+
+    this.steps.splice(0, this.steps.length)
+  }
+  createCounters() {
+    this.clearCounters()
+
+    for (const step of this.countersSteps) {
+      COUNTERS.push({
+        duration: step,
+        chunks: []
+      })
+    }
+
+    for (const counter of COUNTERS) {
+      const first = COUNTERS.indexOf(counter) === 0
+
+      this.steps.push({
+        duration: getHms(counter.duration),
+        buy: 0,
+        sell: 0,
+        hasData: first
+      })
+    }
+  }
+  populateCounters() {
+    const now = +new Date()
+
+    if (CHUNK.timestamp) {
+      COUNTERS[0].chunks.push({
+        timestamp: CHUNK.timestamp,
+        buy: CHUNK.buy,
+        sell: CHUNK.sell
+      })
+
+      CHUNK.timestamp = null
+      CHUNK.buy = 0
+      CHUNK.sell = 0
+    }
+
+    let chunksToDecrease = []
+    let downgradeBuy
+    let downgradeSell
+
+    for (let i = 0; i < COUNTERS.length; i++) {
+      if (chunksToDecrease.length) {
+        Array.prototype.push.apply(COUNTERS[i].chunks, chunksToDecrease.splice(0, chunksToDecrease.length))
+
+        if (!this.steps[i].hasData) {
+          this.steps[i].hasData = true
+        }
+      }
+
+      downgradeBuy = 0
+      downgradeSell = 0
+
+      let to = 0
+
+      for (let j = 0; j < COUNTERS[i].chunks.length; j++) {
+        downgradeBuy += COUNTERS[i].chunks[j].buy
+        downgradeSell += COUNTERS[i].chunks[j].sell
+        if (COUNTERS[i].chunks[j].timestamp >= now - COUNTERS[i].duration) {
+          to = j
+          break
+        }
+      }
+
+      if (to) {
+        chunksToDecrease = COUNTERS[i].chunks.splice(0, to + 1)
+        if (isNaN(this.steps[i].buy - downgradeBuy) || isNaN(this.steps[i].sell - downgradeSell)) debugger
+        this.steps[i].buy -= downgradeBuy
+        this.steps[i].sell -= downgradeSell
+      }
+    }
+  }
+
   getCountersRange() {
     const now = +new Date()
     return {
       from: now - this.countersSteps[this.countersSteps.length - 1],
       to: now
     }
-  },
+  }
+
   getFirstPoint() {
     for (let i = COUNTERS.length - 1; i >= 0; i--) {
       for (let j = COUNTERS[i].chunks.length - 1; j >= 0; j--) {
@@ -198,6 +215,14 @@ export default {
     }
 
     return null
+  }
+
+  formatAmount() {
+    return formatAmount
+  }
+
+  formatPrice() {
+    return formatPrice
   }
 }
 </script>

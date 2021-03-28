@@ -152,12 +152,11 @@
 
 <script>
 import store from '../../store'
-import Dialog from '../ui/Dialog.vue'
 import DialogMixin from '../../mixins/dialogMixin'
 import { defaultPlotsOptions, defaultSerieOptions } from './chartOptions'
 import Behave from 'behave-js'
 import SerieDialog from './SerieDialog.vue'
-import dialogService from '../../services/dialog'
+import dialogService from '../../services/dialogService'
 import { defaultChartSeries } from './chartSeries'
 
 const ignoredOptionsKeys = ['crosshairMarkerVisible']
@@ -165,9 +164,6 @@ const ignoredOptionsKeys = ['crosshairMarkerVisible']
 export default {
   props: ['id'],
   mixins: [DialogMixin],
-  components: {
-    Dialog
-  },
   data: () => ({
     editor: null,
     newName: null,
@@ -399,8 +395,8 @@ export default {
     removeOption(key) {
       this.$store.commit('settings/REMOVE_SERIE_OPTION', { id: this.id, key })
 
-      for (let options of [this.colorOptions, this.otherOptions]) {
-        let option = options.find(o => o.key === key)
+      for (const options of [this.colorOptions, this.otherOptions]) {
+        const option = options.find(o => o.key === key)
 
         if (option) {
           options.splice(options.indexOf(option), 1)
@@ -423,7 +419,7 @@ export default {
       const colorOptionsKeys = mergedOptionsKeys.filter(k => /color/i.test(k))
       const otherOptionsKeys = mergedOptionsKeys.filter(k => !/color/i.test(k))
 
-      for (let key of colorOptionsKeys) {
+      for (const key of colorOptionsKeys) {
         if (this.colorOptionsKeys.indexOf(key) === -1) {
           const value = this.getValue(key)
 
@@ -439,7 +435,7 @@ export default {
         }
       }
 
-      for (let key of otherOptionsKeys) {
+      for (const key of otherOptionsKeys) {
         if (this.otherOptionsKeys.indexOf(key) === -1) {
           const value = this.getValue(key)
 

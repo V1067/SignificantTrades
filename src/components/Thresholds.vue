@@ -51,7 +51,7 @@
           :key="`threshold-${index}`"
           class="thresholds-slider__handler"
           :class="{ '-selected': selectedIndex === index }"
-          :data-amount="$root.formatAmount(threshold.amount, 2)"
+          :data-amount="formatAmount(threshold.amount, 2)"
         ></div>
       </div>
       <div
@@ -70,7 +70,7 @@
             transform: 'translateX(' + this.panelCaretPosition + 'px)'
           }"
         ></div>
-        <a href="#" class="threshold-panel__close icon-cross" @click=";(selectedIndex = null), (editing = false), (picking = null)"></a>
+        <a href="#" class="threshold-panel__close icon-cross" @click=";(selectedIndex = null), (editing = false)"></a>
         <h3>
           if amount >
           <editable
@@ -147,46 +147,68 @@
   </div>
 </template>
 
-<script>
-import { mapState } from 'vuex'
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
+import { formatAmount, formatPrice, sleep } from '../utils/helpers'
 
-import { TOUCH_SUPPORTED } from '../utils/constants'
-import { formatPrice, sleep } from '../utils/helpers'
-
-import dialogService from '@/services/dialog'
+import dialogService from '@/services/dialogService'
 
 let thresholdIndex = 0
 
-export default {
-  data() {
-    return {
-      rendering: true,
-      dragging: null,
-      picking: null,
-      editing: null,
-      selectedIndex: null,
-      selectedElement: null,
-      panelCaretPosition: 0,
-      panelOffsetPosition: 0
-    }
-  },
+@Component({
+  name: 'Thresholds'
+})
+export default class extends Vue {
+  rendering = true
+  dragging = null
+  editing = null
+  selectedIndex = null
+  selectedElement = null
+  panelCaretPosition = 0
+  panelOffsetPosition = 0
 
-  computed: {
-    ...mapState('settings', ['thresholds', 'showThresholdsAsTable', 'preferQuoteCurrencySize']),
-    indexedThresholds() {
-      return this.thresholds.map(threshold => (threshold.id ? threshold : { ...threshold, id: ++thresholdIndex }))
-    }
-  },
+  private _dragReference: {
+    timestamp: number
+    position: number
+  } = null
+  private _minimum = null
+  private _maximum = null
+  private _offsetTop = null
+  private _offsetLeft = null
+
+  private onStoreMutation: () => void
+  private _startDrag: () => void
+  private _endDrag: () => void
+  private _doDrag: () => void
+  private _doResize: () => void
+  private _width: number
+
+  get thresholds() {
+    return this.$store.state.settings.thresholds
+  }
+  get showThresholdsAsTable() {
+    return this.$store.state.settings.showThresholdsAsTable
+  }
+  get preferQuoteCurrencySize() {
+    return this.$store.state.settings.preferQuoteCurrencySize
+  }
+
+  get indexedThresholds() {
+    return this.thresholds.map(threshold => (threshold.id ? threshold : { ...threshold, id: ++thresholdIndex }))
+  }
+
+  $refs!: {
+    thresholdContainer: HTMLElement
+    buysGradient: HTMLElement
+    sellsGradient: HTMLElement
+    thresholdPanel: HTMLElement
+  }
 
   created() {
     this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
         case 'settings/TOGGLE_SETTINGS_PANEL':
         case 'settings/TOGGLE_THRESHOLDS_TABLE':
-          if (this.picking) {
-            this.closePicker(event)
-          }
-
           if (
             (mutation.type === 'settings/TOGGLE_SETTINGS_PANEL' && mutation.payload === 'thresholds') ||
             (mutation.type === 'settings/TOGGLE_THRESHOLDS_TABLE' && mutation.payload === false)
@@ -209,7 +231,7 @@ export default {
           break
       }
     })
-  },
+  }
 
   mounted() {
     if (!this.showThresholdsAsTable) {
@@ -219,236 +241,239 @@ export default {
 
     this._startDrag = this.startDrag.bind(this)
 
-    this.$el.addEventListener(TOUCH_SUPPORTED ? 'touchstart' : 'mousedown', this._startDrag, false)
+    this.$el.addEventListener('touchstart', this._startDrag, false)
+    this.$el.addEventListener('mousedown', this._startDrag, false)
 
     this._doDrag = this.doDrag.bind(this)
 
-    window.addEventListener(TOUCH_SUPPORTED ? 'touchmove' : 'mousemove', this._doDrag, false)
+    window.addEventListener('touchmove', this._doDrag, false)
+    window.addEventListener('mousemove', this._doDrag, false)
 
     this._endDrag = this.endDrag.bind(this)
 
-    window.addEventListener(TOUCH_SUPPORTED ? 'touchend' : 'mouseup', this._endDrag, false)
+    window.addEventListener('touchend', this._endDrag, false)
+    window.addEventListener('mouseup', this._endDrag, false)
 
     this._doResize = this.refreshHandlers.bind(this)
 
     window.addEventListener('resize', this._doResize, false)
-  },
+  }
 
   beforeDestroy() {
-    window.removeEventListener(TOUCH_SUPPORTED ? 'touchmove' : 'mousemove', this._doDrag)
-    window.removeEventListener(TOUCH_SUPPORTED ? 'touchend' : 'mouseup', this._endDrag)
+    window.removeEventListener('touchmove', this._doDrag)
+    window.removeEventListener('mousemove', this._doDrag)
+    window.removeEventListener('touchend', this._endDrag)
+    window.removeEventListener('mouseup', this._endDrag)
     window.removeEventListener('resize', this._doResize)
 
     this.onStoreMutation()
-  },
+  }
 
-  methods: {
-    startDrag(event) {
-      if (!event.target.classList.contains('thresholds-slider__handler')) {
-        return
-      }
+  startDrag(event) {
+    if (!event.target.classList.contains('thresholds-slider__handler')) {
+      return
+    }
 
-      let x = event.pageX
+    let x = event.pageX
 
-      if (event.touches && event.touches.length) {
-        x = event.touches[0].pageX
-      }
+    if (event.touches && event.touches.length) {
+      x = event.touches[0].pageX
+    }
 
-      this.selectedIndex = Array.prototype.slice.call(event.target.parentNode.children).indexOf(event.target)
+    this.selectedIndex = Array.prototype.slice.call(event.target.parentNode.children).indexOf(event.target)
 
-      if (this.selectedIndex > -1) {
-        this.selectedElement = event.target
-      }
+    if (this.selectedIndex > -1) {
+      this.selectedElement = event.target
+    }
 
-      setTimeout(this.refreshCaretPosition.bind(this, event.target))
+    setTimeout(this.refreshCaretPosition.bind(this, event.target))
 
-      this.dragStartedAt = {
-        timestamp: +new Date(),
-        position: x
-      }
-    },
+    this._dragReference = {
+      timestamp: +new Date(),
+      position: x
+    }
+  }
 
-    doDrag(event) {
-      let x = event.pageX
+  doDrag(event) {
+    let x = event.pageX
 
-      if (event.touches && event.touches.length) {
-        x = event.touches[0].pageX
-      }
+    if (event.touches && event.touches.length) {
+      x = event.touches[0].pageX
+    }
 
-      if (
-        this.selectedElement === null ||
-        !this.dragStartedAt ||
-        (new Date() - this.dragStartedAt.timestamp < 1000 && Math.abs(this.dragStartedAt.position - x) < 3)
-      ) {
-        return
-      }
+    if (
+      this.selectedElement === null ||
+      !this._dragReference ||
+      (+new Date() - this._dragReference.timestamp < 1000 && Math.abs(this._dragReference.position - x) < 3)
+    ) {
+      return
+    }
 
-      this.dragging = true
+    this.dragging = true
 
-      const minLog = Math.max(0, Math.log(this.minimum + 1) || 0)
-      const minLeft = (minLog / Math.log(this.maximum + 1)) * this.width
+    const minLog = Math.max(0, Math.log(this._minimum + 1) || 0)
+    const minLeft = (minLog / Math.log(this._maximum + 1)) * this._width
 
-      let left = Math.max((this.width / 3) * -1, Math.min(this.width * 1.5, x - this.offsetLeft))
-      let amount = Math.exp(((minLeft + (left / this.width) * (this.width - minLeft)) / this.width) * Math.log(this.maximum + 1)) - 1
+    let left = Math.max((this._width / 3) * -1, Math.min(this._width * 1.5, x - this._offsetLeft))
+    let amount = Math.exp(((minLeft + (left / this._width) * (this._width - minLeft)) / this._width) * Math.log(this._maximum + 1)) - 1
 
-      if (x < this.offsetLeft) {
-        amount = this.thresholds[this.selectedIndex].amount - (this.thresholds[this.selectedIndex].amount - amount) * 0.1
-        left = 0
-      } else if (x > this.offsetLeft + this.width) {
-        amount = this.thresholds[this.selectedIndex].amount - (this.thresholds[this.selectedIndex].amount - amount) * 0.1
-        left = this.width
-      }
+    if (x < this._offsetLeft) {
+      amount = this.thresholds[this.selectedIndex].amount - (this.thresholds[this.selectedIndex].amount - amount) * 0.1
+      left = 0
+    } else if (x > this._offsetLeft + this._width) {
+      amount = this.thresholds[this.selectedIndex].amount - (this.thresholds[this.selectedIndex].amount - amount) * 0.1
+      left = this._width
+    }
 
-      if (amount < 0) {
-        amount = 0
-      }
+    if (amount < 0) {
+      amount = 0
+    }
 
-      this.selectedElement.style.transform = 'translateX(' + left + 'px)'
+    this.selectedElement.style.transform = 'translateX(' + left + 'px)'
 
-      this.refreshCaretPosition()
+    this.refreshCaretPosition()
 
-      this.thresholds[this.selectedIndex].amount = +formatPrice(amount)
-    },
+    this.thresholds[this.selectedIndex].amount = +formatPrice(amount)
+  }
 
-    endDrag(event) {
-      if (this.selectedElement) {
-        if (this.dragging) {
-          this.$store.commit('settings/SET_THRESHOLD_AMOUNT', {
-            index: this.selectedIndex,
-            value: this.thresholds[this.selectedIndex].amount
-          })
-        }
-
-        if (this.picking) {
-          this.closePicker(event)
-        }
-
-        this.selectedElement = null
-
-        this.reorderThresholds()
-        this.refreshHandlers()
-        this.refreshGradients()
-      }
-
-      this.dragging = false
-    },
-
-    async refreshHandlers() {
-      await sleep(100)
-      const amounts = this.thresholds.map(threshold => threshold.amount)
-
-      this.minimum = this.thresholds[0].amount
-      this.maximum = Math.max.apply(null, amounts)
-
-      if (this.showThresholdsAsTable) {
-        return
-      }
-
-      const bounds = this.$refs.thresholdContainer.getBoundingClientRect()
-
-      this.offsetTop = bounds.top
-      this.offsetLeft = bounds.left
-      this.width = this.$refs.thresholdContainer.clientWidth
-
-      const handlers = this.$refs.thresholdContainer.children
-
-      const minLog = Math.max(0, Math.log(this.minimum + 1) || 0)
-      const maxLog = Math.log(this.maximum + 1) - minLog
-
-      for (let i = 0; i < this.thresholds.length; i++) {
-        const handler = handlers[i]
-        const threshold = this.thresholds[i]
-        const posLog = Math.log(threshold.amount + 1) - minLog
-        const posPx = this.width * (posLog / maxLog)
-
-        handler.style.transform = 'translateX(' + posPx + 'px)'
-      }
-
-      this.rendering = false
-    },
-
-    refreshCaretPosition(selectedElement = this.selectedElement) {
-      const left = parseFloat(selectedElement.style.transform.replace(/[^\d.]/g, '')) || 0
-      const panelWidth = this.$refs.thresholdPanel.clientWidth
-      const caretMargin = 12
-      const panelRange = (this.width - panelWidth) / 2 + caretMargin
-
-      this.panelOffsetPosition = -panelRange + panelRange * 2 * (left / this.width)
-      this.panelCaretPosition = caretMargin + (panelWidth - caretMargin * 2) * (left / this.width)
-    },
-
-    async refreshGradients() {
-      if (this.showThresholdsAsTable) {
-        return
-      }
-
-      await sleep(100)
-
-      const minLog = Math.max(0, Math.log(this.minimum + 1) || 0)
-      const maxLog = Math.log(this.maximum + 1)
-
-      let buysStops = []
-      let sellsStops = []
-
-      for (let i = 0; i < this.thresholds.length; i++) {
-        const percent =
-          i === 0
-            ? 0
-            : i === this.thresholds.length - 1
-            ? 100
-            : (((Math.log(this.thresholds[i].amount + 1) - minLog) / (maxLog - minLog)) * 100).toFixed(2)
-
-        buysStops.push(`${this.thresholds[i].buyColor} ${percent}%`)
-        sellsStops.push(`${this.thresholds[i].sellColor} ${percent}%`)
-      }
-
-      this.$refs.buysGradient.style.backgroundImage = `linear-gradient(to right, ${buysStops.join(', ')})`
-      this.$refs.sellsGradient.style.backgroundImage = `linear-gradient(to right, ${sellsStops.join(', ')})`
-    },
-
-    reorderThresholds() {
-      let selectedThreshold
-
-      if (this.selectedIndex !== null) {
-        selectedThreshold = this.thresholds[this.selectedIndex]
-      }
-
-      this.$store.state.thresholds = this.thresholds.sort((a, b) => a.amount - b.amount)
-
-      if (selectedThreshold) {
-        for (let i = 0; i < this.thresholds.length; i++) {
-          if (selectedThreshold.amount === this.thresholds[i].amount && selectedThreshold.gif === this.thresholds[i].gif) {
-            this.selectedIndex = i
-          }
-        }
-      }
-    },
-
-    deleteThreshold(index) {
-      if (this.thresholds.length <= 2) {
-        return
-      }
-
-      this.$store.commit('settings/DELETE_THRESHOLD', index)
-    },
-
-    openPicker(side, index) {
-      if (!this.thresholds[index][side]) {
-        this.$store.commit('settings/SET_THRESHOLD_COLOR', {
-          index: index,
-          side: side,
-          value: '#ffffff'
+  endDrag() {
+    if (this.selectedElement) {
+      if (this.dragging) {
+        this.$store.commit('settings/SET_THRESHOLD_AMOUNT', {
+          index: this.selectedIndex,
+          value: this.thresholds[this.selectedIndex].amount
         })
       }
 
-      dialogService.openPicker(this.thresholds[index][side], color => {
-        this.$store.commit('settings/SET_THRESHOLD_COLOR', {
-          index: index,
-          side: side,
-          value: color
-        })
+      this.selectedElement = null
+
+      this.reorderThresholds()
+      this.refreshHandlers()
+      this.refreshGradients()
+    }
+
+    this.dragging = false
+  }
+
+  async refreshHandlers() {
+    await sleep(100)
+    const amounts = this.thresholds.map(threshold => threshold.amount)
+
+    this._minimum = this.thresholds[0].amount
+    this._maximum = Math.max.apply(null, amounts)
+
+    if (this.showThresholdsAsTable) {
+      return
+    }
+
+    const bounds = this.$refs.thresholdContainer.getBoundingClientRect()
+
+    this._offsetTop = bounds.top
+    this._offsetLeft = bounds.left
+    this._width = this.$refs.thresholdContainer.clientWidth
+
+    const handlers = this.$refs.thresholdContainer.children
+
+    const minLog = Math.max(0, Math.log(this._minimum + 1) || 0)
+    const maxLog = Math.log(this._maximum + 1) - minLog
+
+    for (let i = 0; i < this.thresholds.length; i++) {
+      const handler = handlers[i] as HTMLElement
+      const threshold = this.thresholds[i]
+      const posLog = Math.log(threshold.amount + 1) - minLog
+      const posPx = this._width * (posLog / maxLog)
+
+      handler.style.transform = 'translateX(' + posPx + 'px)'
+    }
+
+    this.rendering = false
+  }
+
+  refreshCaretPosition(selectedElement = this.selectedElement) {
+    const left = parseFloat(selectedElement.style.transform.replace(/[^\d.]/g, '')) || 0
+    const panelWidth = this.$refs.thresholdPanel.clientWidth
+    const caretMargin = 12
+    const panelRange = (this._width - panelWidth) / 2 + caretMargin
+
+    this.panelOffsetPosition = -panelRange + panelRange * 2 * (left / this._width)
+    this.panelCaretPosition = caretMargin + (panelWidth - caretMargin * 2) * (left / this._width)
+  }
+
+  async refreshGradients() {
+    if (this.showThresholdsAsTable) {
+      return
+    }
+
+    await sleep(100)
+
+    const minLog = Math.max(0, Math.log(this._minimum + 1) || 0)
+    const maxLog = Math.log(this._maximum + 1)
+
+    const buysStops = []
+    const sellsStops = []
+
+    for (let i = 0; i < this.thresholds.length; i++) {
+      const percent =
+        i === 0
+          ? 0
+          : i === this.thresholds.length - 1
+          ? 100
+          : (((Math.log(this.thresholds[i].amount + 1) - minLog) / (maxLog - minLog)) * 100).toFixed(2)
+
+      buysStops.push(`${this.thresholds[i].buyColor} ${percent}%`)
+      sellsStops.push(`${this.thresholds[i].sellColor} ${percent}%`)
+    }
+
+    this.$refs.buysGradient.style.backgroundImage = `linear-gradient(to right, ${buysStops.join(', ')})`
+    this.$refs.sellsGradient.style.backgroundImage = `linear-gradient(to right, ${sellsStops.join(', ')})`
+  }
+
+  reorderThresholds() {
+    let selectedThreshold
+
+    if (this.selectedIndex !== null) {
+      selectedThreshold = this.thresholds[this.selectedIndex]
+    }
+
+    this.$store.state.settings.thresholds = this.thresholds.sort((a, b) => a.amount - b.amount)
+
+    if (selectedThreshold) {
+      for (let i = 0; i < this.thresholds.length; i++) {
+        if (selectedThreshold.amount === this.thresholds[i].amount && selectedThreshold.gif === this.thresholds[i].gif) {
+          this.selectedIndex = i
+        }
+      }
+    }
+  }
+
+  deleteThreshold(index) {
+    if (this.thresholds.length <= 2) {
+      return
+    }
+
+    this.$store.commit('settings/DELETE_THRESHOLD', index)
+  }
+
+  openPicker(side, index) {
+    if (!this.thresholds[index][side]) {
+      this.$store.commit('settings/SET_THRESHOLD_COLOR', {
+        index: index,
+        side: side,
+        value: '#ffffff'
       })
     }
+
+    dialogService.openPicker(this.thresholds[index][side], color => {
+      this.$store.commit('settings/SET_THRESHOLD_COLOR', {
+        index: index,
+        side: side,
+        value: color
+      })
+    })
+  }
+
+  formatAmount() {
+    return formatAmount
   }
 }
 </script>

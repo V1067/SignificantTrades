@@ -1,4 +1,4 @@
-var date = new Date()
+const date = new Date()
 
 process.env.VUE_APP_VERSION = require('./package.json').version
 process.env.VUE_APP_BUILD_DATE = date.getDate() + ' ' + date.toLocaleString('en-US', { month: 'short' }).toLowerCase()
@@ -7,6 +7,13 @@ process.env.VUE_APP_API_URL = process.env.API_URL
 process.env.VUE_APP_API_SUPPORTED_PAIRS = process.env.API_SUPPORTED_PAIRS
 
 module.exports = {
+  productionSourceMap: false,
+  configureWebpack: {
+    // See available sourcemaps:
+    // https://webpack.js.org/configuration/devtool/#devtool
+    // and try out different ones
+    devtool: 'eval-source-map'
+  },
   devServer: {
     // progress: true,
     hot: true,
@@ -14,8 +21,8 @@ module.exports = {
     // https: true,
     // port: 8081,
     historyApiFallback: true,
-    productionSourceMap: false,
     proxy: [
+      'https://futures.kraken.com',
       'https://api.kraken.com',
       'https://api.binance.com',
       'https://api.bitfinex.com',
@@ -33,7 +40,8 @@ module.exports = {
       'https://www.deribit.com',
       'https://fapi.binance.com',
       'https://api.hbdm.com',
-      'https://ftx.com'
+      'https://ftx.com',
+      'https://api.bybit.com'
     ].reduce((obj, domain) => {
       const reg = `${domain}`
 

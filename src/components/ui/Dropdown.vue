@@ -24,8 +24,11 @@
   </div>
 </template>
 
-<script>
-export default {
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
+
+@Component({
+  name: 'Dropdown',
   props: {
     options: {
       required: true
@@ -42,59 +45,56 @@ export default {
     alwaysShowPlaceholder: {
       default: true
     }
-  },
+  }
+})
+export default class extends Vue {
+  isOpen = false
 
-  data() {
-    return {
-      isOpen: false
-    }
-  },
+  private _clickOutsideHandler: () => void
 
-  methods: {
-    toggle() {
-      if (!this.isOpen) {
-        this.show()
-      } else {
-        this.hide()
-      }
-    },
-
-    show() {
-      this.isOpen = true
-
-      this.bindClickOutside()
-    },
-
-    hide() {
-      this.isOpen = false
-
-      this.unbindClickOutside()
-    },
-
-    bindClickOutside() {
-      if (!this._clickOutsideHandler) {
-        this._clickOutsideHandler = (event => {
-          if (!this.$el.contains(event.target)) {
-            this.hide()
-          }
-        }).bind(this)
-
-        document.addEventListener('mousedown', this._clickOutsideHandler)
-      }
-    },
-
-    unbindClickOutside() {
-      if (this._clickOutsideHandler) {
-        document.removeEventListener('mousedown', this._clickOutsideHandler)
-        delete this._clickOutsideHandler
-      }
-    },
-
-    set(index) {
-      // this.selected = index
-      this.$emit('output', index)
+  toggle() {
+    if (!this.isOpen) {
+      this.show()
+    } else {
       this.hide()
     }
+  }
+
+  show() {
+    this.isOpen = true
+
+    this.bindClickOutside()
+  }
+
+  hide() {
+    this.isOpen = false
+
+    this.unbindClickOutside()
+  }
+
+  bindClickOutside() {
+    if (!this._clickOutsideHandler) {
+      this._clickOutsideHandler = (event => {
+        if (!this.$el.contains(event.target)) {
+          this.hide()
+        }
+      }).bind(this)
+
+      document.addEventListener('mousedown', this._clickOutsideHandler)
+    }
+  }
+
+  unbindClickOutside() {
+    if (this._clickOutsideHandler) {
+      document.removeEventListener('mousedown', this._clickOutsideHandler)
+      delete this._clickOutsideHandler
+    }
+  }
+
+  set(index) {
+    // this.selected = index
+    this.$emit('output', index)
+    this.hide()
   }
 }
 </script>

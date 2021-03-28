@@ -7,7 +7,7 @@
       :class="{ '-open': open, '-medium': medium, '-large': large, '-small': small }"
     >
       <div class="dialog-content" @click.stop :style="`transform: translate(${delta.x}px, ${delta.y}px)`">
-        <header @mousedown="handleMenuDrag" @touchstart="handleMenuDrag">
+        <header @mousedown="handleDrag" @touchstart="handleDrag">
           <slot name="header"></slot>
           <div class="dialog-controls">
             <slot name="controls"></slot>
@@ -25,42 +25,44 @@
   </transition>
 </template>
 
-<script>
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
 import { getEventCords } from '../../utils/picker'
-export default {
-  props: ['open', 'medium', 'large', 'small'],
-  data: () => ({
-    delta: { x: 0, y: 0 }
-  }),
-  methods: {
-    handleMenuDrag(event) {
-      if (event.button === 2) {
-        return
-      }
-      if (event.target.classList.contains('-no-grab')) {
-        return
-      }
-      event.preventDefault()
-      const lastMove = Object.assign({}, this.delta)
-      const startPosition = getEventCords(event)
-      const handleDragging = evnt => {
-        window.requestAnimationFrame(() => {
-          const endPosition = getEventCords(evnt)
-          this.delta.x = lastMove.x + endPosition.x - startPosition.x
-          this.delta.y = lastMove.y + endPosition.y - startPosition.y
-        })
-      }
-      const handleRelase = () => {
-        document.removeEventListener('mousemove', handleDragging)
-        document.removeEventListener('mouseup', handleRelase)
-        document.removeEventListener('touchmove', handleDragging)
-        document.removeEventListener('touchup', handleRelase)
-      }
-      document.addEventListener('mousemove', handleDragging)
-      document.addEventListener('mouseup', handleRelase)
-      document.addEventListener('touchmove', handleDragging)
-      document.addEventListener('touchup', handleRelase)
+
+@Component({
+  name: 'Dialog',
+  props: ['open', 'medium', 'large', 'small']
+})
+export default class extends Vue {
+  delta = { x: 0, y: 0 }
+
+  handleDrag(event) {
+    if (event.button === 2) {
+      return
     }
+    if (event.target.classList.contains('-no-grab')) {
+      return
+    }
+    event.preventDefault()
+    const lastMove = Object.assign({}, this.delta)
+    const startPosition = getEventCords(event)
+    const handleDragging = evnt => {
+      window.requestAnimationFrame(() => {
+        const endPosition = getEventCords(evnt)
+        this.delta.x = lastMove.x + endPosition.x - startPosition.x
+        this.delta.y = lastMove.y + endPosition.y - startPosition.y
+      })
+    }
+    const handleRelase = () => {
+      document.removeEventListener('mousemove', handleDragging)
+      document.removeEventListener('mouseup', handleRelase)
+      document.removeEventListener('touchmove', handleDragging)
+      document.removeEventListener('touchup', handleRelase)
+    }
+    document.addEventListener('mousemove', handleDragging)
+    document.addEventListener('mouseup', handleRelase)
+    document.addEventListener('touchmove', handleDragging)
+    document.addEventListener('touchup', handleRelase)
   }
 }
 </script>

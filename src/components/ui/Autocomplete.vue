@@ -7,6 +7,7 @@
           ref="input"
           class="autocomplete__input"
           contenteditable
+          v-text="query"
           :placeholder="placeholder"
           @focus="open"
           @input="search($event.target.innerText)"
@@ -31,8 +32,11 @@
   </div>
 </template>
 
-<script>
-export default {
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
+
+@Component({
+  name: 'Autocomplete',
   props: {
     placeholder: {
       type: String,
@@ -43,161 +47,193 @@ export default {
     },
     selected: {
       type: Array,
-      default: new Array()
+      default: []
+    },
+    query: {
+      type: String,
+      default: ''
     }
-  },
-  data() {
-    return {
-      isOpen: false,
-      activeOptionIndex: null,
-      options: [],
-      items: []
-    }
-  },
-  computed: {
-    availableOptions() {
-      return this.options.filter(a => this.items.indexOf(a && typeof a === 'object' ? a.value : a) === -1)
-    }
-  },
+  }
+})
+export default class extends Vue {
+  private placeholder: string
+  private load: (query: string) => any[]
+  private selected: any[]
+  private _clickOutsideHandler: () => void
+  isOpen = false
+  activeOptionIndex: number = null
+  options = []
+  items = []
+
+  $refs!: {
+    input: HTMLElement
+  }
+
+  get availableOptions() {
+    return this.options.filter(a => this.items.indexOf(a && typeof a === 'object' ? a.value : a) === -1)
+  }
+
   created() {
     this.items = this.selected.slice(0, this.selected.length)
-  },
+  }
+
   mounted() {
     setTimeout(this.focus.bind(this))
-  },
-  methods: {
-    search(query) {
-      this.activeOptionIndex = null
-      if (!this.load) {
-        return
-      }
-      if (Array.isArray(this.load)) {
-        this.options = this.load.filter(a => a.indexOf(query) !== -1)
-      } else if (typeof this.load === 'function') {
-        this.options = this.load(query)
-      }
-      if (!this.options) {
-        this.options = []
-      }
-      this.options.splice(50, this.options.length)
-      if (!this.options.length) {
-        this.close()
-      } else {
-        this.activeOptionIndex = 0
-        this.open()
-      }
-    },
-    open() {
-      if (this.isOpen || !this.options.length) {
-        return
-      }
+  }
 
-      this.bindClickOutside()
+  search(query) {
+    this.activeOptionIndex = null
+    console.log('set activeOptionIndex to 0-null')
+    if (!this.load) {
+      return
+    }
+    if (Array.isArray(this.load)) {
+      this.options = this.load.filter(a => a.indexOf(query) !== -1)
+    } else if (typeof this.load === 'function') {
+      this.options = this.load(query)
+    }
+    if (!this.options) {
+      this.options = []
+    }
+    this.options.splice(50, this.options.length)
+    if (!this.options.length) {
+      this.close()
+    } else {
+      console.log('set activeOptionIndex to 0')
+      this.activeOptionIndex = 0
+      this.open()
+    }
+  }
 
-      this.isOpen = true
-    },
-    close() {
-      if (!this.isOpen) {
-        return
-      }
+  open() {
+    if (this.isOpen || !this.availableOptions.length) {
+      return
+    }
 
-      this.unbindClickOutside()
+    this.bindClickOutside()
+
+    this.isOpen = true
+  }
+
+  close() {
+    if (!this.isOpen) {
+      return
+    }
+
+    this.unbindClickOutside()
+    this.isOpen = false
+  }
+
+  addItem(index) {
+    const item = this.availableOptions[index]
+    const value = item && typeof item === 'object' ? item.value : item
+
+    if (!value || this.items.indexOf(value) !== -1) {
+      return
+    }
+
+    this.items.push(value)
+    this.$refs.input.innerText = ''
+    this.activeOptionIndex = null
+    console.log('set activeOptionIndex to null')
+
+    if (!this.availableOptions.length) {
       this.isOpen = false
-    },
-    addItem(index) {
-      const item = this.availableOptions[index]
-      const value = item && typeof item === 'object' ? item.value : item
+    }
+  }
 
-      if (!value || this.items.indexOf(value) !== -1) {
-        return
-      }
+  removeItem(index) {
+    this.items.splice(index, 1)
+  }
 
-      this.items.push(value)
-      this.$refs.input.innerText = ''
-      this.activeOptionIndex = null
-    },
-    removeItem(index) {
-      this.items.splice(index, 1)
-    },
-    handleKeydown($event) {
-      switch ($event.which) {
-        case 13:
+  handleKeydown($event) {
+    switch ($event.which) {
+      case 13:
+        console.log('enter preesd?')
+        event.preventDefault()
+        if (this.activeOptionIndex !== null) {
+          this.addItem(this.activeOptionIndex)
+        } else if (this.items.length && !this.$refs.input.innerText.length) {
+          this.submit()
+        }
+        break
+      case 8:
+        console.log('back preesd?')
+        if (this.items.length && !this.$refs.input.innerText.length) {
+          this.removeItem(this.items.length - 1)
           event.preventDefault()
-          if (this.activeOptionIndex !== null) {
-            this.addItem(this.activeOptionIndex)
-          } else if (this.items.length && !this.$refs.input.innerText.length) {
-            this.submit()
-          }
-          break
-        case 8:
-          if (this.items.length && !this.$refs.input.innerText.length) {
-            this.removeItem(this.items.length - 1)
-            event.preventDefault()
-          }
-          break
-        case 38:
-        case 40:
-          if (this.options.length) {
-            if ($event.which === 38) {
-              this.activeOptionIndex = Math.max(0, this.activeOptionIndex - 1)
-            } else if ($event.which === 40) {
-              if (this.activeOptionIndex === null) {
-                this.activeOptionIndex = 0
-              } else {
-                this.activeOptionIndex = Math.min(this.availableOptions.length - 1, this.activeOptionIndex + 1)
-              }
+        }
+        break
+      case 38:
+      case 40:
+        if (this.options.length) {
+          if ($event.which === 38) {
+            console.log('38')
+            this.activeOptionIndex = Math.max(0, this.activeOptionIndex - 1)
+          } else if ($event.which === 40) {
+            console.log('40')
+            if (this.activeOptionIndex === null) {
+              this.activeOptionIndex = 0
+            } else {
+              this.activeOptionIndex = Math.min(this.availableOptions.length - 1, this.activeOptionIndex + 1)
             }
           }
-          break
-      }
-    },
-    submit() {
-      if (!this.items.length) {
-        return
-      }
-      this.$emit('submit', this.items)
-    },
-    focus() {
-      this.$refs.input.focus()
-      if (typeof window.getSelection !== 'undefined' && typeof document.createRange != 'undefined') {
-        var range = document.createRange()
-        range.selectNodeContents(this.$refs.input)
-        range.collapse(false)
-        var sel = window.getSelection()
-        sel.removeAllRanges()
-        sel.addRange(range)
-      } else if (typeof document.body.createTextRange != 'undefined') {
-        var textRange = document.body.createTextRange()
-        textRange.moveToElementText(this.$refs.input)
-        textRange.collapse(false)
-        textRange.select()
-      }
-
-      if (this.$refs.input.innerText.length) {
-        this.search(this.$refs.input.innerText)
-      }
-    },
-    bindClickOutside() {
-      if (this._clickOutsideHandler) {
-        return
-      }
-
-      this._clickOutsideHandler = (event => {
-        if (this.$el !== event.target && !this.$el.contains(event.target)) {
-          this.close()
         }
-      }).bind(this)
 
-      document.addEventListener('mousedown', this._clickOutsideHandler)
-    },
-    unbindClickOutside() {
-      if (!this._clickOutsideHandler) {
-        return
-      }
-
-      document.removeEventListener('mousedown', this._clickOutsideHandler)
-      delete this._clickOutsideHandler
+        console.log(this.activeOptionIndex)
+        break
     }
+  }
+
+  submit() {
+    if (!this.items.length) {
+      return
+    }
+    this.$emit('submit', this.items)
+  }
+
+  focus() {
+    this.$refs.input.focus()
+    if (typeof window.getSelection !== 'undefined' && typeof document.createRange != 'undefined') {
+      const range = document.createRange()
+      range.selectNodeContents(this.$refs.input)
+      range.collapse(false)
+      const sel = window.getSelection()
+      sel.removeAllRanges()
+      sel.addRange(range)
+    } else if (typeof (document.body as any).createTextRange != 'undefined') {
+      const textRange = (document.body as any).createTextRange()
+      textRange.moveToElementText(this.$refs.input)
+      textRange.collapse(false)
+      textRange.select()
+    }
+
+    if (this.$refs.input.innerText.length) {
+      this.search(this.$refs.input.innerText)
+    }
+  }
+
+  bindClickOutside() {
+    if (this._clickOutsideHandler) {
+      return
+    }
+
+    this._clickOutsideHandler = (event => {
+      if (this.$el !== event.target && !this.$el.contains(event.target)) {
+        this.close()
+      }
+    }).bind(this)
+
+    document.addEventListener('mousedown', this._clickOutsideHandler)
+  }
+
+  unbindClickOutside() {
+    if (!this._clickOutsideHandler) {
+      return
+    }
+
+    document.removeEventListener('mousedown', this._clickOutsideHandler)
+    delete this._clickOutsideHandler
   }
 }
 </script>

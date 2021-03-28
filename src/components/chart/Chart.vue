@@ -56,80 +56,103 @@
   </div>
 </template>
 
-<script>
-import '../../data/typedef'
-import { mapState } from 'vuex'
-import ChartController from './chartController'
-import socket from '../../services/socket'
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
 
-import dialogService from '../../services/dialog'
+import ChartController, { TimeRange } from './chartController'
+
+import dialogService from '../../services/dialogService'
 import { formatPrice, formatAmount, formatTime, getSerieSettings } from '../../utils/helpers'
 
 import SerieControl from './SerieControl.vue'
 import { MAX_BARS_PER_CHUNKS } from '../../utils/constants'
 import SerieDialog from './SerieDialog.vue'
 import CreateSerieDialog from './CreateSerieDialog.vue'
+import aggregatorService from '@/services/aggregatorService'
+import historicalService from '@/services/historicalService'
 
-/**
- * @type {ChartController}
- */
-let chart = null
+let chart: ChartController = null
 
-export default {
+@Component({
+  name: 'Chart',
   components: {
     SerieControl
-  },
+  }
+})
+export default class extends Vue {
+  resizing = {}
+  fetching = false
+  legend = {}
 
-  data() {
-    return {
-      resizing: {},
-      fetching: false,
-      legend: {},
-      visibleRangeFrom: null,
-      visibleRangeTo: null,
-      visibleRangeLogicalFrom: null,
-      visibleRangeLogicalTo: null,
-      scrollPosition: null
-    }
-  },
+  private onStoreMutation: () => void
+  private _doManualResize: () => void
+  private _stopManualResize: () => void
+  private _keepAliveTimeout: number
+  private _onPanTimeout: number
 
-  computed: {
-    ...mapState('app', ['activeSeries']),
-    ...mapState('settings', [
-      'debug',
-      'pair',
-      'timeframe',
-      'exchanges',
-      'chartHeight',
-      'sidebarWidth',
-      'chartRefreshRate',
-      'showExchangesBar',
-      'timezoneOffset',
-      'series',
-      'chartTheme'
-    ]),
-    inactiveSeries: function() {
-      const series = Object.keys(this.$store.state.settings.series)
-        .map(id => getSerieSettings(id))
-        .filter(serie => {
-          return serie.enabled === false
-        })
-        .concat([
-          {
-            id: null
-          }
-        ])
+  get activeSeries() {
+    return this.$store.state.app.activeSeries
+  }
 
-      return series
-    }
-  },
+  get timeframe() {
+    return this.$store.state.settings.timeframe
+  }
+
+  get exchanges() {
+    return this.$store.state.exchanges
+  }
+
+  get chartHeight() {
+    return this.$store.state.settings.chartHeight
+  }
+
+  get sidebarWidth() {
+    return this.$store.state.settings.sidebarWidth
+  }
+
+  get chartRefreshRate() {
+    return this.$store.state.settings.chartRefreshRate
+  }
+
+  get showExchangesBar() {
+    return this.$store.state.settings.showExchangesBar
+  }
+
+  get timezoneOffset() {
+    return this.$store.state.settings.timezoneOffset
+  }
+
+  get series() {
+    return this.$store.state.settings.series
+  }
+
+  get chartTheme() {
+    return this.$store.state.settings.chartTheme
+  }
+
+  get inactiveSeries() {
+    const series = Object.keys(this.$store.state.settings.series)
+      .map(id => getSerieSettings(id))
+      .filter(serie => {
+        return serie.enabled === false
+      })
+      .concat([
+        {
+          id: null
+        }
+      ])
+
+    return series
+  }
+
+  $refs!: {
+    chartContainer: HTMLElement
+  }
 
   created() {
     chart = new ChartController()
 
-    // setInterval(this.debugPosition.bind(this), 1000)
-
-    socket.$on('trades', this.onTrades)
+    aggregatorService.on('trades', this.onTrades)
 
     this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
@@ -184,7 +207,7 @@ export default {
               continue
             }
 
-            if (serie.options.formatPrice && serie.options.formatPrice.type === 'price') {
+            if (serie.options.priceFormat && serie.options.priceFormat.type === 'price') {
               chart.setSerieOption({
                 id: serie.id,
                 key: 'priceFormat.precision',
@@ -202,7 +225,7 @@ export default {
           break
       }
     })
-  },
+  }
 
   mounted() {
     console.log(`[chart.mounted]`)
@@ -211,18 +234,16 @@ export default {
     chart.setupQueue()
 
     this.bindChartEvents()
-    this.bindBrowserResize()
 
     this.fetch().then(() => {
       // this.fetchOrRecover(chart.chartInstance.timeScale().getVisibleLogicalRange())
     })
 
     this.keepAlive()
-  },
+  }
 
   beforeDestroy() {
     this.unbindChartEvents()
-    this.unbindBrowserResize()
 
     this.onStoreMutation()
 
@@ -230,460 +251,307 @@ export default {
 
     clearTimeout(this._keepAliveTimeout)
 
-    socket.$off('trades', this.onTrades)
-  },
+    aggregatorService.off('trades', this.onTrades)
+  }
 
-  methods: {
-    debugPosition() {
-      if (!chart.chartInstance) {
-        return
+  /**
+   * fetch whatever is missing based on visiblerange
+   * @param {boolean} clear will clear the chart / initial fetch
+   */
+  fetch(rangeToFetch?: TimeRange) {
+    if (!historicalService.canFetch()) {
+      return Promise.reject('Fetch is disabled')
+    }
+
+    const visibleRange = chart.chartInstance.timeScale().getVisibleRange() as TimeRange
+    const timeframe = +this.$store.state.settings.timeframe
+
+    if (!rangeToFetch) {
+      const barsCount = window.innerWidth / 2
+
+      let leftTime
+
+      if (chart.chartCache.cacheRange && chart.chartCache.cacheRange.from) {
+        leftTime = chart.chartCache.cacheRange.from
+      } else if (visibleRange && visibleRange.from) {
+        leftTime = visibleRange.from + this.timezoneOffset / 1000
+      } else {
+        leftTime = +new Date() / 1000
       }
 
-      let visibleRange = chart.chartInstance.timeScale().getVisibleRange()
-      let visibleRangeLogical = chart.chartInstance.timeScale().getVisibleLogicalRange()
-      let scrollPosition = chart.chartInstance.timeScale().scrollPosition()
-
-      if (visibleRange) {
-        this.visibleRangeFrom = formatTime(visibleRange.from)
-        this.visibleRangeTo = formatTime(visibleRange.to)
+      rangeToFetch = {
+        from: leftTime - timeframe * barsCount,
+        to: leftTime - timeframe
       }
-      if (visibleRangeLogical) {
-        this.visibleRangeLogicalFrom = Math.round(visibleRangeLogical.from)
-        this.visibleRangeLogicalTo = Math.round(visibleRangeLogical.to)
-      }
-      this.scrollPosition = Math.round(scrollPosition)
-    },
+    }
 
-    /**
-     * fetch whatever is missing based on visiblerange
-     * @param {boolean} clear will clear the chart / initial fetch
-     */
-    fetch(rangeToFetch) {
-      if (!socket.canFetch()) {
-        return Promise.reject('Fetch is disabled')
-      }
+    rangeToFetch.from = Math.floor(Math.round(rangeToFetch.from) / timeframe) * timeframe
+    rangeToFetch.to = Math.ceil(Math.round(rangeToFetch.to) / timeframe) * timeframe - 1
 
-      const visibleRange = chart.chartInstance.timeScale().getVisibleRange()
-      const timeframe = +this.$store.state.settings.timeframe
+    console.log(`[chart/fetch] final rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
 
-      if (!rangeToFetch) {
-        const barsCount = window.innerWidth / 2
+    chart.lockRender()
 
-        let leftTime
+    return historicalService
+      .fetch(Math.round(rangeToFetch.from * 1000), Math.round(rangeToFetch.to * 1000 - 1))
+      .then(({ data, from, to, format }) => {
+        /**
+         * @type {Chunk}
+         */
+        let chunk
 
-        if (chart.chartCache.cacheRange && chart.chartCache.cacheRange.from) {
-          leftTime = chart.chartCache.cacheRange.from
-        } else if (visibleRange && visibleRange.from) {
-          leftTime = visibleRange.from + this.timezoneOffset / 1000
-        } else {
-          leftTime = +new Date() / 1000
+        switch (format) {
+          case 'point':
+            chunk = {
+              from,
+              to,
+              bars: data
+            }
+            break
+          default:
+            throw new Error('unsupported-historical-data-format')
         }
 
-        rangeToFetch = {
-          from: leftTime - timeframe * barsCount,
-          to: leftTime - timeframe
-        }
-      }
-
-      rangeToFetch.from = Math.floor(parseInt(rangeToFetch.from) / timeframe) * timeframe
-      rangeToFetch.to = Math.ceil(parseInt(rangeToFetch.to) / timeframe) * timeframe - 1
-
-      console.log(`[chart/fetch] final rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
-
-      chart.lockRender()
-
-      return socket
-        .fetchHistoricalData(parseInt(rangeToFetch.from * 1000), parseInt(rangeToFetch.to * 1000 - 1))
-        .then(({ data, from, to, format }) => {
+        if (chunk && chunk.bars.length) {
           /**
-           * @type {Chunk}
+           * @type {Chunk[]}
            */
-          let chunk
+          const chunks = [
+            {
+              from: chunk.from,
+              to: chunk.from,
+              bars: []
+            }
+          ]
 
-          switch (format) {
-            case 'point':
-              chunk = {
-                from,
-                to,
-                bars: data
-              }
-              break
-            default:
-              chunk = chart.groupTradesIntoBars(data)
-              break
+          console.log(`[chart/fetch] success (${data.length} new ${format}s)`)
+
+          if (chunk.bars.length > MAX_BARS_PER_CHUNKS) {
+            console.log(`[chart/fetch] response chunk is too large (> ${MAX_BARS_PER_CHUNKS} bars) -> start splitting`)
           }
 
-          if (chunk && chunk.bars.length) {
-            /**
-             * @type {Chunk[]}
-             */
-            const chunks = [
-              {
-                from: chunk.from,
-                to: chunk.from,
+          while (chunk.bars.length) {
+            const bar = chunk.bars.shift()
+
+            bar.timestamp
+
+            if (chunks[0].bars.length >= MAX_BARS_PER_CHUNKS && chunks[0].to < bar.timestamp) {
+              chunks.unshift({
+                from: bar.timestamp,
+                to: bar.timestamp,
                 bars: []
-              }
-            ]
-
-            console.log(`[chart/fetch] success (${data.length} new ${format}s)`)
-
-            if (chunk.bars.length > MAX_BARS_PER_CHUNKS) {
-              console.log(`[chart/fetch] response chunk is too large (> ${MAX_BARS_PER_CHUNKS} bars) -> start splitting`)
+              })
             }
 
-            while (chunk.bars.length) {
-              const bar = chunk.bars.shift()
-
-              bar.timestamp
-
-              if (chunks[0].bars.length >= MAX_BARS_PER_CHUNKS && chunks[0].to < bar.timestamp) {
-                chunks.unshift({
-                  from: bar.timestamp,
-                  to: bar.timestamp,
-                  bars: []
-                })
-              }
-
-              chunks[0].bars.push(bar)
-              chunks[0].to = bar.timestamp
-            }
-
-            if (chunks.length > 1) {
-              console.log(`[chart/fetch] splitted result into ${chunks.length} chunks`)
-            }
-
-            console.log(`[chart/fetch] save ${chunks.length} new chunks`)
-            console.log(
-              `\t-> [first] FROM: ${formatTime(chunks[0].from)} | TO: ${formatTime(chunks[0].to)} (${formatAmount(chunks[0].bars.length)} bars)`
-            )
-            console.log(
-              `\t-> [last] FROM: ${formatTime(chunks[chunks.length - 1].from)} | TO: ${formatTime(chunks[chunks.length - 1].to)} (${formatAmount(
-                chunks[chunks.length - 1].bars.length
-              )} bars)`
-            )
-            console.log(
-              `\t-> [current cacheRange] FROM: ${formatTime(chart.chartCache.cacheRange.from)} | TO: ${formatTime(chart.chartCache.cacheRange.to)}`
-            )
-            for (const chunk of chunks) {
-              chart.chartCache.saveChunk(chunk)
-            }
-
-            chart.renderVisibleChunks()
-          }
-        })
-        .catch(err => {
-          console.error(err)
-        })
-        .then(() => {
-          chart.unlockRender()
-        })
-    },
-
-    /**
-     * TV chart mousemove event
-     * @param{TV.MouseEventParams} param tv mousemove param
-     */
-    onCrosshair(param) {
-      if (
-        param === undefined ||
-        param.time === undefined ||
-        param.point.x < 0 ||
-        param.point.x > this.$refs.chartContainer.clientWidth ||
-        param.point.y < 0 ||
-        param.point.y > this.$refs.chartContainer.clientHeight
-      ) {
-        this.legend = {}
-      } else {
-        for (let serie of chart.activeSeries) {
-          const data = param.seriesPrices.get(serie.api)
-
-          if (!data) {
-            this.$set(this.legend, serie.id, '')
-            continue
+            chunks[0].bars.push(bar)
+            chunks[0].to = bar.timestamp
           }
 
-          let formatFunction = serie.options.priceFormat && serie.options.priceFormat.type === 'volume' ? formatAmount : formatPrice
-
-          if (data.close) {
-            this.$set(
-              this.legend,
-              serie.id,
-              `O: ${formatFunction(data.open)} H: ${formatFunction(data.high)} L: ${formatFunction(data.low)} C: ${formatFunction(data.close)}`
-            )
-          } else {
-            this.$set(this.legend, serie.id, formatFunction(data))
+          if (chunks.length > 1) {
+            console.log(`[chart/fetch] splitted result into ${chunks.length} chunks`)
           }
+
+          console.log(`[chart/fetch] save ${chunks.length} new chunks`)
+          console.log(
+            `\t-> [first] FROM: ${formatTime(chunks[0].from)} | TO: ${formatTime(chunks[0].to)} (${formatAmount(chunks[0].bars.length)} bars)`
+          )
+          console.log(
+            `\t-> [last] FROM: ${formatTime(chunks[chunks.length - 1].from)} | TO: ${formatTime(chunks[chunks.length - 1].to)} (${formatAmount(
+              chunks[chunks.length - 1].bars.length
+            )} bars)`
+          )
+          console.log(
+            `\t-> [current cacheRange] FROM: ${formatTime(chart.chartCache.cacheRange.from)} | TO: ${formatTime(chart.chartCache.cacheRange.to)}`
+          )
+          for (const chunk of chunks) {
+            chart.chartCache.saveChunk(chunk)
+          }
+
+          chart.renderVisibleChunks()
         }
-      }
-    },
+      })
+      .catch(err => {
+        console.error(err)
+      })
+      .then(() => {
+        chart.unlockRender()
+      })
+  }
 
-    /**
-     * @param{Trade[]} trades trades to process
-     */
-    onTrades(trades) {
-      if (chart.preventRender || this.chartRefreshRate) {
-        chart.queueTrades(trades)
-        return
-      }
+  /**
+   * TV chart mousemove event
+   * @param{TV.MouseEventParams} param tv mousemove param
+   */
+  onCrosshair(param) {
+    if (
+      param === undefined ||
+      param.time === undefined ||
+      param.point.x < 0 ||
+      param.point.x > this.$refs.chartContainer.clientWidth ||
+      param.point.y < 0 ||
+      param.point.y > this.$refs.chartContainer.clientHeight
+    ) {
+      this.legend = {}
+    } else {
+      for (const serie of chart.activeSeries) {
+        const data = param.seriesPrices.get(serie.api)
 
-      chart.renderRealtimeTrades(trades)
-    },
+        if (!data) {
+          this.$set(this.legend, serie.id, '')
+          continue
+        }
 
-    /**
-     * on click on height handler
-     * @param {MouseEvent} event mousedown event
-     */
-    startManualResize(event, side) {
-      if (event.which === 3) {
-        return
-      }
+        const formatFunction = serie.options.priceFormat && serie.options.priceFormat.type === 'volume' ? formatAmount : formatPrice
 
-      if (!this._doManualResize) {
-        this._doManualResize = this.doManualResize.bind(this)
-
-        window.addEventListener('mousemove', this._doManualResize, false)
-      }
-
-      if (!this._stopManualResize) {
-        this._stopManualResize = this.stopManualResize.bind(this)
-
-        window.addEventListener('mouseup', this._stopManualResize, false)
-      }
-
-      if (side === 'height') {
-        this.resizing[side] = event.pageY
-      } else {
-        this.resizing[side] = event.pageX
-      }
-
-      console.info(`[chart] lock pan until further notice`)
-      chart.panPrevented = true
-    },
-
-    /**
-     * on drag height handler
-     * @param {MouseEvent} event mousemove event
-     */
-    doManualResize(event) {
-      if (!isNaN(this.resizing.width)) {
-        let referenceWidth
-
-        if (this.sidebarWidth !== null) {
-          referenceWidth = window.innerWidth - this.sidebarWidth
+        if (data.close) {
+          this.$set(
+            this.legend,
+            serie.id,
+            `O: ${formatFunction(data.open)} H: ${formatFunction(data.high)} L: ${formatFunction(data.low)} C: ${formatFunction(data.close)}`
+          )
         } else {
-          referenceWidth = chart.chartInstance.options().width
+          this.$set(this.legend, serie.id, formatFunction(data))
         }
-
-        this.refreshChartDimensions(referenceWidth + (event.pageX - this.resizing.width))
-      } else if (!isNaN(this.resizing.height)) {
-        this.refreshChartDimensions(null, (this.chartHeight || chart.options().height) + (event.pageY - this.resizing.height))
       }
-    },
+    }
+  }
 
-    /**
-     * on end of drag height handler
-     * @param {MouseEvent} event mouseup event
-     */
-    stopManualResize() {
-      if (this.resizing.width) {
-        this.$store.commit('settings/SET_SIDEBAR_WIDTH', window.innerWidth - this.$refs.chartContainer.clientWidth)
+  /**
+   * @param{Trade[]} trades trades to process
+   */
+  onTrades(trades) {
+    if (chart.preventRender || this.chartRefreshRate) {
+      chart.queueTrades(trades)
+      return
+    }
 
-        delete this.resizing.width
-      } else if (this.resizing.height) {
-        this.$store.commit('settings/SET_CHART_HEIGHT', this.$refs.chartContainer.clientHeight)
+    chart.renderRealtimeTrades(trades)
+  }
 
-        delete this.resizing.height
-      }
+  /**
+   * refresh chart dimensions based on container dimensions
+   */
+  refreshChartDimensions(width, height) {
+    const dimensions = this.getChartDimensions()
 
-      if (this._doManualResize) {
-        window.removeEventListener('mousemove', this._doManualResize)
-        delete this._doManualResize
-      }
+    chart.chartInstance.resize(width || dimensions.width, height || dimensions.height)
 
-      if (this._stopManualResize) {
-        window.removeEventListener('mouseup', this._stopManualResize)
-        delete this._stopManualResize
-      }
+    this.$el.parentElement.style.width = (width || dimensions.width) + 'px'
+  }
 
-      console.info(`[chart] unlock pan`)
-      chart.panPrevented = false
-    },
+  /**
+   * get chart height based on container dimensions
+   */
+  getChartDimensions() {
+    const w = document.documentElement.clientWidth
+    const h = document.documentElement.clientHeight
 
-    /**
-     * on dblclick on height handler
-     * @param {MouseEvent} event dbl click event
-     */
-    resetHeight() {
-      delete this.resizing.height
+    return {
+      width: window.innerWidth < 768 ? window.innerWidth : this.sidebarWidth > 0 ? window.innerWidth - this.sidebarWidth : w - 320,
+      height:
+        window.innerWidth >= 768
+          ? this.$el.parentElement.clientHeight - (this.showExchangesBar ? 24 : 0)
+          : this.chartHeight > 0
+          ? this.chartHeight
+          : +Math.min(w / 2, Math.max(300, h / 3)).toFixed()
+    }
+  }
 
-      this.$store.commit('settings/SET_CHART_HEIGHT', null)
+  /**
+   * on chart pan
+   */
+  onPan(visibleLogicalRange) {
+    // this.debugPosition()
 
-      this.refreshChartDimensions()
-    },
+    if (!visibleLogicalRange || chart.panPrevented) {
+      return
+    }
 
-    /**
-     * on dblclick on width handler
-     * @param {MouseEvent} event dbl click event
-     */
-    resetWidth() {
-      delete this.resizing.width
+    if (this._onPanTimeout) {
+      clearTimeout(this._onPanTimeout)
+      this._onPanTimeout = null
+    }
 
-      this.$store.commit('settings/SET_SIDEBAR_WIDTH', null)
-
-      this.refreshChartDimensions()
-    },
-
-    /**
-     * refresh chart dimensions based on container dimensions
-     */
-    refreshChartDimensions(width, height) {
-      const dimensions = this.getChartDimensions()
-
-      chart.chartInstance.resize(width || dimensions.width, height || dimensions.height)
-
-      this.$el.parentElement.style.width = (width || dimensions.width) + 'px'
-    },
-
-    /**
-     * get chart height based on container dimensions
-     */
-    getChartDimensions() {
-      const w = document.documentElement.clientWidth
-      const h = document.documentElement.clientHeight
-
-      return {
-        width: window.innerWidth < 768 ? window.innerWidth : this.sidebarWidth > 0 ? window.innerWidth - this.sidebarWidth : w - 320,
-        height:
-          window.innerWidth >= 768
-            ? this.$el.parentElement.clientHeight - (this.showExchangesBar ? 24 : 0)
-            : this.chartHeight > 0
-            ? this.chartHeight
-            : +Math.min(w / 2, Math.max(300, h / 3)).toFixed()
-      }
-    },
-
-    /**
-     * on browser resize
-     * @param {Event} event resize event
-     */
-    doWindowResize() {
-      clearTimeout(this._resizeTimeout)
-
-      this._resizeTimeout = setTimeout(() => {
-        this.refreshChartDimensions()
-      }, 250)
-    },
-
-    /**
-     * on chart pan
-     */
-    onPan(visibleLogicalRange) {
-      // this.debugPosition()
-
-      if (!visibleLogicalRange || chart.panPrevented) {
+    this._onPanTimeout = setTimeout(() => {
+      if (chart.chartCache.cacheRange.from === null) {
         return
       }
 
-      if (this._onPanTimeout) {
-        clearTimeout(this._onPanTimeout)
-        this._onPanTimeout = null
-      }
+      this.fetchOrRecover(visibleLogicalRange)
+    }, 200)
+  }
 
-      this._onPanTimeout = setTimeout(() => {
-        if (chart.chartCache.cacheRange.from === null) {
-          return
-        }
-        // const visibleRangeLogical = chart.chartInstance.timeScale().getVisibleLogicalRange()
+  bindChartEvents() {
+    chart.chartInstance.subscribeCrosshairMove(this.onCrosshair)
+    chart.chartInstance.timeScale().subscribeVisibleLogicalRangeChange(this.onPan)
+  }
 
-        this.fetchOrRecover(visibleLogicalRange)
-      }, 200)
-    },
+  unbindChartEvents() {
+    chart.chartInstance.unsubscribeCrosshairMove(this.onCrosshair)
+    chart.chartInstance.timeScale().unsubscribeVisibleLogicalRangeChange(this.onPan)
+  }
 
-    bindChartEvents() {
-      // chart.chartInstance.subscribeClick(this.onClick)
-      chart.chartInstance.subscribeCrosshairMove(this.onCrosshair)
-      chart.chartInstance.timeScale().subscribeVisibleLogicalRangeChange(this.onPan)
-    },
-
-    unbindChartEvents() {
-      // chart.chartInstance.unsubscribeClick(this.onClick)
-      chart.chartInstance.unsubscribeCrosshairMove(this.onCrosshair)
-      chart.chartInstance.timeScale().unsubscribeVisibleLogicalRangeChange(this.onPan)
-    },
-
-    bindBrowserResize() {
-      this._doWindowResize = this.doWindowResize.bind(this)
-      window.addEventListener('resize', this._doWindowResize, false)
-    },
-
-    unbindBrowserResize() {
-      window.removeEventListener('resize', this._doWindowResize)
-    },
-
-    keepAlive() {
-      if (this._keepAliveTimeout) {
-        chart.trimCache()
-
-        chart.redraw()
-      }
-
-      this._keepAliveTimeout = setTimeout(this.keepAlive.bind(this), 1000 * 60 * 30)
-    },
-
-    refreshChart() {
-      chart.chartCache.trimCache()
+  keepAlive() {
+    if (this._keepAliveTimeout) {
+      chart.chartCache.trim()
 
       chart.redraw()
-    },
+    }
 
-    async addSerie(index) {
-      const option = this.inactiveSeries[index]
+    this._keepAliveTimeout = setTimeout(this.keepAlive.bind(this), 1000 * 60 * 30)
+  }
 
-      if (!option || !option.id) {
-        const serie = await dialogService.openAsPromise(CreateSerieDialog)
+  refreshChart() {
+    chart.chartCache.trim()
 
-        if (serie) {
-          this.$store.dispatch('settings/createSerie', serie)
-          dialogService.open(SerieDialog, { id: serie.id }, 'serie')
-        }
+    chart.redraw()
+  }
 
-        return
+  async addSerie(index) {
+    const option = this.inactiveSeries[index]
+
+    if (!option || !option.id) {
+      const serie = await dialogService.openAsPromise(CreateSerieDialog)
+
+      if (serie) {
+        this.$store.dispatch('settings/createSerie', serie)
+        dialogService.open(SerieDialog, { id: serie.id }, 'serie')
       }
 
-      this.$store.dispatch('settings/toggleSerie', option.id)
-    },
+      return
+    }
 
-    fetchOrRecover(visibleLogicalRange) {
-      if (!visibleLogicalRange || visibleLogicalRange.from > 0) {
-        return
-      }
+    this.$store.dispatch('settings/toggleSerie', option.id)
+  }
 
-      const barsToLoad = Math.abs(visibleLogicalRange.from)
-      const rangeToFetch = {
-        from: chart.chartCache.cacheRange.from - barsToLoad * this.$store.state.settings.timeframe,
-        to: chart.chartCache.cacheRange.from
-      }
+  fetchOrRecover(visibleLogicalRange) {
+    if (!visibleLogicalRange || visibleLogicalRange.from > 0) {
+      return
+    }
 
-      console.log(`[chart/pan] timeout fired`)
-      console.log(`\t-> barsToLoad: ${barsToLoad}`)
-      console.log(`\t-> rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
-      console.log(
-        `\t-> current cacheRange: FROM: ${formatTime(chart.chartCache.cacheRange.from)} | TO: ${formatTime(chart.chartCache.cacheRange.to)}`
+    const barsToLoad = Math.abs(visibleLogicalRange.from)
+    const rangeToFetch = {
+      from: chart.chartCache.cacheRange.from - barsToLoad * this.$store.state.settings.timeframe,
+      to: chart.chartCache.cacheRange.from
+    }
+
+    console.log(`[chart/pan] timeout fired`)
+    console.log(`\t-> barsToLoad: ${barsToLoad}`)
+    console.log(`\t-> rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
+    console.log(`\t-> current cacheRange: FROM: ${formatTime(chart.chartCache.cacheRange.from)} | TO: ${formatTime(chart.chartCache.cacheRange.to)}`)
+    // this.debugPosition()
+
+    if (!chart.chartCache.cacheRange.from || rangeToFetch.to <= chart.chartCache.cacheRange.from) {
+      this.fetch(rangeToFetch)
+    } else {
+      console.warn(
+        `[chart/pan] wont fetch this range\n\t-> rangeToFetch.to (${formatTime(rangeToFetch.to)}) > chart.chartCache.cacheRange.from (${formatTime(
+          chart.chartCache.cacheRange.from
+        )})`
       )
-      // this.debugPosition()
+      console.warn('(might trigger redraw with more cached chunks here...)')
 
-      if (!chart.chartCache.cacheRange.from || rangeToFetch.to <= chart.chartCache.cacheRange.from) {
-        this.fetch(rangeToFetch)
-      } else {
-        console.warn(
-          `[chart/pan] wont fetch this range\n\t-> rangeToFetch.to (${formatTime(rangeToFetch.to)}) > chart.chartCache.cacheRange.from (${formatTime(
-            chart.chartCache.cacheRange.from
-          )})`
-        )
-        console.warn('(might trigger redraw with more cached chunks here...)')
-
-        chart.renderVisibleChunks()
-      }
+      chart.renderVisibleChunks()
     }
   }
 }

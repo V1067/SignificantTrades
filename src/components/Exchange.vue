@@ -2,32 +2,30 @@
   <div
     class="settings-exchange"
     :class="{
-      '-active': exchange.connected,
+      '-active': exchange.pairs.length,
       '-enabled': !settings.disabled,
-      '-loading': !settings.disabled && !exchange.connected && exchange.valid,
-      '-error': exchange.error,
-      '-unmatched': !exchange.valid,
+      '-loading': exchange.loading,
       '-invisible': settings.hidden,
       '-expanded': expanded
     }"
   >
     <div class="settings-exchange__header" @click="toggleExchange">
       <span v-if="!isNaN(exchangeMultiplier) && exchangeMultiplier !== 1" class="settings-exchange__threshold">{{
-        $root.formatAmount(minimumThreshold * exchangeMultiplier)
+        formatAmount(minimumThreshold * exchangeMultiplier)
       }}</span>
       <div class="settings-exchange__identity">
         <div class="settings-exchange__name">{{ exchange.id.replace('_', ' ') }}</div>
         <small class="settings-exchange__error" v-if="exchange.error">
           {{ exchange.error }}
         </small>
-        <small class="settings-exchange__price" v-if="exchange.price" v-html="$root.formatPrice(exchange.price)"></small>
+        <small class="settings-exchange__price" v-if="price !== null" v-html="price"></small>
       </div>
       <div class="settings-exchange__controls">
         <button
           class="settings-exchange__visibility"
           v-tippy
-          :title="exchange.hidden ? 'Show' : 'Hide (from everything)'"
-          @click.stop.prevent="$store.commit('settings/TOGGLE_EXCHANGE_VISIBILITY', exchange.id)"
+          :title="settings.hidden ? 'Show' : 'Hide'"
+          @click.stop.prevent="$store.dispatch('exchanges/toggleExchangeVisibility', id)"
         >
           <i class="icon-eye"></i>
         </button>
@@ -40,7 +38,7 @@
       <div class="form-group">
         <label class="column" style="justify-content:space-between">
           <span class="condensed">Adj. threshold:</span>
-          <span v-if="exchanges[exchange.id].threshold !== 1">{{ $root.formatAmount(minimumThreshold * exchangeMultiplier) }}</span>
+          <span v-if="settings.threshold !== 1">{{ formatAmount(minimumThreshold * exchangeMultiplier) }}</span>
         </label>
         <Slider
           :step="0.0001"
@@ -49,87 +47,148 @@
           :editable="false"
           :value="exchangeMultiplier"
           @input="
-            $store.commit('settings/SET_EXCHANGE_THRESHOLD', {
-              exchange: exchange.id,
+            $store.commit('exchanges/SET_EXCHANGE_THRESHOLD', {
+              id,
               threshold: $event
             })
           "
           @reset="
-            $store.commit('settings/SET_EXCHANGE_THRESHOLD', {
-              exchange: exchange.id,
+            $store.commit('exchanges/SET_EXCHANGE_THRESHOLD', {
+              id,
               threshold: 1
             })
           "
         >
         </Slider>
       </div>
-      <div v-if="exchange.indexedProducts.length" class="form-group mt8">
-        <button v-if="canRefreshProducts" class="btn -red -small" @click="refreshProducts">
-          Refresh products ({{ exchange.indexedProducts.length }})
-        </button>
+      <div v-if="indexedProducts.length" class="form-group mt8">
+        <button v-if="canRefreshProducts" class="btn -red -small" @click="refreshProducts">Refresh products ({{ indexedProducts.length }})</button>
       </div>
     </div>
   </div>
 </template>
 
-<script>
-import { mapState } from 'vuex'
-
+<script lang="ts">
+import { getExchangeById } from '@/exchanges'
+import Exchange from '@/exchanges/exchangeAbstract'
+import aggregatorService from '@/services/aggregatorService'
+import { formatAmount, formatPrice } from '@/utils/helpers'
+import { Component, Vue } from 'vue-property-decorator'
 import Slider from './ui/picker/Slider.vue'
 
-export default {
+@Component({
+  name: 'Exchange',
   components: {
     Slider
   },
-  data() {
-    return {
-      canRefreshProducts: true,
-      expanded: false
-    }
-  },
-  props: ['exchange'],
-  computed: {
-    ...mapState('settings', ['pair', 'exchanges']),
-    settings() {
-      return this.$store.state.settings.exchanges[this.exchange.id]
-    },
-    minimumThreshold() {
-      return this.$store.state.settings.thresholds[0].amount
-    },
-    exchangeMultiplier() {
-      return typeof this.$store.state.settings.exchanges[this.exchange.id].threshold === 'undefined'
-        ? 1
-        : this.$store.state.settings.exchanges[this.exchange.id].threshold
-    }
-  },
-  methods: {
-    toggleExchange() {
-      if (!this.settings.disabled) {
-        this.exchange.disconnect()
+  props: ['id']
+})
+export default class extends Vue {
+  id: string
+  canRefreshProducts = true
+  expanded = false
+  exchange: Exchange = null
+  price: number = null
 
-        this.$store.commit('settings/DISABLE_EXCHANGE', this.exchange.id)
-      } else {
-        this.exchange.connect(this.pair)
+  private _priceUpdateInterval: number
 
-        this.$store.commit('settings/ENABLE_EXCHANGE', this.exchange.id)
+  get settings() {
+    return this.$store.state.exchanges[this.id]
+  }
+
+  get minimumThreshold() {
+    return this.$store.state.settings.thresholds[1].amount
+  }
+
+  get exchangeMultiplier() {
+    return typeof this.$store.state.exchanges[this.id].threshold === 'undefined' ? 1 : this.$store.state.exchanges[this.id].threshold
+  }
+
+  get indexedProducts() {
+    return this.$store.state.app.indexedProducts[this.id] || []
+  }
+
+  created() {
+    this.exchange = getExchangeById(this.id)
+  }
+
+  mounted() {
+    this.updatePrice()
+  }
+
+  beforeDestroy() {
+    this.stopUpdatingPrice()
+  }
+
+  updatePrice() {
+    const marketPrices = aggregatorService.getMarketsPrices()
+    const exchangeRegex = new RegExp(`^${this.id}:`, 'i')
+
+    let price = 0
+    let count = 0
+
+    for (const market in marketPrices) {
+      if (exchangeRegex.test(market)) {
+        price += marketPrices[market]
+        count++
       }
-    },
-    refreshProducts() {
-      this.canRefreshProducts = false
+    }
 
-      setTimeout(() => {
-        this.canRefreshProducts = true
-      }, 3000)
+    if (count) {
+      this.price = formatPrice(price / count)
+    } else {
+      this.price = null
+    }
 
-      this.exchange.refreshProducts().then(() => {
-        this.exchange.pair = this.pair
-        this.exchange.connect()
+    if (!this._priceUpdateInterval) {
+      this._priceUpdateInterval = window.setInterval(this.updatePrice.bind(this), 1000)
+    }
+  }
+
+  stopUpdatingPrice() {
+    if (this._priceUpdateInterval) {
+      clearInterval(this._priceUpdateInterval)
+      this._priceUpdateInterval = null
+    }
+
+    this.price = null
+  }
+
+  refreshProducts() {
+    this.canRefreshProducts = false
+
+    setTimeout(() => {
+      this.canRefreshProducts = true
+    }, 3000)
+
+    const exchange = getExchangeById(this.id)
+
+    if (exchange) {
+      exchange.refreshProducts().then(() => {
         this.$store.dispatch('app/showNotice', {
           type: 'success',
-          title: `${this.exchange.id}'s products refreshed`
+          title: `${this.id}'s products refreshed`
         })
       })
     }
+  }
+
+  async toggleExchange() {
+    await this.$store.dispatch('exchanges/toggleExchange', this.id)
+
+    if (this.settings.disabled) {
+      this.stopUpdatingPrice()
+    } else {
+      this.updatePrice()
+    }
+  }
+
+  formatAmount(amount) {
+    return formatAmount(amount)
+  }
+
+  formatPrice(price) {
+    return formatPrice(price)
   }
 }
 </script>
@@ -324,9 +383,14 @@ export default {
     background: none;
     cursor: pointer;
     color: white;
-    font-size: 18px;
+    font-size: 1rem;
     display: flex;
     align-items: center;
+
+    .icon-down,
+    .icon-up {
+      font-size: 80%;
+    }
 
     &:hover {
       background-color: rgba(white, 0.1);

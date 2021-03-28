@@ -178,13 +178,13 @@ export default {
       this.ctx.fillStyle = `hsl(${this.currentHue}, 100%, 50%)`
       this.ctx.fillRect(0, 0, width, height)
 
-      let grdBlack = this.ctx.createLinearGradient(0, 0, width, 0)
+      const grdBlack = this.ctx.createLinearGradient(0, 0, width, 0)
       grdBlack.addColorStop(0, `hsl(0, 0%, 50%)`)
       grdBlack.addColorStop(1, `hsla(0, 0%, 50%, 0)`)
       this.ctx.fillStyle = grdBlack
       this.ctx.fillRect(0, 0, width, height)
 
-      let grdWhite = this.ctx.createLinearGradient(0, 0, 0, height)
+      const grdWhite = this.ctx.createLinearGradient(0, 0, 0, height)
       grdWhite.addColorStop(0, `hsl(0, 0%, 100%)`)
       grdWhite.addColorStop(0.5, `hsla(0, 0%, 100%, 0)`)
       grdWhite.addColorStop(0.5, `hsla(0, 0%, 0%, 0)`)

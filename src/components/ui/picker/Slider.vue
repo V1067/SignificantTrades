@@ -145,7 +145,7 @@ export default {
       const stepValue = this.getStepValue(event)
 
       if (this.multiple) {
-        let closest = getClosestValue(this.values, stepValue)
+        const closest = getClosestValue(this.values, stepValue)
         this.activeHandle = this.values.indexOf(closest)
       }
       this.updateValue(stepValue)
@@ -341,6 +341,14 @@ export default {
   box-sizing: border-box;
   margin-bottom: 0.5rem;
 
+  &.-alpha {
+    .slider__track {
+      background-image: $checkerboard;
+      background-size: 6px 6px;
+      background-position: 0 0, 3px -3px, 0 3px, -3px 0px;
+    }
+  }
+
   &:hover,
   &--dragging {
     .slider-label {
@@ -377,14 +385,11 @@ export default {
 .slider__track {
   position: relative;
   flex: 1;
-  margin: 3px;
+  margin: 0;
   width: auto;
   height: 8px;
-  background: white;
+  background: rgba(black, 33%);
   will-change: transfom;
-  background-image: $checkerboard;
-  background-size: 6px 6px;
-  background-position: 0 0, 3px -3px, 0 3px, -3px 0px;
   border-radius: 10px;
 }
 

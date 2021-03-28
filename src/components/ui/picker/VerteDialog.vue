@@ -7,6 +7,7 @@
     <div class="verte__controller">
       <Slider
         v-if="enableAlpha"
+        class="-alpha"
         :gradient="[`rgba(${rgb.red}, ${rgb.green}, ${rgb.blue}, 0)`, `rgba(${rgb.red}, ${rgb.green}, ${rgb.blue}, 1)`]"
         :min="0"
         :max="1"

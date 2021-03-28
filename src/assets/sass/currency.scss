@@ -70,7 +70,7 @@
     content: unicode($icon-eos);
   }
 
-  &[data-prefer='base'] {
+  &[data-prefered-sizing-currency='base'] {
     &[data-base='dollar'] .icon-currency:before {
       content: unicode($icon-dollar);
     }
@@ -136,7 +136,7 @@
     }
   }
 
-  &[data-prefer='quote'] {
+  &[data-prefered-sizing-currency='quote'] {
     &[data-quote='dollar'] .icon-currency:before {
       content: unicode($icon-dollar);
     }

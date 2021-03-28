@@ -1,18 +1,18 @@
 <template>
-  <div id="trades" class="custom-scrollbar" :class="{ '-logos': this.showLogos, '-slippage': this.showSlippage }">
+  <div id="trades" class="custom-scrollbar" :class="{ '-logos': this.showLogos, '-slippage': this.calculateSlippage }">
     <ul ref="tradesContainer"></ul>
     <div v-if="!tradesCount" class="trade -empty">Nothing to show, yet.</div>
   </div>
 </template>
 
-<script>
-import { mapState } from 'vuex'
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
 
-import { ago, formatPrice, formatAmount } from '../utils/helpers'
+import { ago, formatPrice, formatAmount, slugify } from '../utils/helpers'
 import { getColorByWeight, getColorLuminance, getAppBackgroundColor, splitRgba, getLogShade } from '../utils/colors'
 
-import socket from '../services/socket'
-import Sfx from '../services/sfx'
+import aggregatorService, { Trade } from '@/services/aggregatorService'
+import sfxService from '../services/sfxService'
 
 let LAST_TRADE_TIMESTAMP // to control whether we show timestamp on trade or not
 let LAST_SIDE // to control wheter we show "up" or "down" icon in front of trade
@@ -23,36 +23,74 @@ let GIFS // gifs from storages, by threshold gif keyword
 
 let activeExchanges = []
 
-export default {
-  data() {
-    return {
-      tradesCount: 0
-    }
-  },
-  computed: {
-    ...mapState('settings', [
-      'pair',
-      'maxRows',
-      'thresholds',
-      'exchanges',
-      'useAudio',
-      'showSlippage',
-      'liquidationsOnly',
-      'audioIncludeInsignificants',
-      'preferQuoteCurrencySize',
-      'decimalPrecision',
-      'showLogos'
-    ]),
-    ...mapState('app', ['activeExchanges'])
-  },
+@Component({
+  name: 'TradeList'
+})
+export default class extends Vue {
+  tradesCount = 0
+
+  private onStoreMutation: () => void
+  private _timeAgoInterval: number
+
+  get maxRows() {
+    return this.$store.state.settings.maxRows
+  }
+
+  get thresholds() {
+    return this.$store.state.settings.thresholds
+  }
+
+  get exchanges() {
+    return this.$store.state.exchanges
+  }
+
+  get useAudio() {
+    return this.$store.state.settings.useAudio
+  }
+
+  get calculateSlippage() {
+    return this.$store.state.settings.calculateSlippage
+  }
+
+  get liquidationsOnly() {
+    return this.$store.state.settings.liquidationsOnly
+  }
+
+  get audioIncludeInsignificants() {
+    return this.$store.state.settings.audioIncludeInsignificants
+  }
+
+  get preferQuoteCurrencySize() {
+    return this.$store.state.settings.preferQuoteCurrencySize
+  }
+
+  get showTradesPairs() {
+    return this.$store.state.settings.showTradesPairs
+  }
+
+  get decimalPrecision() {
+    return this.$store.state.settings.decimalPrecision
+  }
+
+  get showLogos() {
+    return this.$store.state.settings.showLogos
+  }
+
+  get activeExchanges() {
+    return this.$store.state.app.activeExchanges
+  }
+
+  $refs!: {
+    tradesContainer: HTMLElement
+  }
+
   created() {
-    // cache list of active exchange
     activeExchanges = Object.keys(this.activeExchanges).filter(id => !!this.activeExchanges[id])
 
     this.retrieveStoredGifs()
     this.prepareColorsSteps()
 
-    socket.$on('trades.aggr', this.onTrades)
+    aggregatorService.on('trades', this.onTrades)
 
     this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
@@ -64,9 +102,9 @@ export default {
           break
         case 'settings/TOGGLE_AUDIO':
           if (mutation.payload) {
-            this.sfx = new Sfx()
+            sfxService.connect()
           } else {
-            this.sfx && this.sfx.disconnect() && delete this.sfx
+            sfxService.disconnect()
           }
           break
         case 'settings/SET_THRESHOLD_GIF':
@@ -80,43 +118,10 @@ export default {
           break
       }
     })
-  },
+  }
   mounted() {
     if (this.useAudio) {
-      this.sfx = new Sfx()
-
-      if (this.sfx.context.state === 'suspended') {
-        let lastTryTimestamp = 0
-        const resumeOnFocus = ((sfx, event) => {
-          if (event.type !== 'mousemove' || event.timeStamp - lastTryTimestamp > 3000) {
-            console.log('[sfx] Yet another try to start AudioContext')
-            if (event.type === 'mousemove') {
-              lastTryTimestamp = event.timeStamp
-            }
-
-            if (this.useAudio) {
-              sfx.context.resume()
-            }
-
-            if (!this.useAudio || sfx.context.state !== 'suspended') {
-              console.info(`[sfx] AudioContext resumed successfully during the "${event.type}" event.`)
-              window.removeEventListener('focus', resumeOnFocus)
-              window.removeEventListener('blur', resumeOnFocus)
-              document.body.removeEventListener('mousemove', resumeOnFocus)
-              document.body.removeEventListener('mouseenter', resumeOnFocus)
-              document.body.removeEventListener('mouseleave', resumeOnFocus)
-              document.body.removeEventListener('mouseup', resumeOnFocus)
-            }
-          }
-        }).bind(null, this.sfx)
-
-        window.addEventListener('blur', resumeOnFocus)
-        window.addEventListener('focus', resumeOnFocus)
-        document.body.addEventListener('mousemove', resumeOnFocus)
-        document.body.addEventListener('mouseenter', resumeOnFocus)
-        document.body.addEventListener('mouseleave', resumeOnFocus)
-        document.body.addEventListener('mouseup', resumeOnFocus)
-      }
+      sfxService.connect()
     }
 
     this._timeAgoInterval = setInterval(() => {
@@ -145,291 +150,294 @@ export default {
         ref = txt
       }
     }, 2500)
-  },
+  }
   beforeDestroy() {
-    socket.$off('trades.aggr', this.onTrades)
+    aggregatorService.off('trades', this.onTrades)
 
     this.onStoreMutation()
 
     clearInterval(this._timeAgoInterval)
 
-    this.sfx && this.sfx.disconnect()
-  },
-  methods: {
-    onTrades(trades) {
-      for (let i = 0; i < trades.length; i++) {
-        if (activeExchanges.indexOf(trades[i].exchange) === -1) {
-          continue
-        }
+    sfxService.disconnect()
+  }
+  onTrades(trades: Trade[]) {
+    for (let i = 0; i < trades.length; i++) {
+      if (activeExchanges.indexOf(trades[i].exchange) === -1) {
+        continue
+      }
 
-        const trade = trades[i]
-        const amount = trade.size * (this.preferQuoteCurrencySize ? trade.price : 1)
-        const multiplier = typeof this.exchanges[trade.exchange].threshold !== 'undefined' ? +this.exchanges[trade.exchange].threshold : 1
+      const trade = trades[i]
+      const amount = trade.size * (this.preferQuoteCurrencySize ? trade.price : 1)
+      const multiplier = typeof this.exchanges[trade.exchange].threshold !== 'undefined' ? +this.exchanges[trade.exchange].threshold : 1
 
-        if (trade.liquidation) {
-          if (this.useAudio && amount > SIGNIFICANT_AMOUNT * multiplier * 0.1) {
-            this.sfx.liquidation((amount / SIGNIFICANT_AMOUNT) * multiplier)
-          }
-
-          if (amount >= MINIMUM_AMOUNT * multiplier) {
-            let liquidationMessage = `<i class="icon-currency"></i> <strong>${formatAmount(amount, 1)}</strong>`
-
-            liquidationMessage += `&nbsp;liq<span class="min-280">uidate</span>d <strong>${
-              trade.side === 'buy' ? 'SHORT' : 'LONG'
-            }</strong> @ <i class="icon-quote"></i> ${formatPrice(trade.price)}`
-
-            this.appendRow(trade, amount, multiplier, '-liquidation', liquidationMessage)
-          }
-          continue
-        } else if (this.liquidationsOnly) {
-          continue
+      if (trade.liquidation) {
+        if (this.useAudio && amount > SIGNIFICANT_AMOUNT * multiplier * 0.1) {
+          sfxService.liquidation((amount / SIGNIFICANT_AMOUNT) * multiplier)
         }
 
         if (amount >= MINIMUM_AMOUNT * multiplier) {
-          this.appendRow(trade, amount, multiplier)
-        } else {
-          if (this.useAudio && this.audioIncludeInsignificants && amount >= SIGNIFICANT_AMOUNT * 0.1) {
-            this.sfx.tradeToSong(amount / (SIGNIFICANT_AMOUNT * multiplier), trade.side, 0)
-          }
+          let liquidationMessage = `<i class="icon-currency"></i> <strong>${formatAmount(amount, 1)}</strong>`
+
+          liquidationMessage += `&nbsp;liq<span class="min-280">uidate</span>d <strong>${
+            trade.side === 'buy' ? 'SHORT' : 'LONG'
+          }</strong> @ <i class="icon-quote"></i> ${formatPrice(trade.price)}`
+
+          this.appendRow(trade, amount, multiplier, '-liquidation', liquidationMessage)
         }
-      }
-    },
-    appendRow(trade, amount, multiplier = 1, classname = '', message = null) {
-      if (!this.tradesCount) {
-        this.$forceUpdate()
+        continue
+      } else if (this.liquidationsOnly) {
+        continue
       }
 
-      this.tradesCount++
-
-      const li = document.createElement('li')
-      li.className = ('trade ' + classname).trim()
-      li.className += ' -' + trade.exchange
-
-      li.className += ' -' + trade.side
-
-      if (trade.exchange.length > 10) {
-        li.className += ' -sm'
-      }
-
-      if (amount >= SIGNIFICANT_AMOUNT * multiplier) {
-        li.className += ' -significant'
-      }
-
-      for (let i = 0; i < this.thresholds.length; i++) {
-        li.className += ' -level-' + i
-
-        if (!this.thresholds[i + 1] || amount < this.thresholds[i + 1].amount * multiplier) {
-          // THIS IS OUR THRESHOLD
-          const color = COLORS[Math.min(this.thresholds.length - 2, i)]
-          const threshold = this.thresholds[i]
-
-          if (threshold.gif && GIFS[threshold.gif]) {
-            // get random gif for this threshold
-            li.style.backgroundImage = `url('${GIFS[threshold.gif][Math.floor(Math.random() * (GIFS[threshold.gif].length - 1))]}`
-          }
-
-          // percentage to next threshold
-          const percentToNextThreshold = (Math.max(amount, color.threshold) - color.threshold) / color.range
-
-          // 0-255 luminance of nearest color
-          const luminance = color[trade.side][(percentToNextThreshold < 0.5 ? 'from' : 'to') + 'Luminance']
-
-          // background color simple color to color based on percentage of amount to next threshold
-          const backgroundColor = getColorByWeight(color[trade.side].from, color[trade.side].to, percentToNextThreshold)
-          li.style.backgroundColor = 'rgb(' + backgroundColor[0] + ', ' + backgroundColor[1] + ', ' + backgroundColor[2] + ')'
-
-          if (i >= 1) {
-            // ajusted amount > SIGNIFICANT_AMOUNT
-            // only pure black or pure white foreground
-            li.style.color = luminance < 175 ? 'white' : 'black'
-          } else {
-            // take background color and apply logarithmic shade based on amount to SIGNIFICANT_AMOUNT percentage
-            // darken if luminance of background is high, lighten otherwise
-            li.style.color = getLogShade(backgroundColor, Math.max(0.25, Math.min(1, amount / SIGNIFICANT_AMOUNT)) * (luminance < 175 ? 1 : -1))
-          }
-
-          if (this.useAudio && amount >= (this.audioIncludeInsignificants ? SIGNIFICANT_AMOUNT * 0.1 : MINIMUM_AMOUNT * 1) * multiplier) {
-            this.sfx.tradeToSong(amount / (SIGNIFICANT_AMOUNT * multiplier), trade.side, i)
-          }
-
-          break
-        }
-      }
-
-      if (!message) {
-        if (trade.side !== LAST_SIDE) {
-          const side = document.createElement('div')
-          side.className = 'trade__side icon-side'
-          li.appendChild(side)
-        }
-
-        LAST_SIDE = trade.side
-      }
-
-      const exchange = document.createElement('div')
-      exchange.className = 'trade__exchange'
-      exchange.innerText = trade.exchange.replace('_', ' ')
-      exchange.setAttribute('title', trade.exchange)
-      li.appendChild(exchange)
-
-      if (message) {
-        const message_div = document.createElement('div')
-        message_div.className = 'trade__message'
-        message_div.innerHTML = message
-        li.appendChild(message_div)
+      if (amount >= MINIMUM_AMOUNT * multiplier) {
+        this.appendRow(trade, amount, multiplier)
       } else {
-        const price = document.createElement('div')
-        price.className = 'trade__price'
-        price.innerHTML = `<span class="icon-quote"></span> <span>${formatPrice(trade.price)}</span>`
-        li.appendChild(price)
+        if (this.useAudio && this.audioIncludeInsignificants && amount >= SIGNIFICANT_AMOUNT * 0.1) {
+          sfxService.tradeToSong(amount / (SIGNIFICANT_AMOUNT * multiplier), trade.side, 0)
+        }
+      }
+    }
+  }
 
-        if (this.showSlippage === 'price' && trade.slippage / trade.price > 0.0001) {
-          price.setAttribute(
-            'slippage',
-            (trade.slippage > 0 ? '+' : '-') + document.getElementById('app').getAttribute('data-symbol') + Math.abs(trade.slippage).toFixed(1)
-          )
-        } else if (this.showSlippage === 'bps' && trade.slippage) {
-          price.setAttribute('slippage', (trade.slippage > 0 ? '+' : '-') + trade.slippage)
+  appendRow(trade: Trade, amount, multiplier = 1, classname = '', message = null) {
+    if (!this.tradesCount) {
+      this.$forceUpdate()
+    }
+
+    this.tradesCount++
+
+    const li = document.createElement('li')
+    li.className = ('trade ' + classname).trim()
+    li.className += ' -' + trade.exchange
+
+    li.className += ' -' + trade.side
+
+    if (trade.exchange.length > 10) {
+      li.className += ' -sm'
+    }
+
+    if (amount >= SIGNIFICANT_AMOUNT * multiplier) {
+      li.className += ' -significant'
+    }
+
+    for (let i = 0; i < this.thresholds.length; i++) {
+      li.className += ' -level-' + i
+
+      if (!this.thresholds[i + 1] || amount < this.thresholds[i + 1].amount * multiplier) {
+        // THIS IS OUR THRESHOLD
+        const color = COLORS[Math.min(this.thresholds.length - 2, i)]
+        const threshold = this.thresholds[i]
+
+        if (threshold.gif && GIFS[threshold.gif]) {
+          // get random gif for this threshold
+          li.style.backgroundImage = `url('${GIFS[threshold.gif][Math.floor(Math.random() * (GIFS[threshold.gif].length - 1))]}`
         }
 
-        const amount_div = document.createElement('div')
-        amount_div.className = 'trade__amount'
+        // percentage to next threshold
+        const percentToNextThreshold = (Math.max(amount, color.threshold) - color.threshold) / color.range
 
-        const amount_quote = document.createElement('span')
-        amount_quote.className = 'trade__amount__quote'
-        amount_quote.innerHTML = `<span class="icon-quote"></span> <span>${formatAmount(trade.price * trade.size)}</span>`
+        // 0-255 luminance of nearest color
+        const luminance = color[trade.side][(percentToNextThreshold < 0.5 ? 'from' : 'to') + 'Luminance']
 
-        const amount_base = document.createElement('span')
-        amount_base.className = 'trade__amount__base'
-        amount_base.innerHTML = `<span class="icon-base"></span> <span>${formatAmount(trade.size)}</span>`
+        // background color simple color to color based on percentage of amount to next threshold
+        const backgroundColor = getColorByWeight(color[trade.side].from, color[trade.side].to, percentToNextThreshold)
+        li.style.backgroundColor = 'rgb(' + backgroundColor[0] + ', ' + backgroundColor[1] + ', ' + backgroundColor[2] + ')'
 
-        amount_div.appendChild(amount_quote)
-        amount_div.appendChild(amount_base)
-        li.appendChild(amount_div)
+        if (i >= 1) {
+          // ajusted amount > SIGNIFICANT_AMOUNT
+          // only pure black or pure white foreground
+          li.style.color = luminance < 175 ? 'white' : 'black'
+        } else {
+          // take background color and apply logarithmic shade based on amount to SIGNIFICANT_AMOUNT percentage
+          // darken if luminance of background is high, lighten otherwise
+          li.style.color = getLogShade(backgroundColor, Math.max(0.25, Math.min(1, amount / SIGNIFICANT_AMOUNT)) * (luminance < 175 ? 1 : -1))
+        }
+
+        if (this.useAudio && amount >= (this.audioIncludeInsignificants ? SIGNIFICANT_AMOUNT * 0.1 : MINIMUM_AMOUNT * 1) * multiplier) {
+          sfxService.tradeToSong(amount / (SIGNIFICANT_AMOUNT * multiplier), trade.side, i)
+        }
+
+        break
+      }
+    }
+
+    if (!message) {
+      if (trade.side !== LAST_SIDE) {
+        const side = document.createElement('div')
+        side.className = 'trade__side icon-side'
+        li.appendChild(side)
       }
 
-      const date = document.createElement('div')
-      date.className = 'trade__date'
+      LAST_SIDE = trade.side
+    }
 
-      let timestamp = Math.floor(trade.timestamp / 1000) * 1000
+    const exchange = document.createElement('div')
+    exchange.className = 'trade__exchange'
+    exchange.innerText = trade.exchange.replace('_', ' ')
+    exchange.setAttribute('title', trade.exchange)
+    li.appendChild(exchange)
 
-      if (timestamp !== LAST_TRADE_TIMESTAMP) {
-        LAST_TRADE_TIMESTAMP = timestamp
+    if (this.showTradesPairs) {
+      const pair = document.createElement('div')
+      pair.className = 'trade__pair'
+      pair.innerText = trade.pair.replace('_', ' ')
+      pair.setAttribute('title', trade.pair)
+      li.appendChild(pair)
+    }
 
-        date.setAttribute('timestamp', trade.timestamp)
-        date.innerText = ago(timestamp)
+    if (message) {
+      const message_div = document.createElement('div')
+      message_div.className = 'trade__message'
+      message_div.innerHTML = message
+      li.appendChild(message_div)
+    } else {
+      const price = document.createElement('div')
+      price.className = 'trade__price'
+      price.innerHTML = `<span class="icon-quote"></span> <span>${formatPrice(trade.price)}</span>`
+      li.appendChild(price)
 
-        date.className += ' -timestamp'
+      if (this.calculateSlippage === 'price' && Math.abs(trade.slippage) / trade.price > 0.0001) {
+        price.setAttribute(
+          'slippage',
+          (trade.slippage > 0 ? '+' : '') + trade.slippage + document.getElementById('app').getAttribute('data-quote-symbol')
+        )
+      } else if (this.calculateSlippage === 'bps' && trade.slippage) {
+        price.setAttribute('slippage', (trade.slippage > 0 ? '+' : '-') + trade.slippage)
       }
 
-      li.appendChild(date)
+      const amount_div = document.createElement('div')
+      amount_div.className = 'trade__amount'
 
-      this.$refs.tradesContainer.prepend(li)
+      const amount_quote = document.createElement('span')
+      amount_quote.className = 'trade__amount__quote'
+      amount_quote.innerHTML = `<span class="icon-quote"></span> <span>${formatAmount(trade.price * trade.size)}</span>`
 
-      while (this.tradesCount > this.maxRows) {
-        this.tradesCount--
-        this.$refs.tradesContainer.removeChild(this.$refs.tradesContainer.lastChild)
+      const amount_base = document.createElement('span')
+      amount_base.className = 'trade__amount__base'
+      amount_base.innerHTML = `<span class="icon-base"></span> <span>${formatAmount(trade.size)}</span>`
+
+      amount_div.appendChild(amount_quote)
+      amount_div.appendChild(amount_base)
+      li.appendChild(amount_div)
+    }
+
+    const date = document.createElement('div')
+    date.className = 'trade__date'
+
+    const timestamp = Math.floor(trade.timestamp / 1000) * 1000
+
+    if (timestamp !== LAST_TRADE_TIMESTAMP) {
+      LAST_TRADE_TIMESTAMP = timestamp
+
+      date.setAttribute('timestamp', trade.timestamp.toString())
+      date.innerText = ago(timestamp)
+
+      date.className += ' -timestamp'
+    }
+
+    li.appendChild(date)
+
+    this.$refs.tradesContainer.prepend(li)
+
+    while (this.tradesCount > this.maxRows) {
+      this.tradesCount--
+      this.$refs.tradesContainer.removeChild(this.$refs.tradesContainer.lastChild)
+    }
+  }
+
+  retrieveStoredGifs(refresh = false) {
+    GIFS = {}
+
+    this.thresholds.forEach(threshold => {
+      if (!threshold.gif) {
+        return
       }
-    },
-    retrieveStoredGifs(refresh) {
-      GIFS = {}
 
-      this.thresholds.forEach(threshold => {
-        if (!threshold.gif) {
+      const slug = slugify(threshold.gif)
+      const storage = localStorage ? JSON.parse(localStorage.getItem('threshold_' + slug + '_gifs')) : null
+
+      if (!refresh && storage && +new Date() - storage.timestamp < 1000 * 60 * 60 * 24 * 7) {
+        GIFS[threshold.gif] = storage.data
+      } else {
+        this.fetchGifByKeyword(threshold.gif)
+      }
+    })
+  }
+
+  fetchGifByKeyword(keyword, isDeleted = false) {
+    if (!keyword || !GIFS) {
+      return
+    }
+
+    const slug = slugify(keyword)
+
+    if (isDeleted) {
+      if (GIFS[keyword]) {
+        delete GIFS[keyword]
+      }
+
+      localStorage.removeItem('threshold_' + slug + '_gifs')
+
+      return
+    }
+
+    fetch('https://api.giphy.com/v1/gifs/search?q=' + keyword + '&rating=r&limit=100&api_key=b5Y5CZcpj9spa0xEfskQxGGnhChYt3hi')
+      .then(res => res.json())
+      .then(res => {
+        if (!res.data || !res.data.length) {
           return
         }
 
-        const slug = this.slug(threshold.gif)
-        const storage = localStorage ? JSON.parse(localStorage.getItem('threshold_' + slug + '_gifs')) : null
+        GIFS[keyword] = []
 
-        if (!refresh && storage && +new Date() - storage.timestamp < 1000 * 60 * 60 * 24 * 7) {
-          GIFS[threshold.gif] = storage.data
-        } else {
-          this.fetchGifByKeyword(threshold.gif)
+        for (const item of res.data) {
+          GIFS[keyword].push(item.images.original.url)
+        }
+
+        localStorage.setItem(
+          'threshold_' + slug + '_gifs',
+          JSON.stringify({
+            timestamp: +new Date(),
+            data: GIFS[keyword]
+          })
+        )
+      })
+  }
+  prepareColorsSteps() {
+    const appBackgroundColor = getAppBackgroundColor()
+
+    COLORS = []
+    MINIMUM_AMOUNT = this.thresholds[0].amount
+    SIGNIFICANT_AMOUNT = this.thresholds[1].amount
+
+    for (let i = 0; i < this.thresholds.length - 1; i++) {
+      const buyFrom = splitRgba(this.thresholds[i].buyColor, appBackgroundColor)
+      const buyTo = splitRgba(this.thresholds[i + 1].buyColor, appBackgroundColor)
+      const sellFrom = splitRgba(this.thresholds[i].sellColor, appBackgroundColor)
+      const sellTo = splitRgba(this.thresholds[i + 1].sellColor, appBackgroundColor)
+
+      COLORS.push({
+        threshold: this.thresholds[i].amount,
+        range: this.thresholds[i + 1].amount - this.thresholds[i].amount,
+        buy: {
+          from: buyFrom,
+          to: buyTo,
+          fromLuminance: getColorLuminance(buyFrom),
+          toLuminance: getColorLuminance(buyTo)
+        },
+        sell: {
+          from: sellFrom,
+          to: sellTo,
+          fromLuminance: getColorLuminance(sellFrom),
+          toLuminance: getColorLuminance(sellTo)
         }
       })
-    },
-    fetchGifByKeyword(keyword, isDeleted = false) {
-      if (!keyword || !GIFS) {
-        return
-      }
-
-      const slug = this.slug(keyword)
-
-      if (isDeleted) {
-        if (GIFS[keyword]) {
-          delete GIFS[keyword]
-        }
-
-        localStorage.removeItem('threshold_' + slug + '_gifs')
-
-        return
-      }
-
-      fetch('https://api.giphy.com/v1/gifs/search?q=' + keyword + '&rating=r&limit=100&api_key=b5Y5CZcpj9spa0xEfskQxGGnhChYt3hi')
-        .then(res => res.json())
-        .then(res => {
-          if (!res.data || !res.data.length) {
-            return
-          }
-
-          GIFS[keyword] = []
-
-          for (let item of res.data) {
-            GIFS[keyword].push(item.images.original.url)
-          }
-
-          localStorage.setItem(
-            'threshold_' + slug + '_gifs',
-            JSON.stringify({
-              timestamp: +new Date(),
-              data: GIFS[keyword]
-            })
-          )
-        })
-    },
-    slug(keyword) {
-      return keyword
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-zA-Z0-9]+/g, '-')
-    },
-    prepareColorsSteps() {
-      const appBackgroundColor = getAppBackgroundColor()
-
-      COLORS = []
-      MINIMUM_AMOUNT = this.thresholds[0].amount
-      SIGNIFICANT_AMOUNT = this.thresholds[1].amount
-
-      for (let i = 0; i < this.thresholds.length - 1; i++) {
-        const buyFrom = splitRgba(this.thresholds[i].buyColor, appBackgroundColor)
-        const buyTo = splitRgba(this.thresholds[i + 1].buyColor, appBackgroundColor)
-        const sellFrom = splitRgba(this.thresholds[i].sellColor, appBackgroundColor)
-        const sellTo = splitRgba(this.thresholds[i + 1].sellColor, appBackgroundColor)
-
-        COLORS.push({
-          threshold: this.thresholds[i].amount,
-          range: this.thresholds[i + 1].amount - this.thresholds[i].amount,
-          buy: {
-            from: buyFrom,
-            to: buyTo,
-            fromLuminance: getColorLuminance(buyFrom),
-            toLuminance: getColorLuminance(buyTo)
-          },
-          sell: {
-            from: sellFrom,
-            to: sellTo,
-            fromLuminance: getColorLuminance(sellFrom),
-            toLuminance: getColorLuminance(sellTo)
-          }
-        })
-      }
-    },
-
-    clearList() {
-      this.$refs.tradesContainer.innerHTML = ''
-      this.tradesCount = 0
     }
+  }
+
+  clearList() {
+    this.$refs.tradesContainer.innerHTML = ''
+    this.tradesCount = 0
   }
 }
 </script>
@@ -681,7 +689,7 @@ export default {
   }
 }
 
-#app[data-prefer='base'] .trade .trade__amount {
+#app[data-prefered-sizing-currency='base'] .trade .trade__amount {
   .trade__amount__quote {
     transform: translateX(-25%);
     opacity: 0;

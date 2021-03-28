@@ -22,7 +22,7 @@
 
 <script>
 import SerieDialog from './SerieDialog.vue'
-import dialogService from '../../services/dialog'
+import dialogService from '../../services/dialogService'
 import { defaultChartSeries } from './chartSeries'
 
 export default {

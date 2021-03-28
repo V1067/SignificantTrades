@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import dialogService from '../../../services/dialog'
+import dialogService from '../../../services/dialogService'
 
 export default {
   name: 'Verte',

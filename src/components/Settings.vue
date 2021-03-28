@@ -1,45 +1,8 @@
 <template>
-  <div id="settings" class="settings__container stack__container" @mousedown="$event.target === $el && $emit('close')">
+  <div id="settings" class="settings__container stack__container" @mousedown="$event.target === $el && close()">
     <div class="stack__scroller" v-background="33">
       <div class="stack__wrapper">
-        <a href="#" class="stack__toggler icon-cross" @click="$emit('close')"></a>
-        <div class="form-group settings-pair mb8">
-          <label>
-            Pair
-            <span class="icon-info-circle" title="The pair to aggregate from" v-tippy></span>
-          </label>
-          <input
-            type="string"
-            placeholder="BTCUSD"
-            class="form-control"
-            :value="pair"
-            @change="$store.commit('settings/SET_PAIR', $event.target.value)"
-          />
-          <small class="help-text mt8" v-if="showPairSubdomainHelp">
-            <i class="icon-info-circle"></i> Consider using
-            <a :href="'https://' + pair.replace(/\+/g, '_').toLowerCase() + '.aggr.trade'"
-              >https://{{ pair.replace(/\+/g, '_').toLowerCase() }}.aggr.trade</a
-            >
-            to hook your settings to
-            <strong>{{ pair }}</strong> indefinitely !
-          </small>
-        </div>
-        <div class="mb8">
-          <label class="checkbox-control -auto" v-tippy title="Size display preference">
-            <input
-              type="checkbox"
-              class="form-control"
-              :checked="preferQuoteCurrencySize"
-              @change="$store.commit('settings/SET_QUOTE_AS_PREFERED_CURRENCY', $event.target.checked)"
-            />
-            <div on="quote" off="base"></div>
-            <span>
-              Prefer
-              <strong>{{ preferQuoteCurrencySize ? 'quote' : 'base' }}</strong> (
-              <i :class="preferQuoteCurrencySize ? 'icon-quote' : 'icon-base'"></i>&nbsp;) currency
-            </span>
-          </label>
-        </div>
+        <a href="#" class="stack__toggler icon-cross" @click="close"></a>
         <div
           class="settings__title"
           @click="$store.commit('settings/TOGGLE_SETTINGS_PANEL', 'list')"
@@ -49,7 +12,7 @@
           <i class="icon-up"></i>
         </div>
         <div class="mb8">
-          <div class="column">
+          <div class="column mb8">
             <div class="form-group -fill">
               <label>
                 Max rows
@@ -100,26 +63,48 @@
                 <div></div>
               </label>
             </div>
+          </div>
 
-            <div
-              class="form-group -tight"
+          <div class="form-group mb8">
+            <label
+              class="checkbox-control -slippage"
               :title="
-                showSlippage === 'price' ? 'Show slippage in $' : showSlippage === 'bps' ? 'Show slippage in basis point (bps)' : 'Slippage disabled'
+                calculateSlippage === 'price'
+                  ? 'Show slippage in $'
+                  : calculateSlippage === 'bps'
+                  ? 'Show slippage in basis point (bps)'
+                  : 'Slippage disabled'
               "
               v-tippy
             >
-              <label>Slipp.</label>
-              <label class="checkbox-control -slippage checkbox-control-input flex-right" @click.stop="$store.commit('settings/TOGGLE_SLIPPAGE')">
-                <input type="checkbox" class="form-control" :checked="showSlippage" />
-                <div></div>
-                <span v-if="showSlippage === 'price'">
-                  <i class="icon-dollar"></i>
-                </span>
-                <span v-if="showSlippage === 'bps'">
-                  <i class="icon-bps" style="font-size:1.5em;"></i>
-                </span>
-              </label>
-            </div>
+              <input type="checkbox" class="form-control" :checked="calculateSlippage" @change="$store.commit('settings/TOGGLE_SLIPPAGE')" />
+              <div></div>
+              <span v-if="calculateSlippage === 'price'"> Calculate slippage in price difference (<i class="icon-dollar"></i>) </span>
+              <span v-if="calculateSlippage === 'bps'"> Calculate slippage in bps <i class="icon-bps"></i> </span>
+              <span v-if="!calculateSlippage">Do not show slippage</span>
+            </label>
+          </div>
+
+          <div class="form-group mb8">
+            <label class="checkbox-control" v-tippy title="eg: BTC-USD">
+              <input type="checkbox" class="form-control" :checked="showTradesPairs" @change="$store.commit('settings/TOGGLE_TRADES_PAIRS')" />
+              <div></div>
+              <span>Trades symbols are {{ showTradesPairs ? 'visible' : 'hidden' }}</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-control checkbox-control-input -auto" v-tippy title="Size display preference">
+              <input
+                type="checkbox"
+                class="form-control"
+                :checked="preferQuoteCurrencySize"
+                @change="$store.commit('settings/SET_QUOTE_AS_PREFERED_CURRENCY', $event.target.checked)"
+              />
+              <span>Size in</span>
+              <div on="quote currency" off="base currency"></div>
+              <span>(<i :class="preferQuoteCurrencySize ? 'icon-quote' : 'icon-base'"></i>)</span>
+            </label>
           </div>
         </div>
         <div
@@ -402,8 +387,7 @@
         </div>
         <div class="form-group">
           <div class="settings-exchanges">
-            <Exchange v-for="(exchange, index) in exchanges" :key="index" :exchange="exchange" />
-            <div v-if="!exchanges.length" class="mb8">You are not connected to any exchanges</div>
+            <Exchange v-for="(active, exchangeId) in activeExchanges" :key="exchangeId" :id="exchangeId" />
           </div>
         </div>
         <div
@@ -428,6 +412,13 @@
               <editable placeholder="auto" :content="decimalPrecision" @output="$store.commit('settings/SET_DECIMAL_PRECISION', $event)"></editable
               >&nbsp;decimal(s)
             </span>
+          </label>
+        </div>
+        <div class="form-group mb8">
+          <label class="checkbox-control -animations">
+            <input type="checkbox" class="form-control" :checked="disableAnimations" @change="$store.commit('settings/TOGGLE_ANIMATIONS')" />
+            <div></div>
+            <span>Animation are {{ disableAnimations ? 'disabled' : 'enabled' }} globaly</span>
           </label>
         </div>
 
@@ -455,6 +446,7 @@
                 <input
                   type="checkbox"
                   class="form-control"
+                  :disabled="disableAnimations"
                   :checked="animateExchangesBar"
                   @change="$store.commit('settings/TOGGLE_EXCHANGES_BAR_ANIMATION', $event.target.checked)"
                 />
@@ -497,185 +489,279 @@
   </div>
 </template>
 
-<script>
-import { mapState } from 'vuex'
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
 
 import { ago, downloadJson } from '../utils/helpers'
-import { MASTER_DOMAIN } from '../utils/constants'
-
-import socket from '../services/socket'
 
 import Exchange from './Exchange.vue'
 import Thresholds from './Thresholds.vue'
 import SettingsImportConfirmation from './SettingsImportConfirmation.vue'
 
-import StatDialog from './StatDialog'
-import dialogService from '../services/dialog'
+import StatDialog from '@/components/StatDialog.vue'
+import dialogService from '../services/dialogService'
 
-export default {
+@Component({
+  name: 'Settings',
   components: {
     Exchange,
     Thresholds
-  },
-  data() {
-    return {
-      expanded: []
-    }
-  },
-  computed: {
-    ...mapState('app', ['version', 'buildDate']),
-    ...mapState('settings', [
-      'pair',
-      'maxRows',
-      'decimalPrecision',
-      'showLogos',
-      'showSlippage',
-      'liquidationsOnly',
-      'aggregateTrades',
-      'preferQuoteCurrencySize',
-      'thresholds',
-      'showThresholdsAsTable',
-      'showCounters',
-      'showStats',
-      'statsPeriod',
-      'statsChart',
-      'statsCounters',
-      'countersSteps',
-      'countersCount',
-      'useAudio',
-      'audioIncludeInsignificants',
-      'audioVolume',
-      'audioPitch',
-      'timeframe',
-      'showChart',
-      'chartRefreshRate',
-      'chartTheme',
-      'chartColor',
-      'chartBackgroundColor',
-      'timezoneOffset',
-      'showExchangesBar',
-      'animateExchangesBar',
-      'settings',
-      'debug'
-    ]),
-    exchanges: () => {
-      return socket.exchanges
-    },
-    showPairSubdomainHelp: state => {
-      if (!MASTER_DOMAIN || !state.pair) {
-        return false
-      }
+  }
+})
+export default class extends Vue {
+  statsPeriodStringified = null
+  countersStepsStringified = null
 
-      const match = window.location.hostname.match(/^([\d\w]+)\..*\./i)
+  get activeExchanges() {
+    return this.$store.state.app.activeExchanges
+  }
 
-      return !match || match.length < 2 || match[1].toLowerCase() !== state.pair.toLowerCase()
-    }
-  },
+  get version() {
+    return this.$store.state.app.version
+  }
+
+  get buildDate() {
+    return this.$store.state.app.buildDate
+  }
+
+  get maxRows() {
+    return this.$store.state.settings.maxRows
+  }
+
+  get calculateSlippage() {
+    return this.$store.state.settings.calculateSlippage
+  }
+
+  get showLogos() {
+    return this.$store.state.settings.showLogos
+  }
+
+  get liquidationsOnly() {
+    return this.$store.state.settings.liquidationsOnly
+  }
+
+  get aggregateTrades() {
+    return this.$store.state.settings.aggregateTrades
+  }
+
+  get showTradesPairs() {
+    return this.$store.state.settings.showTradesPairs
+  }
+
+  get preferQuoteCurrencySize() {
+    return this.$store.state.settings.preferQuoteCurrencySize
+  }
+
+  get thresholds() {
+    return this.$store.state.settings.thresholds
+  }
+
+  get showThresholdsAsTable() {
+    return this.$store.state.settings.showThresholdsAsTable
+  }
+
+  get showCounters() {
+    return this.$store.state.settings.showCounters
+  }
+
+  get showStats() {
+    return this.$store.state.settings.showStats
+  }
+
+  get statsPeriod() {
+    return this.$store.state.settings.statsPeriod
+  }
+
+  get statsChart() {
+    return this.$store.state.settings.statsChart
+  }
+
+  get statsCounters() {
+    return this.$store.state.settings.statsCounters
+  }
+
+  get countersSteps() {
+    return this.$store.state.settings.countersSteps
+  }
+
+  get countersCount() {
+    return this.$store.state.settings.countersCount
+  }
+
+  get useAudio() {
+    return this.$store.state.settings.useAudio
+  }
+
+  get audioIncludeInsignificants() {
+    return this.$store.state.settings.audioIncludeInsignificants
+  }
+
+  get audioVolume() {
+    return this.$store.state.settings.audioVolume
+  }
+
+  get audioPitch() {
+    return this.$store.state.settings.audioPitch
+  }
+
+  get timeframe() {
+    return this.$store.state.settings.timeframe
+  }
+
+  get showChart() {
+    return this.$store.state.settings.showChart
+  }
+
+  get chartRefreshRate() {
+    return this.$store.state.settings.chartRefreshRate
+  }
+
+  get chartTheme() {
+    return this.$store.state.settings.chartTheme
+  }
+
+  get chartColor() {
+    return this.$store.state.settings.chartColor
+  }
+
+  get chartBackgroundColor() {
+    return this.$store.state.settings.chartBackgroundColor
+  }
+
+  get timezoneOffset() {
+    return this.$store.state.settings.timezoneOffset
+  }
+
+  get decimalPrecision() {
+    return this.$store.state.settings.decimalPrecision
+  }
+
+  get showExchangesBar() {
+    return this.$store.state.settings.showExchangesBar
+  }
+
+  get animateExchangesBar() {
+    return this.$store.state.settings.animateExchangesBar
+  }
+
+  get disableAnimations() {
+    return this.$store.state.settings.disableAnimations
+  }
+
+  get settings() {
+    return this.$store.state.settings.settings
+  }
+
   created() {
     this.stringifyCounters()
     this.stringifyStatsPeriod()
 
     document.body.classList.add('-translate')
-  },
+  }
   beforeDestroy() {
     document.body.classList.remove('-translate')
-  },
-  methods: {
-    reset() {
-      window.localStorage && window.localStorage.clear()
+  }
+  reset() {
+    window.localStorage && window.localStorage.clear()
 
-      window.location.reload(true)
-    },
-    stringifyStatsPeriod() {
-      this.statsPeriodStringified = ago(+new Date() - (this.statsPeriod || 0))
-    },
-    stringifyCounters() {
-      const now = +new Date()
-      this.countersStepsStringified = this.countersSteps.map(a => ago(now - a)).join(', ')
-    },
-    replaceCounters(value) {
-      const counters = value
-        .split(',')
-        .map(a => {
-          a = a.trim()
+    window.location.reload(true)
+  }
 
-          if (/[\d.]+s/.test(a)) {
-            return parseFloat(a) * 1000
-          } else if (/[\d.]+h/.test(a)) {
-            return parseFloat(a) * 1000 * 60 * 60
-          } else {
-            return parseFloat(a) * 1000 * 60
-          }
-        })
-        .filter(function(item, pos, self) {
-          return self.indexOf(item) == pos
-        })
+  close() {
+    this.$store.commit('app/TOGGLE_SETTINGS')
+  }
 
-      if (counters.filter(a => isNaN(a)).length) {
-        this.$store.dispatch('app/showNotice', {
-          type: 'error',
-          title: `Counters (${value}) contains invalid steps.`
-        })
+  stringifyStatsPeriod() {
+    this.statsPeriodStringified = ago(+new Date() - (this.statsPeriod || 0))
+  }
+
+  stringifyCounters() {
+    const now = +new Date()
+    this.countersStepsStringified = this.countersSteps.map(a => ago(now - a)).join(', ')
+  }
+
+  replaceCounters(value) {
+    const counters = value
+      .split(',')
+      .map(a => {
+        a = a.trim()
+
+        if (/[\d.]+s/.test(a)) {
+          return parseFloat(a) * 1000
+        } else if (/[\d.]+h/.test(a)) {
+          return parseFloat(a) * 1000 * 60 * 60
+        } else {
+          return parseFloat(a) * 1000 * 60
+        }
+      })
+      .filter(function(item, pos, self) {
+        return self.indexOf(item) == pos
+      })
+
+    if (counters.filter(a => isNaN(a)).length) {
+      this.$store.dispatch('app/showNotice', {
+        type: 'error',
+        title: `Counters (${value}) contains invalid steps.`
+      })
+      return
+    }
+
+    this.$store.commit('settings/REPLACE_COUNTERS', counters)
+
+    this.stringifyCounters()
+  }
+
+  openStat(id) {
+    dialogService.open(StatDialog, { id })
+  }
+
+  exportSettings() {
+    const settings = JSON.parse(JSON.stringify(this.$store.state.settings))
+
+    downloadJson(settings, 'aggr')
+  }
+
+  confirmImport(event) {
+    const reader = new FileReader()
+
+    reader.onload = async ({ target }) => {
+      event.target.value = ''
+
+      const settings = this.validateSettings(target.result)
+
+      if (!settings) {
         return
       }
 
-      this.$store.commit('settings/REPLACE_COUNTERS', counters)
-
-      this.stringifyCounters()
-    },
-    openStat(id) {
-      dialogService.open(StatDialog, { id })
-    },
-    exportSettings() {
-      const settings = JSON.parse(JSON.stringify(this.$store.state.settings))
-
-      delete settings.pair
-
-      for (let name in settings.exchanges) {
-        delete settings.exchanges[name].match
+      if (
+        await dialogService.openAsPromise(SettingsImportConfirmation, {
+          settings
+        })
+      ) {
+        this.importSettings(settings)
       }
-
-      downloadJson(settings, 'aggr')
-    },
-    confirmImport(event) {
-      var reader = new FileReader()
-      reader.onload = async ({ target }) => {
-        event.target.value = ''
-
-        const settings = this.validateSettings(target.result)
-
-        if (!settings) {
-          return
-        }
-
-        if (
-          await dialogService.openAsPromise(SettingsImportConfirmation, {
-            settings
-          })
-        ) {
-          this.importSettings(settings)
-        }
-      }
-      reader.readAsText(event.target.files[0])
-    },
-    validateSettings(content) {
-      let settings = null
-
-      try {
-        settings = JSON.parse(content)
-      } catch (error) {
-        alert('invalid settings')
-
-        return false
-      }
-
-      return settings
-    },
-    importSettings(settings) {
-      localStorage.setItem('settings', JSON.stringify(settings))
-
-      window.location.reload(true)
     }
+    reader.readAsText(event.target.files[0])
+  }
+
+  validateSettings(content) {
+    let settings = null
+
+    try {
+      settings = JSON.parse(content)
+    } catch (error) {
+      alert('invalid settings')
+
+      return false
+    }
+
+    return settings
+  }
+
+  importSettings(settings) {
+    localStorage.setItem('settings', JSON.stringify(settings))
+
+    window.location.reload(true)
   }
 }
 </script>
@@ -881,6 +967,16 @@ export default {
 
       &:after {
         content: unicode($icon-cross);
+      }
+    }
+
+    &.-animations input ~ div {
+      &:before {
+        content: unicode($icon-cross);
+      }
+
+      &:after {
+        content: unicode($icon-magic);
       }
     }
 

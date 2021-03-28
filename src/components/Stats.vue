@@ -10,10 +10,10 @@
   </div>
 </template>
 
-<script>
-import { mapState } from 'vuex'
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator'
 import * as TV from 'lightweight-charts'
-import socket from '../services/socket'
+import aggregatorService from '@/services/aggregatorService'
 import Counter from '../utils/counter'
 import MultiCounter from '../utils/multiCounter'
 import { defaultChartOptions, defaultLineOptions } from './chart/chartOptions'
@@ -32,30 +32,48 @@ lineOptions.scaleMargins = {
   bottom: 0.05
 }
 
-import StatDialog from './StatDialog'
-import dialogService from '../services/dialog'
+import StatDialog from '@/components/StatDialog.vue'
+import dialogService from '@/services/dialogService'
 
-import { formatAmount, getVisibleRange } from '../utils/helpers'
+import { formatAmount, getVisibleRange } from '@/utils/helpers'
 /** @type {Counter[]} */
 const counters = []
 /** @type {TV.IChartApi} */
 let chart
 
-export default {
-  data() {
-    return {
-      data: {}
-    }
-  },
-  computed: {
-    ...mapState('settings', ['statsPeriod', 'statsChart', 'statsCounters']),
-    colors() {
-      return this.statsCounters.reduce((obj, counter) => {
-        obj[counter.name] = counter.color
-        return obj
-      }, {})
-    }
-  },
+@Component({
+  name: 'Stats'
+})
+export default class extends Vue {
+  data: {}
+
+  $refs!: {
+    chart: HTMLElement
+  }
+
+  private _keepAliveTimeout: number
+  private _chartUpdateInterval: number
+  private _refreshChartDimensionsTimeout: number
+
+  private onStoreMutation: () => void
+
+  get statsPeriod() {
+    return this.$store.state.settings.statsPeriod
+  }
+
+  get statsChart() {
+    return this.$store.state.settings.statsChart
+  }
+
+  get statsCounters() {
+    return this.$store.state.settings.statsCounters
+  }
+  get colors() {
+    return this.statsCounters.reduce((obj, counter) => {
+      obj[counter.name] = counter.color
+      return obj
+    }, {})
+  }
   created() {
     this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
@@ -94,343 +112,341 @@ export default {
           break
       }
     })
-  },
+  }
   mounted() {
     if (this.statsChart) {
       this.createChart()
     }
     this.prepareCounters()
-    socket.$on('sums', this.onSums)
-  },
+    aggregatorService.on('sums', this.onSums)
+  }
   beforeDestroy() {
-    socket.$off('sums', this.onSums)
+    aggregatorService.off('sums', this.onSums)
     this.clearCounters()
     this.removeChart()
     this.onStoreMutation()
 
     chart = null
-  },
-  methods: {
-    createChart() {
-      setTimeout(() => {
-        chart = TV.createChart(this.$refs.chart, chartOptions)
-        for (let i = 0; i < counters.length; i++) {
-          this.createCounterSerie(counters[i])
-        }
+  }
+  createChart() {
+    setTimeout(() => {
+      chart = TV.createChart(this.$refs.chart, chartOptions)
+      for (let i = 0; i < counters.length; i++) {
+        this.createCounterSerie(counters[i])
+      }
+    })
+
+    this.keepAlive()
+    this.chartUpdate()
+  }
+  createCounterSerie(counter) {
+    if (counter.serie) {
+      return
+    }
+
+    let methodName = 'addLineSeries'
+
+    if (counter.type === 'histogram') {
+      counter.type = 'histogram'
+      methodName = 'addHistogramSeries'
+    }
+
+    counter.serie = chart[methodName](
+      Object.assign({}, lineOptions, {
+        priceScaleId: counter.name,
+        color: counter.color
       })
+    )
+  }
+  removeChart() {
+    if (!chart) {
+      return
+    }
 
-      this.keepAlive()
-      this.chartUpdate()
-    },
-    createCounterSerie(counter) {
-      if (counter.serie) {
-        return
+    this.stopKeepAlive()
+    this.stopChartUpdate()
+
+    for (let i = 0; i < counters.length; i++) {
+      if (counters[i].serie) {
+        chart.removeSeries(counters[i].serie)
+        delete counters[i].serie
       }
+    }
 
-      let methodName = 'addLineSeries'
+    chart.remove()
+  }
+  stopKeepAlive() {
+    if (this._keepAliveTimeout) {
+      clearTimeout(this._keepAliveTimeout)
+      delete this._keepAliveTimeout
+    }
+  }
+  chartUpdate() {
+    if (!this._chartUpdateInterval) {
+      this._chartUpdateInterval = setInterval(this.chartUpdate.bind(this), 1000)
+    }
 
-      if (counter.type === 'histogram') {
-        counter.type = 'histogram'
-        methodName = 'addHistogramSeries'
-      }
+    const now = Math.floor(+new Date() / 1000)
 
-      counter.serie = chart[methodName](
-        Object.assign({}, lineOptions, {
-          priceScaleId: counter.name,
-          color: counter.color
-        })
-      )
-    },
-    removeChart() {
-      if (!chart) {
-        return
-      }
-
-      this.stopKeepAlive()
-      this.stopChartUpdate()
-
-      for (let i = 0; i < counters.length; i++) {
-        if (counters[i].serie) {
-          chart.removeSeries(counters[i].serie)
-          delete counters[i].serie
-        }
-      }
-
-      chart.remove()
-    },
-    stopKeepAlive() {
-      if (this._keepAliveTimeout) {
-        clearTimeout(this._keepAliveTimeout)
-        delete this._keepAliveTimeout
-      }
-    },
-    chartUpdate() {
-      if (!this._chartUpdateInterval) {
-        this._chartUpdateInterval = setInterval(this.chartUpdate.bind(this), 1000)
-      }
-
-      const now = Math.floor(+new Date() / 1000)
-
-      for (let i = 0; i < counters.length; i++) {
-        if (counters[i].stacks.length) {
-          if (!counters[i].serie) {
-            continue
-          }
-
-          let value = counters[i].getValue()
-
-          const point = {
-            time: now,
-            value: value.length ? value.reduce((sum, a) => sum + a, 0) : value
-          }
-
-          if (counters[i].type === 'histogram' && !point.value) {
-            return
-          }
-
-          counters[i].serie.update(point)
-        }
-      }
-    },
-    stopChartUpdate() {
-      if (this._chartUpdateInterval) {
-        clearInterval(this._chartUpdateInterval)
-        delete this._chartUpdateInterval
-      }
-    },
-    keepAlive(timerId) {
-      if (!timerId && this._keepAliveTimeout) {
-        return
-      }
-
-      if (this._keepAliveTimeout) {
-        const visibleRange = getVisibleRange(chart, 1)
-
-        if (visibleRange) {
-          const scrollPosition = chart.timeScale().scrollPosition()
-
-          const countersSeries = counters.filter(a => a.serie).map(a => a.serie._series)
-          const data = counters.map(() => [])
-
-          const points = Array.from(chart.we.oe)
-
-          for (let i = Math.max(0, points.length - 200); i < points.length; i++) {
-            const series = Array.from(points[i][1].mapping)
-
-            for (let j = 0; j < series.length; j++) {
-              const index = countersSeries.indexOf(series[j][0])
-
-              if (index === -1 || !data[index]) {
-                continue
-              }
-
-              data[index].push(series[j][1])
-            }
-          }
-
-          this.removeChart()
-          this.createChart()
-
-          setTimeout(() => {
-            for (let k = 0; k < counters.length; k++) {
-              if (counters[k].serie) {
-                counters[k].serie.setData(data[k])
-              }
-            }
-
-            if (visibleRange) {
-              chart.timeScale().scrollToPosition(scrollPosition)
-              chart.timeScale().setVisibleRange(visibleRange)
-            }
-          })
-        }
-      }
-
-      this._keepAliveTimeout = setTimeout(this.keepAlive.bind(this, [this._keepAliveTimeout]), 1000 * 60 * 2)
-    },
-    refreshChartDimensions(w) {
-      if (!this.statsChart) {
-        return
-      }
-
-      clearTimeout(this._refreshChartDimensionsTimeout)
-
-      this._refreshChartDimensionsTimeout = setTimeout(() => {
-        if (!w) {
-          w = this.$el.clientWidth
-        }
-
-        chart && chart.resize(w, this.$el.clientHeight)
-      }, 500)
-    },
-    prepareCounters() {
-      this.clearCounters()
-      for (let i = 0; i < this.statsCounters.length; i++) {
-        this.createCounter(this.statsCounters[i])
-      }
-    },
-    onSums(sums) {
-      const now = +new Date()
-
-      for (let i = 0; i < counters.length; i++) {
-        counters[i].onStats(now, sums)
-
-        if (counters[i].stacks.length) {
-          let value = counters[i].getValue()
-          if (value.length) {
-            this.$set(this.data, counters[i].name, value.map(a => formatAmount(a)).join('/'))
-          } else {
-            if (typeof counters[i].precision === 'number') {
-              value = value.toFixed(counters[i].precision)
-            } else {
-              value = formatAmount(value)
-            }
-
-            this.$set(this.data, counters[i].name, value)
-          }
-        }
-      }
-    },
-    clearCounters() {
-      for (let i = counters.length - 1; i >= 0; i--) {
-        if (!counters[i]) {
+    for (let i = 0; i < counters.length; i++) {
+      if (counters[i].stacks.length) {
+        if (!counters[i].serie) {
           continue
         }
-        this.removeCounter(i)
+
+        const value = counters[i].getValue()
+
+        const point = {
+          time: now,
+          value: value.length ? value.reduce((sum, a) => sum + a, 0) : value
+        }
+
+        if (counters[i].type === 'histogram' && !point.value) {
+          return
+        }
+
+        counters[i].serie.update(point)
       }
-    },
-    removeCounter(index) {
-      const counter = this.getCounter(index)
-      if (!counter) {
-        return
+    }
+  }
+  stopChartUpdate() {
+    if (this._chartUpdateInterval) {
+      clearInterval(this._chartUpdateInterval)
+      delete this._chartUpdateInterval
+    }
+  }
+  keepAlive(timerId?: number) {
+    if (!timerId && this._keepAliveTimeout) {
+      return
+    }
+
+    if (this._keepAliveTimeout) {
+      const visibleRange = getVisibleRange(chart, 1)
+
+      if (visibleRange) {
+        const scrollPosition = chart.timeScale().scrollPosition()
+
+        const countersSeries = counters.filter(a => a.serie).map(a => a.serie._series)
+        const data = counters.map(() => [])
+
+        const points = Array.from(chart.we.oe)
+
+        for (let i = Math.max(0, points.length - 200); i < points.length; i++) {
+          const series = Array.from(points[i][1].mapping)
+
+          for (let j = 0; j < series.length; j++) {
+            const index = countersSeries.indexOf(series[j][0])
+
+            if (index === -1 || !data[index]) {
+              continue
+            }
+
+            data[index].push(series[j][1])
+          }
+        }
+
+        this.removeChart()
+        this.createChart()
+
+        setTimeout(() => {
+          for (let k = 0; k < counters.length; k++) {
+            if (counters[k].serie) {
+              counters[k].serie.setData(data[k])
+            }
+          }
+
+          if (visibleRange) {
+            chart.timeScale().scrollToPosition(scrollPosition)
+            chart.timeScale().setVisibleRange(visibleRange)
+          }
+        })
       }
-      index = counters.indexOf(counter)
-      counter.unbind()
-      if (counter.serie) {
-        chart.removeSeries(counter.serie)
-      }
-      this.$delete(this.data, counter.name)
-      counters.splice(index, 1)
-    },
-    refreshCounter(index) {
-      const counter = this.getCounter(index)
-      if (!counter) {
-        return
-      }
-      const options = this.statsCounters.filter(a => a.name === counter.name)[0]
-      if (!options) {
-        return
-      }
-      this.removeCounter(counter.name)
-      this.createCounter(options)
-    },
-    recolorCounter(index, color) {
-      const counter = this.getCounter(index)
-      if (!counter) {
-        return
-      }
-      if (!counter.serie) {
-        return
+    }
+
+    this._keepAliveTimeout = setTimeout(this.keepAlive.bind(this, [this._keepAliveTimeout]), 1000 * 60 * 2)
+  }
+  refreshChartDimensions(w) {
+    if (!this.statsChart) {
+      return
+    }
+
+    clearTimeout(this._refreshChartDimensionsTimeout)
+
+    this._refreshChartDimensionsTimeout = setTimeout(() => {
+      if (!w) {
+        w = this.$el.clientWidth
       }
 
-      counter.color = color
-      counter.serie.applyOptions({
-        color: color
-      })
-    },
-    createCounter(counterOptions) {
-      if (counterOptions.enabled && typeof this.data[counterOptions.name] === 'undefined') {
-        const outputFunction = this.getCounterFunction(counterOptions.output)
-        const outputType = this.getOutputType(outputFunction)
-        let counter
-        if (typeof outputType === 'number') {
-          counter = new MultiCounter(outputFunction, {
-            options: counterOptions,
-            model: new Array(outputType).fill(0)
-          })
+      chart && chart.resize(w, this.$el.clientHeight)
+    }, 500)
+  }
+  prepareCounters() {
+    this.clearCounters()
+    for (let i = 0; i < this.statsCounters.length; i++) {
+      this.createCounter(this.statsCounters[i])
+    }
+  }
+  onSums(sums) {
+    const now = +new Date()
+
+    for (let i = 0; i < counters.length; i++) {
+      counters[i].onStats(now, sums)
+
+      if (counters[i].stacks.length) {
+        let value = counters[i].getValue()
+        if (value.length) {
+          this.$set(this.data, counters[i].name, value.map(a => formatAmount(a)).join('/'))
         } else {
-          counter = new Counter(outputFunction, {
-            options: counterOptions
-          })
-        }
+          if (typeof counters[i].precision === 'number') {
+            value = value.toFixed(counters[i].precision)
+          } else {
+            value = formatAmount(value)
+          }
 
-        if (chart) {
-          this.createCounterSerie(counter)
+          this.$set(this.data, counters[i].name, value)
         }
-
-        counter.name = counterOptions.name
-        counters.push(counter)
-        this.$set(this.data, counter.name, 0)
       }
-    },
-    renameCounter(name) {
-      const names = this.statsCounters.map(a => a.name)
+    }
+  }
+  clearCounters() {
+    for (let i = counters.length - 1; i >= 0; i--) {
+      if (!counters[i]) {
+        continue
+      }
+      this.removeCounter(i)
+    }
+  }
+  removeCounter(index) {
+    const counter = this.getCounter(index)
+    if (!counter) {
+      return
+    }
+    index = counters.indexOf(counter)
+    counter.unbind()
+    if (counter.serie) {
+      chart.removeSeries(counter.serie)
+    }
+    this.$delete(this.data, counter.name)
+    counters.splice(index, 1)
+  }
+  refreshCounter(index) {
+    const counter = this.getCounter(index)
+    if (!counter) {
+      return
+    }
+    const options = this.statsCounters.filter(a => a.name === counter.name)[0]
+    if (!options) {
+      return
+    }
+    this.removeCounter(counter.name)
+    this.createCounter(options)
+  }
+  recolorCounter(index, color) {
+    const counter = this.getCounter(index)
+    if (!counter) {
+      return
+    }
+    if (!counter.serie) {
+      return
+    }
 
+    counter.color = color
+    counter.serie.applyOptions({
+      color: color
+    })
+  }
+  createCounter(counterOptions) {
+    if (counterOptions.enabled && typeof this.data[counterOptions.name] === 'undefined') {
+      const outputFunction = this.getCounterFunction(counterOptions.output)
+      const outputType = this.getOutputType(outputFunction)
       let counter
-      for (let i = 0; i < counters.length; i++) {
-        if (names.indexOf(counters[i].name) === -1) {
-          counter = counters[i]
-          break
-        }
-      }
-
-      if (!counter) {
-        return
-      }
-
-      this.data[name] = this.data[counter.name]
-      delete this.data[counter.name]
-      counter.name = name
-    },
-    getCounter(name) {
-      if (typeof name === 'number') {
-        return counters[name]
-      }
-      let counter
-
-      for (let i = 0; i < counters.length; i++) {
-        if (counters[i].name === name) {
-          counter = counters[i]
-          break
-        }
-      }
-      return counter
-    },
-    editByName(name) {
-      let index
-      for (let i = 0; i < this.statsCounters.length; i++) {
-        if (this.statsCounters[i].name === name) {
-          index = i
-          break
-        }
-      }
-      if (typeof index !== 'number') {
-        return
-      }
-
-      dialogService.open(StatDialog, { id: index })
-    },
-    getCounterFunction(str) {
-      const litteral = str.replace(/([^.]|^)(vbuy|vsell|cbuy|csell|lbuy|lsell)/g, '$1stats.$2')
-      return new Function('stats', `'use strict'; return ${litteral};`)
-    },
-    getOutputType(fn) {
-      var stats = {
-        vbuy: 2000,
-        vsell: 2000,
-        cbuy: 10,
-        csell: 10,
-        lbuy: 10,
-        lsell: 2
-      }
-
-      const output = fn(stats)
-
-      if (Array.isArray(output)) {
-        return output.length
+      if (typeof outputType === 'number') {
+        counter = new MultiCounter(outputFunction, {
+          options: counterOptions,
+          model: new Array(outputType).fill(0)
+        })
       } else {
-        return false
+        counter = new Counter(outputFunction, {
+          options: counterOptions
+        })
       }
+
+      if (chart) {
+        this.createCounterSerie(counter)
+      }
+
+      counter.name = counterOptions.name
+      counters.push(counter)
+      this.$set(this.data, counter.name, 0)
+    }
+  }
+  renameCounter(name) {
+    const names = this.statsCounters.map(a => a.name)
+
+    let counter
+    for (let i = 0; i < counters.length; i++) {
+      if (names.indexOf(counters[i].name) === -1) {
+        counter = counters[i]
+        break
+      }
+    }
+
+    if (!counter) {
+      return
+    }
+
+    this.data[name] = this.data[counter.name]
+    delete this.data[counter.name]
+    counter.name = name
+  }
+  getCounter(name) {
+    if (typeof name === 'number') {
+      return counters[name]
+    }
+    let counter
+
+    for (let i = 0; i < counters.length; i++) {
+      if (counters[i].name === name) {
+        counter = counters[i]
+        break
+      }
+    }
+    return counter
+  }
+  editByName(name) {
+    let index
+    for (let i = 0; i < this.statsCounters.length; i++) {
+      if (this.statsCounters[i].name === name) {
+        index = i
+        break
+      }
+    }
+    if (typeof index !== 'number') {
+      return
+    }
+
+    dialogService.open(StatDialog, { id: index })
+  }
+  getCounterFunction(str) {
+    const litteral = str.replace(/([^.]|^)(vbuy|vsell|cbuy|csell|lbuy|lsell)/g, '$1stats.$2')
+    return new Function('stats', `'use strict'; return ${litteral};`)
+  }
+  getOutputType(fn) {
+    const stats = {
+      vbuy: 2000,
+      vsell: 2000,
+      cbuy: 10,
+      csell: 10,
+      lbuy: 10,
+      lsell: 2
+    }
+
+    const output = fn(stats)
+
+    if (Array.isArray(output)) {
+      return output.length
+    } else {
+      return false
     }
   }
 }

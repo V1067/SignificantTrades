@@ -1,6 +1,6 @@
 <template>
   <transition-group
-    name="slide-notice"
+    :name="transitionGroupName"
     @beforeEnter="beforeEnter"
     @enter="enter"
     @afterEnter="afterEnter"
@@ -29,52 +29,71 @@
   </transition-group>
 </template>
 
-<script>
-export default {
-  computed: {
-    notices() {
-      return this.$store.state.app.notices
+<script lang="ts">
+import { Notice } from '@/store/app'
+import { Component, Vue } from 'vue-property-decorator'
+
+@Component({
+  name: 'Notices'
+})
+export default class extends Vue {
+  get notices(): Notice[] {
+    return this.$store.state.app.notices
+  }
+
+  get disableAnimations() {
+    return this.$store.state.settings.disableAnimations
+  }
+
+  get transitionGroupName() {
+    if (!this.disableAnimations) {
+      return 'slide-notice'
+    } else {
+      return null
     }
-  },
-  methods: {
-    onButtonClick(notice) {
-      let hide = true
+  }
 
-      if (typeof notice.button.click === 'function') {
-        hide = notice.button.click()
-      }
+  onButtonClick(notice) {
+    let hide = true
 
-      hide !== false && this.$store.dispatch('app/hideNotice', notice.id)
-    },
+    if (typeof notice.button.click === 'function') {
+      hide = notice.button.click()
+    }
 
-    beforeEnter(element) {
+    hide !== false && this.$store.dispatch('app/hideNotice', notice.id)
+  }
+
+  beforeEnter(element) {
+    element.style.height = '0px'
+  }
+
+  enter(element) {
+    const wrapper = element.children[0]
+
+    let height = wrapper.offsetHeight
+    height += parseInt(window.getComputedStyle(wrapper).getPropertyValue('margin-top'))
+    height += parseInt(window.getComputedStyle(wrapper).getPropertyValue('margin-bottom'))
+    height += 'px'
+
+    element.dataset.height = height
+
+    setTimeout(() => {
+      element.style.height = height
+    }, 100)
+  }
+
+  afterEnter(element) {
+    element.style.height = ''
+  }
+
+  beforeLeave(element) {
+    element.style.height = element.dataset.height
+  }
+
+  leave(element) {
+    setTimeout(() => {
       element.style.height = '0px'
-    },
-    enter(element) {
-      const wrapper = element.children[0]
-
-      let height = wrapper.offsetHeight
-      height += parseInt(window.getComputedStyle(wrapper).getPropertyValue('margin-top'))
-      height += parseInt(window.getComputedStyle(wrapper).getPropertyValue('margin-bottom'))
-      height += 'px'
-
-      element.dataset.height = height
-
-      setTimeout(() => {
-        element.style.height = height
-      }, 100)
-    },
-    afterEnter(element) {
-      element.style.height = ''
-    },
-    beforeLeave(element) {
-      element.style.height = element.dataset.height
-    },
-    leave(element) {
-      setTimeout(() => {
-        element.style.height = '0px'
-      })
-    }
+    })
   }
 }
 </script>
