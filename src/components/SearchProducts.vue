@@ -5,7 +5,7 @@
 </template>
 <script lang="ts">
 import { Component, Vue, Watch } from 'vue-property-decorator'
-import Autocomplete from '@/components/ui/Autocomplete.vue'
+import Autocomplete from '@/components/framework/Autocomplete.vue'
 
 @Component({
   name: 'SearchProducts',
@@ -31,10 +31,8 @@ export default class extends Vue {
   @Watch('showSearch')
   onShowSearch(shown) {
     if (shown) {
-      console.log('bind clic outside')
       this.bindSearchClickOutside()
     } else {
-      console.log('unbind clic outside')
       this.unbindSearchClickOutside()
     }
   }

@@ -47,12 +47,22 @@ class Aggregator extends EventEmitter {
   private onGoingAggregations: { [identifier: string]: QueuedTrade } = {}
   private pendingTrades: Trade[] = []
   private marketsPrices: { [marketId: string]: number } = {}
+  private pendingStats = {
+    timestamp: null,
+    vbuy: 0,
+    vsell: 0,
+    lbuy: 0,
+    lsell: 0,
+    cbuy: 0,
+    csell: 0
+  }
 
   private optimalDecimalToBeDetermined = store.state.settings.decimalPrecision === null
   private calculateSlippage = store.state.settings.calculateSlippage.valueOf()
   private aggregateTrades = store.state.settings.aggregateTrades.valueOf()
 
   private _aggrInterval: number
+  private _statsInterval: number
 
   constructor() {
     super()
@@ -62,6 +72,13 @@ class Aggregator extends EventEmitter {
     // cache calculateSlippage & aggregateTrades values
     // to avoid re-evaluate vuex getters each time it is called
     store.subscribe(mutation => {
+      if (mutation.type === 'settings/TOGGLE_STATS' || mutation.type === 'settings/TOGGLE_COUNTERS') {
+        if (store.state.settings.showStats || store.state.settings.showCounters) {
+          this.setupStatsInterval()
+        } else {
+          this.clearStatsInterval()
+        }
+      }
       if (mutation.type === 'settings/TOGGLE_SLIPPAGE') {
         this.calculateSlippage = store.state.settings.calculateSlippage.valueOf()
       } else if (mutation.type === 'settings/TOGGLE_AGGREGATION') {
@@ -84,6 +101,10 @@ class Aggregator extends EventEmitter {
 
   bindTimers() {
     this.setupAggrInterval()
+
+    if (store.state.settings.showStats || store.state.settings.showCounters) {
+      this.setupStatsInterval()
+    }
   }
 
   bindExchanges() {
@@ -166,6 +187,21 @@ class Aggregator extends EventEmitter {
       }
     }
 
+    if (this._statsInterval !== null && store.state.app.activeExchanges[trade.exchange]) {
+      const size = (store.state.settings.preferQuoteCurrencySize ? trade.price : 1) * trade.size
+
+      if (!this.pendingStats.timestamp) {
+        this.pendingStats.timestamp = trade.timestamp
+      }
+
+      if (trade.liquidation) {
+        this.pendingStats['l' + trade.side] += size
+      } else {
+        this.pendingStats['c' + trade.side]++
+        this.pendingStats['v' + trade.side] += size
+      }
+    }
+
     this.pendingTrades.push(trade)
   }
 
@@ -188,6 +224,22 @@ class Aggregator extends EventEmitter {
     if (this.pendingTrades.length) {
       this.emit('trades', this.pendingTrades)
       this.pendingTrades.splice(0, this.pendingTrades.length)
+    }
+  }
+
+  emitStats() {
+    if (this.pendingStats.timestamp) {
+      this.emit('sums', this.pendingStats)
+
+      this.pendingStats = {
+        timestamp: null,
+        vbuy: 0,
+        vsell: 0,
+        lbuy: 0,
+        lsell: 0,
+        cbuy: 0,
+        csell: 0
+      }
     }
   }
 
@@ -317,17 +369,27 @@ class Aggregator extends EventEmitter {
   }
 
   setupAggrInterval() {
-    console.log(`[aggr] setup aggr interval`)
-
     this._aggrInterval = setInterval(this.emitTrades.bind(this), 100)
   }
 
   clearAggrInterval() {
     if (this._aggrInterval) {
-      console.log(`[aggr] clear aggr interval`)
-
       clearInterval(this._aggrInterval)
       delete this._aggrInterval
+    }
+  }
+
+  setupStatsInterval() {
+    if (!this._statsInterval) {
+      this._statsInterval = setInterval(this.emitStats.bind(this), 500)
+    } else {
+      console.warn('stats interval alreay set')
+    }
+  }
+  clearStatsInterval() {
+    if (this._statsInterval) {
+      clearInterval(this._statsInterval)
+      this._statsInterval = null
     }
   }
 
@@ -367,7 +429,6 @@ class Aggregator extends EventEmitter {
       const prices = Object.values(this.marketsPrices)
 
       if (prices.length > store.state.app.activeMarkets.length / 2) {
-        console.log('half of markets price is known, calculate optimal decimal now.')
         const optimalDecimal = Math.round(prices.map(price => countDecimals(price)).reduce((a, b) => a + b, 0) / prices.length)
 
         store.dispatch('app/showNotice', {

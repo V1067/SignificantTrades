@@ -57,7 +57,7 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator'
+import { Component, Mixins } from 'vue-property-decorator'
 
 import ChartController, { TimeRange } from './chartController'
 
@@ -70,6 +70,7 @@ import SerieDialog from './SerieDialog.vue'
 import CreateSerieDialog from './CreateSerieDialog.vue'
 import aggregatorService from '@/services/aggregatorService'
 import historicalService from '@/services/historicalService'
+import PaneMixin from '@/mixins/paneMixin'
 
 let chart: ChartController = null
 
@@ -79,7 +80,7 @@ let chart: ChartController = null
     SerieControl
   }
 })
-export default class extends Vue {
+export default class extends Mixins(PaneMixin) {
   resizing = {}
   fetching = false
   legend = {}

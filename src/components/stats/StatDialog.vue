@@ -14,15 +14,15 @@
         :value="model.name"
         @change="
           $store.dispatch('settings/updateStat', {
-            index: id,
+            id: id,
             prop: 'name',
             value: $event.target.value
           })
         "
       />
     </div>
-    <div class="column mb15 mt15" ref="colorContainer">
-      <label class="-center">Color</label>
+    <div class="column form-group -fill mt15 mb15" ref="colorContainer">
+      <label class="-center -nowrap mr15 mb0">Color</label>
       <verte
         picker="square"
         menuPosition="left"
@@ -30,7 +30,7 @@
         :value="model.color"
         @input="
           $store.dispatch('settings/updateStat', {
-            index: id,
+            id: id,
             prop: 'color',
             value: $event
           })
@@ -38,16 +38,16 @@
       ></verte>
     </div>
     <div class="form-group mb8">
-      <label>Period (m)</label>
+      <label>Window (m)</label>
       <input
         type="text"
         class="form-control"
-        :value="getHms(model.period)"
-        :placeholder="getHms($store.state.settings.statsPeriod)"
+        :value="getHms(model.window)"
+        :placeholder="getHms($store.state.settings.statsWindow)"
         @change="
           $store.dispatch('settings/updateStat', {
-            index: id,
-            prop: 'period',
+            id: id,
+            prop: 'window',
             value: $event.target.value
           })
         "
@@ -55,19 +55,18 @@
     </div>
     <div class="form-group mb8">
       <label>Precision</label>
-      <input
-        type="text"
+      <editable
         class="form-control"
         placeholder="auto"
-        :value="model.precision"
-        @change="
+        :content="model.precision"
+        @output="
           $store.dispatch('settings/updateStat', {
-            index: id,
+            id: id,
             prop: 'precision',
-            value: $event.target.value
+            value: $event
           })
         "
-      />
+      ></editable>
     </div>
     <div class="form-group">
       <label for
@@ -84,14 +83,14 @@
         :value="model.output"
         @change="
           $store.dispatch('settings/updateStat', {
-            index: id,
+            id: id,
             prop: 'output',
             value: $event.target.value
           })
         "
       ></textarea>
       <p class="help-text mt-8">
-        Sum <code>{{ model.output }}</code> over {{ getHms(model.period || $store.state.settings.statsPeriod) }} period
+        Sum <code>{{ model.output }}</code> over {{ getHms(model.window || $store.state.settings.statsWindow) }} window
       </p>
     </div>
     <hr />
@@ -108,11 +107,11 @@
 </template>
 
 <script>
-import store from '../store'
-import { getHms } from '../utils/helpers'
+import store from '@/store'
+import { getHms } from '@/utils/helpers'
 
-import Dialog from './ui/Dialog.vue'
-import DialogMixin from '../mixins/dialogMixin'
+import Dialog from '@/components/framework/Dialog.vue'
+import DialogMixin from '@/mixins/dialogMixin'
 
 export default {
   props: ['id'],
@@ -129,7 +128,7 @@ export default {
       name: null,
       output: null,
       precision: null,
-      period: null
+      window: null
     }
   }),
   created() {
@@ -144,7 +143,7 @@ export default {
       return getHms(value)
     },
     disable(id, event) {
-      this.$store.dispatch('settings/updateStat', { index: id, prop: 'enabled', value: event.target.checked })
+      this.$store.dispatch('settings/updateStat', { id: id, prop: 'enabled', value: event.target.checked })
       this.close()
     }
   }

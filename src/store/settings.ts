@@ -2,14 +2,14 @@ import { getSerieSettings, randomString, slugify, uniqueName } from '@/utils/hel
 import Vue from 'vue'
 import { ActionTree, MutationTree } from 'vuex'
 
-import VueTippy from 'vue-tippy'
-
 import DEFAULTS_STATE from './defaultSettings.json'
 import { getColorLuminance, splitRgba } from '@/utils/colors'
 import { AppModule } from '.'
 import { SeriesOptions, SeriesType } from 'lightweight-charts'
 import { normalizeSymbol } from '@/utils/store'
 import aggregatorService from '@/services/aggregatorService'
+import dialogService from '@/services/dialogService'
+import StatDialog from '@/components/stats/StatDialog.vue'
 
 export type SlippageMode = false | 'price' | 'bps'
 export interface Threshold {
@@ -20,10 +20,11 @@ export interface Threshold {
   gif?: string
 }
 export interface StatCounter {
+  id: string
   name: string
   output: string
   enabled: boolean
-  period?: number
+  window?: number
   precision?: number
   color?: string
   type?: string
@@ -76,9 +77,9 @@ export interface SettingsState {
   countersCount?: boolean
   showStats?: boolean
   statsGranularity?: number
-  statsPeriod?: number
+  statsWindow?: number
   statsChart?: boolean
-  statsCounters?: StatCounter[]
+  statsCounters?: { [id: string]: StatCounter }
   disableAnimations?: boolean
 }
 
@@ -91,8 +92,6 @@ const state = Object.assign(
 
 const actions = {
   mergePairs({ state, dispatch }, pairs: string[]) {
-    console.log(state.pairs, pairs)
-
     for (const pair of pairs) {
       const symbol = normalizeSymbol(pair)
 
@@ -117,8 +116,19 @@ const actions = {
     commit('REMOVE_PAIR', pair)
     aggregatorService.disconnect([pair])
   },
-  updateStat({ commit, state }, { index, prop, value }) {
-    if (state.statsCounters[index][prop] === value) {
+  createStat({ commit }) {
+    const otherIds = Object.keys(state.statsCounters)
+    const otherNames = otherIds.map(id => state.statsCounters[id].name)
+
+    const name = uniqueName('COUNTER', otherNames)
+    const id = uniqueName(slugify(name), otherIds)
+
+    commit('CREATE_STAT', { id, name })
+
+    dialogService.open(StatDialog, { id })
+  },
+  updateStat({ commit, state }, { id, prop, value }) {
+    if (state.statsCounters[id][prop] === value) {
       return
     }
 
@@ -131,8 +141,23 @@ const actions = {
     }
 
     commit(mutation, {
-      index,
+      id,
       value
+    })
+  },
+  renameStat({ commit, state }, { id, name }) {
+    const otherIds = Object.keys(state.statsCounters).filter(_id => _id !== id)
+    const otherNames = otherIds.map(id => state.statsCounters[id].name)
+
+    const oldId = id
+
+    name = uniqueName(name, otherNames)
+    id = uniqueName(slugify(name), otherIds)
+
+    commit('RENAME_STAT', {
+      oldId,
+      id,
+      name
     })
   },
   createSerie({ commit, state }, serie) {
@@ -293,52 +318,51 @@ const mutations = {
   TOGGLE_STATS(state, value) {
     state.showStats = value ? true : false
   },
-  TOGGLE_STAT(state, { index, value }) {
-    const stat = state.statsCounters[index]
+  TOGGLE_STAT(state, { id, value }) {
+    const stat = state.statsCounters[id]
 
     stat.enabled = value ? true : false
 
-    Vue.set(state.statsCounters, index, stat)
+    Vue.set(state.statsCounters, id, stat)
   },
-  SET_STAT_OUTPUT(state, { index, value }) {
-    const stat = state.statsCounters[index]
+  SET_STAT_OUTPUT(state, { id, value }) {
+    const stat = state.statsCounters[id]
 
     stat.output = value
 
-    Vue.set(state.statsCounters, index, stat)
+    Vue.set(state.statsCounters, id, stat)
   },
-  SET_STAT_NAME(state, { index, value }) {
-    const stat = state.statsCounters[index]
-    const names = state.statsCounters.map(a => a.name)
+  RENAME_STAT(state, { oldId, id, name }) {
+    const stat = state.statsCounters[oldId]
 
-    names.splice(index, 1)
+    stat.name = name
+    stat.id = id
 
-    stat.name = uniqueName(value, names)
-
-    Vue.set(state.statsCounters, index, stat)
+    Vue.delete(state.statsCounters, oldId)
+    Vue.set(state.statsCounters, id, stat)
   },
-  SET_STAT_COLOR(state, { index, value }) {
-    const stat = state.statsCounters[index]
+  SET_STAT_COLOR(state, { id, value }) {
+    const stat = state.statsCounters[id]
 
     stat.color = value
 
-    Vue.set(state.statsCounters, index, stat)
+    Vue.set(state.statsCounters, id, stat)
   },
-  SET_STAT_PRECISION(state, { index, value }) {
-    const stat = state.statsCounters[index]
+  SET_STAT_PRECISION(state, { id, value }) {
+    const stat = state.statsCounters[id]
 
     value = parseInt(value)
 
     stat.precision = !isNaN(value) ? value : null
 
-    Vue.set(state.statsCounters, index, stat)
+    Vue.set(state.statsCounters, id, stat)
   },
-  SET_STAT_PERIOD(state, { index, value }) {
-    const stat = state.statsCounters[index]
+  SET_STAT_WINDOW(state, { id, value }) {
+    const stat = state.statsCounters[id]
     let milliseconds = parseInt(value)
 
     if (isNaN(milliseconds)) {
-      stat.period = null
+      stat.window = null
     } else {
       if (/[\d.]+s/.test(value)) {
         milliseconds *= 1000
@@ -348,25 +372,23 @@ const mutations = {
         milliseconds *= 1000 * 60
       }
 
-      stat.period = milliseconds
+      stat.window = milliseconds
     }
 
-    Vue.set(state.statsCounters, index, stat)
+    Vue.set(state.statsCounters, id, stat)
   },
-  CREATE_STAT(state) {
-    state.statsCounters.push({
-      name: uniqueName(
-        'COUNTER',
-        state.statsCounters.map(a => a.name)
-      ),
+  CREATE_STAT(state, { id, name }) {
+    state.statsCounters[id] = {
+      id,
+      name,
       output: 'vbuy + vsell',
-      enabled: false
-    })
+      enabled: true
+    }
   },
-  REMOVE_STAT(state, index) {
-    state.statsCounters.splice(index, 1)
+  REMOVE_STAT(state, id) {
+    Vue.delete(state.statsCounters, id)
   },
-  SET_STATS_PERIOD(state, value) {
+  SET_STATS_WINDOW(state, value) {
     let milliseconds = parseInt(value) || 0
 
     if (/[\d.]+s/.test(value)) {
@@ -377,7 +399,7 @@ const mutations = {
       milliseconds *= 1000 * 60
     }
 
-    state.statsPeriod = milliseconds
+    state.statsWindow = milliseconds
   },
   TOGGLE_STATS_CHART(state, value) {
     state.statsChart = value ? true : false
@@ -445,8 +467,6 @@ const mutations = {
   },
   TOGGLE_ANIMATIONS(state) {
     state.disableAnimations = !state.disableAnimations
-
-    console.log(VueTippy, Vue as any)
   },
   DELETE_THRESHOLD(state, index) {
     state.thresholds.splice(index, 1)

@@ -1,16 +1,23 @@
+import { defaultPlotsOptions } from '@/components/chart/chartOptions'
 import { Volumes } from '@/services/aggregatorService'
-import { ISeriesApi } from 'lightweight-charts'
+import { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts'
 import store from '../store'
+import { hexToRgb, splitRgba } from './colors'
+import { getHms } from './helpers'
 
 export interface CounterOptions {
-  period?: number
+  id: string
+  name: string
+  window?: number
   precision?: number
   color?: string
   type?: string
 }
 
 export default class Counter {
-  period: number
+  id: string
+  name: string
+  window: number
   precision: number
   color: string
   granularity: number
@@ -19,27 +26,31 @@ export default class Counter {
 
   live: number
   stacks: any[] = []
-  protected model: any = 0
+  filled = false
+  firstStackRemaining = 0
 
   private outputFunction: (stats: Volumes) => number
   private serie: ISeriesApi<'Line'>
   private timeouts: number[] = []
 
-  constructor(outputFunction, { options, model }: { options: CounterOptions; model?: any } = { options: {} }) {
+  constructor(outputFunction, options: CounterOptions) {
+    this.id = options.id
+    this.name = options.name
     this.outputFunction = outputFunction
-    this.period = (!isNaN(options.period) ? +options.period : store.state.settings.statsPeriod) || 0
+
+    this.window = (!isNaN(options.window) ? +options.window : store.state.settings.statsWindow) || 1000 * 60
     this.precision = options.precision
     this.color = options.color
-    this.granularity = Math.max(store.state.settings.statsGranularity, this.period / 50)
+    this.granularity = Math.max(store.state.settings.statsGranularity, this.window / 50)
     this.type = options.type || 'line'
 
-    if (typeof model !== 'undefined') {
-      this.model = model
-    }
+    const windowLabel = getHms(this.window).replace(/^1(\w)$/, '$1')
+
+    this.name += '/' + windowLabel
 
     console.log('[counter.js] create', {
       outputFunction: this.outputFunction,
-      period: this.period,
+      window: this.window,
       granularity: this.granularity
     })
 
@@ -53,12 +64,15 @@ export default class Counter {
   }
 
   clear() {
-    this.live = this.getModel()
     this.stacks = []
+    this.live = 0
+    this.filled = false
 
     for (let i = 0; i < this.timeouts.length; i++) {
       clearTimeout(this.timeouts[i])
     }
+
+    this.timeouts = []
   }
 
   unbind() {
@@ -68,13 +82,19 @@ export default class Counter {
   }
 
   onStats(timestamp, stats) {
-    const data = this.outputFunction(stats)
+    const value = this.outputFunction(stats)
 
     if (!this.stacks.length || timestamp > this.timestamp + this.granularity) {
       this.appendStack(timestamp)
+    } else if (this.filled) {
+      const p = (timestamp - this.timestamp) / this.granularity
+      const remaining = Math.ceil(this.stacks[0] * (1 - p))
+      const change = this.firstStackRemaining - remaining
+      this.firstStackRemaining = remaining
+      this.live -= change
     }
 
-    this.addData(data)
+    this.addData(value)
   }
 
   appendStack(timestamp) {
@@ -82,27 +102,35 @@ export default class Counter {
       timestamp = +new Date()
     }
 
-    this.stacks.push(this.getModel())
+    this.stacks.push(0)
 
     this.timestamp = Math.floor(timestamp / 1000) * 1000
 
-    this.timeouts.push(setTimeout(this.shiftStack.bind(this), this.period))
+    this.timeouts.push(setTimeout(this.shiftStack.bind(this), this.window))
+
+    if (this.stacks.length === this.window / this.granularity) {
+      this.filled = true
+
+      this.firstStackRemaining = this.stacks[0]
+    }
   }
 
-  shiftStack(index = 0) {
-    const stack = this.stacks.splice(index, 1)[0]
+  shiftStack() {
+    this.timeouts.shift()
+
+    const stack = this.stacks.shift()
 
     if (!stack) {
       return
     }
 
-    this.substractData(stack)
+    if (this.firstStackRemaining) {
+      this.live -= this.firstStackRemaining
 
-    this.timeouts.shift()
-  }
+      this.firstStackRemaining = this.stacks[0]
+    }
 
-  getModel() {
-    return 0
+    // this.live -= stack
   }
 
   addData(data) {
@@ -110,11 +138,83 @@ export default class Counter {
     this.live += data
   }
 
-  substractData(data) {
-    this.live -= data
-  }
-
   getValue() {
     return this.live
+  }
+
+  createSerie(chart: IChartApi) {
+    if (this.serie) {
+      return
+    }
+
+    const apiMethodName = 'add' + (this.type.charAt(0).toUpperCase() + this.type.slice(1)) + 'Series'
+    const options = Object.assign({}, defaultPlotsOptions[this.type], {
+      priceScaleId: this.name,
+      title: this.name,
+      priceLineVisible: false,
+      lineWidth: 1,
+      ...this.getColorOptions()
+    })
+
+    this.serie = chart[apiMethodName](options)
+  }
+
+  addPointToSerie(timestamp: number) {
+    const value = this.getValue()
+
+    if (!this.serie || (this.type === 'histogram' && !value)) {
+      return
+    }
+
+    const point = {
+      time: timestamp as UTCTimestamp,
+      value: value
+    }
+
+    this.serie.update(point)
+  }
+
+  getColorOptions() {
+    if (this.type === 'area') {
+      let r: number
+      let g: number
+      let b: number
+
+      if (this.color.indexOf('#') === 0) {
+        ;[r, g, b] = hexToRgb(this.color)
+      } else {
+        ;[r, g, b] = splitRgba(this.color)
+      }
+
+      const topColor = `rgba(${r},${g},${b}, .4)`
+      const bottomColor = `rgba(${r},${g},${b}, 0)`
+      return {
+        topColor,
+        bottomColor,
+        lineColor: this.color
+      }
+    } else {
+      return { color: this.color }
+    }
+  }
+
+  updateColor(color) {
+    if (!this.serie) {
+      return
+    }
+
+    this.color = color
+
+    this.serie.applyOptions(this.getColorOptions())
+  }
+
+  removeSerie(chart: IChartApi) {
+    if (!this.serie) {
+      return
+    }
+
+    chart.removeSeries(this.serie)
+
+    delete this.serie
   }
 }

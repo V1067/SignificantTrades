@@ -5,6 +5,7 @@ import { prepareModules, scheduleSync } from '@/utils/store'
 import app, { AppState } from './app'
 import settings, { SettingsState } from './settings'
 import exchanges, { ExchangesState } from './exchanges'
+import panes, { PanesState } from './panes'
 
 Vue.use(Vuex)
 
@@ -21,12 +22,14 @@ export interface AppModule<R> extends Module<any, R> {
 export interface ModulesState {
   app: AppState
   settings: SettingsState
+  panes: PanesState
   exchanges: ExchangesState
 }
 
 const modules = prepareModules({
   app,
   settings,
+  panes,
   exchanges
 })
 

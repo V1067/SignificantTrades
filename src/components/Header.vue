@@ -19,10 +19,10 @@
         @output="$store.commit('settings/SET_TIMEFRAME', +$event)"
       ></dropdown>
       <button type="button" v-if="!isPopupMode" @click="togglePopup" title="Open as popup" v-tippy="{ placement: 'bottom' }">
-        <span class="icon-external-link"></span>
+        <span class="icon-external-link-square-alt"></span>
       </button>
-      <button type="button" :class="{ active: useAudio }" @click="$store.commit('settings/TOGGLE_AUDIO', !useAudio)">
-        <span class="icon-volume-muted"></span>
+      <button type="button" class="-volume" @click="$store.commit('settings/TOGGLE_AUDIO', !useAudio)">
+        <span class="icon-volume-off" :class="{ 'icon-volume-high': useAudio }"></span>
       </button>
       <button type="button" @click="$store.commit('app/TOGGLE_SETTINGS')">
         <span class="icon-cog"></span>
@@ -35,8 +35,8 @@
 import aggregatorService from '@/services/aggregatorService'
 import { Component, Vue } from 'vue-property-decorator'
 import { formatPrice } from '@/utils/helpers'
-import upFavicon from '../../assets/up.png'
-import downFavicon from '../../assets/down.png'
+import upFavicon from '../assets/up.png'
+import downFavicon from '../assets/down.png'
 
 @Component({
   name: 'Header'
@@ -190,22 +190,20 @@ header#header {
   background-color: lighten($dark, 10%);
   color: white;
   position: relative;
+  height: 16px;
+
+  button,
+  .dropdown__selected {
+    padding: 2px;
+    font-size: 10px;
+    line-height: 1;
+  }
 
   div.header__wrapper {
     position: relative;
     display: flex;
     align-items: center;
-
-    > button,
-    .dropdown__selected {
-      padding: 0.2em 0.4em;
-      font-size: 1em;
-      line-height: 1;
-
-      @media screen and (min-width: 480px) {
-        padding: 0.2em 0.6em;
-      }
-    }
+    padding: 0 4px;
 
     .dropdown__option {
       span {
@@ -216,10 +214,11 @@ header#header {
 
   .header__title {
     width: 100%;
-    padding: 0.45rem 0.5rem 0.55rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 11px;
+    margin-top: -2px;
 
     .pair {
       opacity: 0.5;
@@ -257,60 +256,8 @@ header#header {
       transition: all 0.5s $ease-elastic;
     }
 
-    .icon-play {
-      opacity: 0.2;
-    }
-
-    &:hover,
-    &:active,
-    &.active {
-      .icon-external-link {
-        transform: rotateZ(-7deg) scale(1.2) translate(5%, -5%);
-        text-shadow: 0 0 20px $orange, 0 0 2px white;
-      }
-
-      .icon-play {
-        opacity: 1;
-        transform: rotateZ(-7deg) scale(1.2) translateX(10%);
-        text-shadow: 0 0 20px $blue, 0 0 2px white;
-      }
-
-      .icon-cog {
-        transform: rotateZ(180deg) scale(1.2);
-        text-shadow: 0 0 20px $green, 0 0 2px white;
-      }
-
-      .icon-history {
-        transform: rotateZ(-360deg) scale(1.1);
-        display: inline-block;
-        text-shadow: 0 0 20px $red, 0 0 2px white;
-      }
-
-      .icon-volume-muted {
-        color: white;
-        transform: rotateZ(-7deg) scale(1.3);
-        text-shadow: 0 0 20px $blue, 0 0 2px $blue;
-      }
-    }
-
-    &.active {
-      .icon-play {
-        opacity: 1;
-        color: $red;
-        transform: rotateZ(-7deg) scale(1.2) translateX(10%);
-        text-shadow: 0 0 20px $red, 0 0 2px $red;
-      }
-
-      .icon-volume-muted {
-        &:before {
-          content: unicode($icon-volume);
-        }
-      }
-
-      .icon-history {
-        color: white;
-        text-shadow: 0 0 20px white, 0 0 2px white;
-      }
+    &.-volume {
+      font-size: 12px;
     }
   }
 
@@ -371,16 +318,6 @@ header#header {
   100% {
     left: 107%;
     right: -8%;
-  }
-}
-
-#app.-light header#header button {
-  &:hover,
-  &:active,
-  &.active {
-    .icon-volume-muted {
-      text-shadow: 0 0 20px $green, 0 0 2px $green;
-    }
   }
 }
 </style>

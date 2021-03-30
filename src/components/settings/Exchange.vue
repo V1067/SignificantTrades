@@ -27,7 +27,7 @@
           :title="settings.hidden ? 'Show' : 'Hide'"
           @click.stop.prevent="$store.dispatch('exchanges/toggleExchangeVisibility', id)"
         >
-          <i class="icon-eye"></i>
+          <i class="icon-visible"></i>
         </button>
         <button class="settings-exchange__more" @click.stop.prevent="expanded = !expanded">
           <i class="icon-down"></i>
@@ -74,7 +74,7 @@ import Exchange from '@/exchanges/exchangeAbstract'
 import aggregatorService from '@/services/aggregatorService'
 import { formatAmount, formatPrice } from '@/utils/helpers'
 import { Component, Vue } from 'vue-property-decorator'
-import Slider from './ui/picker/Slider.vue'
+import Slider from '@/components/framework/picker/Slider.vue'
 
 @Component({
   name: 'Exchange',
@@ -248,7 +248,7 @@ export default class extends Vue {
     opacity: 0.8;
 
     .icon-eye:before {
-      content: unicode($icon-eye-crossed);
+      content: unicode($icon-hidden);
     }
   }
 

@@ -5,7 +5,7 @@
     <template v-if="!error">
       <div class="serie__controls">
         <button class="btn -small" @click="toggleVisibility" v-tippy :title="visible ? 'Hide' : 'Show'">
-          <i :class="{ 'icon-eye': !visible, 'icon-eye-crossed': visible }"></i>
+          <i :class="{ 'icon-visible': !visible, 'icon-hidden': visible }"></i>
         </button>
         <!--<button class="btn -small" @click="bringOnTop" v-tippy title="bring on top"><i class="icon-up"></i></button>-->
         <button class="btn -small" @click="edit" v-tippy title="Edit"><i class="icon-edit"></i></button>

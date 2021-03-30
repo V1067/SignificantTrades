@@ -14,11 +14,12 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator'
+import { Component, Mixins } from 'vue-property-decorator'
 
-import { formatAmount, formatPrice, getHms } from '../utils/helpers'
+import { formatAmount, formatPrice, getHms } from '../../utils/helpers'
 
 import aggregatorService from '@/services/aggregatorService'
+import PaneMixin from '@/mixins/paneMixin'
 
 const CHUNK = {
   timestamp: null,
@@ -31,7 +32,7 @@ const COUNTERS = []
 @Component({
   name: 'Counters'
 })
-export default class extends Vue {
+export default class extends Mixins(PaneMixin) {
   steps = []
 
   private onStoreMutation: () => void
@@ -197,24 +198,6 @@ export default class extends Vue {
         this.steps[i].sell -= downgradeSell
       }
     }
-  }
-
-  getCountersRange() {
-    const now = +new Date()
-    return {
-      from: now - this.countersSteps[this.countersSteps.length - 1],
-      to: now
-    }
-  }
-
-  getFirstPoint() {
-    for (let i = COUNTERS.length - 1; i >= 0; i--) {
-      for (let j = COUNTERS[i].chunks.length - 1; j >= 0; j--) {
-        return COUNTERS[i].chunks[j].timestamp
-      }
-    }
-
-    return null
   }
 
   formatAmount() {

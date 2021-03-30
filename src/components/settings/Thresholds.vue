@@ -149,7 +149,7 @@
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator'
-import { formatAmount, formatPrice, sleep } from '../utils/helpers'
+import { formatAmount, formatPrice, sleep } from '../../utils/helpers'
 
 import dialogService from '@/services/dialogService'
 
@@ -525,7 +525,6 @@ export default class extends Vue {
   width: 100%;
   border: 0;
   border-spacing: 0px;
-  padding: 0.5em 0 0.75em;
 
   &__input {
     position: relative;

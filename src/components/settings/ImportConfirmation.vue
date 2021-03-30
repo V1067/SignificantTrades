@@ -12,8 +12,8 @@
 </template>
 
 <script>
-import Dialog from './ui/Dialog.vue'
-import DialogMixin from '../mixins/dialogMixin'
+import Dialog from '@/components/framework/Dialog.vue'
+import DialogMixin from '@/mixins/dialogMixin'
 
 export default {
   props: ['settings'],

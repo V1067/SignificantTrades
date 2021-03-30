@@ -1,4 +1,4 @@
-import Dialog from '@/components/ui/Dialog.vue'
+import Dialog from '@/components/framework/Dialog.vue'
 
 export default {
   components: {

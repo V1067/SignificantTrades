@@ -6,13 +6,14 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator'
+import { Component, Mixins } from 'vue-property-decorator'
 
-import { ago, formatPrice, formatAmount, slugify } from '../utils/helpers'
-import { getColorByWeight, getColorLuminance, getAppBackgroundColor, splitRgba, getLogShade } from '../utils/colors'
+import { ago, formatPrice, formatAmount, slugify } from '../../utils/helpers'
+import { getColorByWeight, getColorLuminance, getAppBackgroundColor, splitRgba, getLogShade } from '../../utils/colors'
 
 import aggregatorService, { Trade } from '@/services/aggregatorService'
-import sfxService from '../services/sfxService'
+import sfxService from '../../services/sfxService'
+import PaneMixin from '@/mixins/paneMixin'
 
 let LAST_TRADE_TIMESTAMP // to control whether we show timestamp on trade or not
 let LAST_SIDE // to control wheter we show "up" or "down" icon in front of trade
@@ -24,9 +25,9 @@ let GIFS // gifs from storages, by threshold gif keyword
 let activeExchanges = []
 
 @Component({
-  name: 'TradeList'
+  name: 'Trades'
 })
-export default class extends Vue {
+export default class extends Mixins(PaneMixin) {
   tradesCount = 0
 
   private onStoreMutation: () => void
@@ -78,6 +79,10 @@ export default class extends Vue {
 
   get activeExchanges() {
     return this.$store.state.app.activeExchanges
+  }
+
+  get disableAnimations() {
+    return this.$store.state.settings.disableAnimations
   }
 
   $refs!: {
@@ -228,7 +233,7 @@ export default class extends Vue {
         const color = COLORS[Math.min(this.thresholds.length - 2, i)]
         const threshold = this.thresholds[i]
 
-        if (threshold.gif && GIFS[threshold.gif]) {
+        if (!this.disableAnimations && threshold.gif && GIFS[threshold.gif]) {
           // get random gif for this threshold
           li.style.backgroundImage = `url('${GIFS[threshold.gif][Math.floor(Math.random() * (GIFS[threshold.gif].length - 1))]}`
         }
@@ -456,6 +461,7 @@ export default class extends Vue {
 #trades {
   background-color: rgba(black, 0.2);
   line-height: 1;
+  overflow: auto;
 
   ul {
     margin: 0;
@@ -477,7 +483,7 @@ export default class extends Vue {
 
     @each $exchange in $exchanges {
       .-#{$exchange} .trade__exchange {
-        background-image: url('../assets/exchanges/#{$exchange}.svg');
+        background-image: url('../../assets/exchanges/#{$exchange}.svg');
       }
     }
 
@@ -597,10 +603,6 @@ export default class extends Vue {
   .icon-quote,
   .icon-base {
     line-height: 0;
-  }
-
-  .icon-side {
-    font-size: 80%;
   }
 
   .trade__exchange {

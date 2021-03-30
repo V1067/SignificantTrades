@@ -1,7 +1,7 @@
 import Vue from 'vue'
 import store from '@/store'
 
-import VerteDialog from '@/components/ui/picker/VerteDialog.vue'
+import VerteDialog from '@/components/framework/picker/VerteDialog.vue'
 
 class DialogService {
   mountedComponents = {}

@@ -77,7 +77,7 @@ import { warn, makeListValidator } from '../../../utils/picker'
 
 import { PALETTE } from '@/utils/colors'
 
-import Dialog from '@/components/ui/Dialog.vue'
+import Dialog from '@/components/framework/Dialog.vue'
 import dialogMixin from '../../../mixins/dialogMixin'
 
 export default {

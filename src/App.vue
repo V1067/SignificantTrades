@@ -20,15 +20,7 @@
       <SearchProducts />
 
       <div class="app__layout">
-        <div class="app__left">
-          <Chart v-if="showChart" />
-          <ExchangesBar v-if="showChart && showExchangesBar" />
-        </div>
-        <div class="app__right">
-          <Counters v-if="showCounters" />
-          <Stats v-if="showStats" />
-          <TradeList />
-        </div>
+        <Panes />
       </div>
     </div>
   </div>
@@ -39,16 +31,14 @@ import { Component, Vue } from 'vue-property-decorator'
 
 import aggregatorService from './services/aggregatorService'
 
-import Notices from './components/ui/Notices.vue'
-import Header from './components/ui/Header.vue'
-import Settings from './components/Settings.vue'
+import Notices from './components/framework/Notices.vue'
+import Header from './components/Header.vue'
+import Settings from './components/settings/Settings.vue'
 import SearchProducts from './components/SearchProducts.vue'
 
 import ExchangesBar from '@/components/ExchangesBar.vue'
-import TradeList from '@/components/TradeList.vue'
-import Chart from '@/components/chart/Chart.vue'
-import Counters from '@/components/Counters.vue'
-import Stats from '@/components/Stats.vue'
+import Panes from '@/components/Panes.vue'
+
 import { boot } from './store'
 
 @Component({
@@ -58,11 +48,7 @@ import { boot } from './store'
     SearchProducts,
     Settings,
     Notices,
-
-    TradeList,
-    Chart,
-    Counters,
-    Stats,
+    Panes,
     ExchangesBar
   }
 })

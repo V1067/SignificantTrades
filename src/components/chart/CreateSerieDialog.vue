@@ -28,10 +28,10 @@
 </template>
 
 <script>
-import store from '../../store'
-import { slugify, uniqueName } from '../../utils/helpers'
-import Dialog from '../ui/Dialog.vue'
-import DialogMixin from '../../mixins/dialogMixin'
+import store from '@/store'
+import { slugify, uniqueName } from '@/utils/helpers'
+import Dialog from '@/components/framework/Dialog.vue'
+import DialogMixin from '@/mixins/dialogMixin'
 
 export default {
   mixins: [DialogMixin],

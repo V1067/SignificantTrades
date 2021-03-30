@@ -24,7 +24,7 @@
 
   &.form-control {
     &:after {
-      content: unicode($icon-arrow-down);
+      content: unicode($icon-down);
       font-family: 'icon';
     }
 

@@ -1,15 +1,17 @@
+import { LineWidth } from 'lightweight-charts'
+
 export const defaultChartOptions = {
   crosshair: {
     vertLine: {
       color: 'rgba(255, 255, 255, .5)',
-      width: 0.5,
+      width: 0.5 as LineWidth,
       style: 2,
       visible: true,
       labelVisible: true
     },
     horzLine: {
       color: 'rgba(255, 255, 255, .5)',
-      width: 0.5,
+      width: 0.5 as LineWidth,
       style: 2,
       visible: true,
       labelBackgroundColor: 'white',
@@ -107,6 +109,22 @@ export const defaultBarOptions = {
   upColor: '#a5d6a7',
   downColor: '#e57373',
   openVisible: true
+}
+
+export const defaultStatsChartOptions = {
+  ...defaultChartOptions,
+  priceScale: {
+    position: 'none',
+    mode: 0
+  },
+  timeScale: {
+    barSpacing: 3,
+    rightOffset: 5,
+    lockVisibleTimeRangeOnResize: true,
+    rightBarStaysOnScroll: true,
+    borderColor: 'rgba(255, 255, 255, .2)',
+    timeVisible: true
+  }
 }
 
 export const defaultPlotsOptions = {

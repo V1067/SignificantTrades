@@ -149,7 +149,6 @@ export default class extends Vue {
   handleKeydown($event) {
     switch ($event.which) {
       case 13:
-        console.log('enter preesd?')
         event.preventDefault()
         if (this.activeOptionIndex !== null) {
           this.addItem(this.activeOptionIndex)
@@ -158,7 +157,6 @@ export default class extends Vue {
         }
         break
       case 8:
-        console.log('back preesd?')
         if (this.items.length && !this.$refs.input.innerText.length) {
           this.removeItem(this.items.length - 1)
           event.preventDefault()
@@ -168,10 +166,8 @@ export default class extends Vue {
       case 40:
         if (this.options.length) {
           if ($event.which === 38) {
-            console.log('38')
             this.activeOptionIndex = Math.max(0, this.activeOptionIndex - 1)
           } else if ($event.which === 40) {
-            console.log('40')
             if (this.activeOptionIndex === null) {
               this.activeOptionIndex = 0
             } else {
