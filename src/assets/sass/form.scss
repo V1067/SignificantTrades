@@ -6,10 +6,10 @@
     font-size: 14px;
     display: block;
 
-    .icon-info-circle {
+    .icon-info {
       margin-left: 2px;
       line-height: 0;
-      top: 1px;
+      top: 2px;
       position: relative;
       opacity: 0.3;
       transition: opacity 0.2s $ease-out-expo;
@@ -53,6 +53,13 @@
   font-size: 14px;
   margin: 0;
   color: inherit;
+}
+
+.form-control::-webkit-input-placeholder,
+.form-control:-moz-placeholder,
+.form-control::-moz-placeholder,
+.form-control:-ms-input-placeholder {
+  color: red;
 }
 
 .input-group {
@@ -120,7 +127,6 @@
 
     &:after {
       content: unicode($icon-power-off);
-      top: -2px;
     }
   }
 

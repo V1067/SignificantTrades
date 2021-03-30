@@ -148,6 +148,10 @@ body {
     align-self: center;
   }
 
+  > .-end {
+    align-self: end;
+  }
+
   > .-nowrap {
     white-space: nowrap;
   }

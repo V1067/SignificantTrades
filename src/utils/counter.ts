@@ -27,7 +27,7 @@ export default class Counter {
   live: number
   stacks: any[] = []
   filled = false
-  firstStackRemaining = 0
+  remaining = 0
 
   private outputFunction: (stats: Volumes) => number
   private serie: ISeriesApi<'Line'>
@@ -38,10 +38,10 @@ export default class Counter {
     this.name = options.name
     this.outputFunction = outputFunction
 
-    this.window = (!isNaN(options.window) ? +options.window : store.state.settings.statsWindow) || 1000 * 60
+    this.window = (!isNaN(options.window) ? +options.window : store.state.settings.statsWindow) || 60000
     this.precision = options.precision
     this.color = options.color
-    this.granularity = Math.max(store.state.settings.statsGranularity, this.window / 50)
+    this.granularity = Math.max(store.state.settings.statsGranularity, this.window / 5000)
     this.type = options.type || 'line'
 
     const windowLabel = getHms(this.window).replace(/^1(\w)$/, '$1')
@@ -67,6 +67,7 @@ export default class Counter {
     this.stacks = []
     this.live = 0
     this.filled = false
+    this.remaining = 0
 
     for (let i = 0; i < this.timeouts.length; i++) {
       clearTimeout(this.timeouts[i])
@@ -86,11 +87,11 @@ export default class Counter {
 
     if (!this.stacks.length || timestamp > this.timestamp + this.granularity) {
       this.appendStack(timestamp)
-    } else if (this.filled) {
+    } else if (this.filled && this.remaining) {
       const p = (timestamp - this.timestamp) / this.granularity
       const remaining = Math.ceil(this.stacks[0] * (1 - p))
-      const change = this.firstStackRemaining - remaining
-      this.firstStackRemaining = remaining
+      const change = this.remaining - remaining
+      this.remaining = remaining
       this.live -= change
     }
 
@@ -104,14 +105,12 @@ export default class Counter {
 
     this.stacks.push(0)
 
-    this.timestamp = Math.floor(timestamp / 1000) * 1000
+    this.timestamp = timestamp
 
     this.timeouts.push(setTimeout(this.shiftStack.bind(this), this.window))
 
-    if (this.stacks.length === this.window / this.granularity) {
+    if (!this.filled && this.stacks.length === this.window / this.granularity) {
       this.filled = true
-
-      this.firstStackRemaining = this.stacks[0]
     }
   }
 
@@ -124,11 +123,11 @@ export default class Counter {
       return
     }
 
-    if (this.firstStackRemaining) {
-      this.live -= this.firstStackRemaining
-
-      this.firstStackRemaining = this.stacks[0]
+    if (this.remaining) {
+      this.live -= this.remaining
     }
+
+    this.remaining = this.stacks[0]
 
     // this.live -= stack
   }
@@ -153,21 +152,25 @@ export default class Counter {
       title: this.name,
       priceLineVisible: false,
       lineWidth: 1,
+      scaleMargins: {
+        top: 0.05,
+        bottom: 0.05
+      },
       ...this.getColorOptions()
     })
 
     this.serie = chart[apiMethodName](options)
   }
 
-  addPointToSerie(timestamp: number) {
+  updateSerie() {
     const value = this.getValue()
 
-    if (!this.serie || (this.type === 'histogram' && !value)) {
+    if (!this.serie || !this.timestamp || (this.type === 'histogram' && !value)) {
       return
     }
 
     const point = {
-      time: timestamp as UTCTimestamp,
+      time: (this.timestamp / 1000) as UTCTimestamp,
       value: value
     }
 

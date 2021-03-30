@@ -5,7 +5,7 @@
     :row-height="rowHeight"
     :is-draggable="draggable"
     :is-resizable="resizable"
-    :vertical-compact="false"
+    :vertical-compact="true"
     :use-css-transforms="true"
     @layout-updated="onLayoutUpdated"
     @layout-ready="gridReady = true"
@@ -74,7 +74,7 @@ export default class extends Vue {
   }
 
   protected get rowHeight() {
-    return 180
+    return 100
   }
 
   @Watch('$store.state.watchlist.watching')

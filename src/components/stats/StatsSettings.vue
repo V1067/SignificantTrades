@@ -62,7 +62,7 @@
 import dialogService from '@/services/dialogService'
 import StatDialog from '@/components/stats/StatDialog.vue'
 import { Component, Vue } from 'vue-property-decorator'
-import { ago } from '@/utils/helpers'
+import { getHms } from '@/utils/helpers'
 
 @Component({
   name: 'StatsSettings'
@@ -85,7 +85,7 @@ export default class extends Vue {
   }
 
   get statsWindowStringified() {
-    return ago(+new Date() - (this.statsWindow || 0))
+    return getHms(this.statsWindow || 0)
   }
 
   openStat(id) {

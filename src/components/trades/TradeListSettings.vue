@@ -4,7 +4,7 @@
       <div class="form-group -fill">
         <label>
           Max rows
-          <span class="icon-info-circle" title="Numbers of trades to keep visible" v-tippy></span>
+          <span class="icon-info" title="Numbers of trades to keep visible" v-tippy></span>
         </label>
         <input
           type="number"

@@ -23,7 +23,7 @@
       <label for
         >Value
         <span
-          class="icon-info-circle"
+          class="icon-info"
           title="Javascript syntax, use build in variable such as vbuy/vsell (volume) cbuy/csell (trade count) lbuy/lsell (liquidation volume)"
           v-tippy
         ></span

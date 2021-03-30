@@ -190,12 +190,12 @@ header#header {
   background-color: lighten($dark, 10%);
   color: white;
   position: relative;
-  height: 16px;
+  height: 20px;
 
   button,
   .dropdown__selected {
     padding: 2px;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1;
   }
 
@@ -217,8 +217,8 @@ header#header {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 11px;
-    margin-top: -2px;
+    font-size: 12px;
+    margin-top: -1px;
 
     .pair {
       opacity: 0.5;
@@ -257,7 +257,7 @@ header#header {
     }
 
     &.-volume {
-      font-size: 12px;
+      font-size: 14px;
     }
   }
 

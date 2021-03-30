@@ -6,73 +6,76 @@
         <div class="subtitle">{{ title }}</div>
       </div>
     </template>
-    <div class="form-group mb8">
-      <label>Name</label>
-      <input
-        type="text"
-        class="form-control"
-        :value="model.name"
-        @change="
-          $store.dispatch('settings/updateStat', {
-            id: id,
-            prop: 'name',
-            value: $event.target.value
-          })
-        "
-      />
+    <div class="column mb8">
+      <div class="form-group  -fill">
+        <label>Name</label>
+        <input
+          type="text"
+          class="form-control"
+          :value="model.name"
+          @change="
+            $store.dispatch('settings/updateStat', {
+              id: id,
+              prop: 'name',
+              value: $event.target.value
+            })
+          "
+        />
+      </div>
+      <div class="form-group -end mtauto" ref="colorContainer">
+        <verte
+          picker="square"
+          menuPosition="left"
+          model="rgb"
+          :value="model.color"
+          @input="
+            $store.dispatch('settings/updateStat', {
+              id: id,
+              prop: 'color',
+              value: $event
+            })
+          "
+        ></verte>
+      </div>
     </div>
-    <div class="column form-group -fill mt15 mb15" ref="colorContainer">
-      <label class="-center -nowrap mr15 mb0">Color</label>
-      <verte
-        picker="square"
-        menuPosition="left"
-        model="rgb"
-        :value="model.color"
-        @input="
-          $store.dispatch('settings/updateStat', {
-            id: id,
-            prop: 'color',
-            value: $event
-          })
-        "
-      ></verte>
-    </div>
-    <div class="form-group mb8">
-      <label>Window (m)</label>
-      <input
-        type="text"
-        class="form-control"
-        :value="getHms(model.window)"
-        :placeholder="getHms($store.state.settings.statsWindow)"
-        @change="
-          $store.dispatch('settings/updateStat', {
-            id: id,
-            prop: 'window',
-            value: $event.target.value
-          })
-        "
-      />
-    </div>
-    <div class="form-group mb8">
-      <label>Precision</label>
-      <editable
-        class="form-control"
-        placeholder="auto"
-        :content="model.precision"
-        @output="
-          $store.dispatch('settings/updateStat', {
-            id: id,
-            prop: 'precision',
-            value: $event
-          })
-        "
-      ></editable>
+    <div class="column">
+      <div class="form-group mb8">
+        <label>Window (m)</label>
+        <input
+          type="text"
+          class="form-control"
+          :value="getHms(model.window)"
+          :placeholder="getHms($store.state.settings.statsWindow) + ' (default)'"
+          @change="
+            $store.dispatch('settings/updateStat', {
+              id: id,
+              prop: 'window',
+              value: $event.target.value
+            })
+          "
+        />
+      </div>
+      <div class="form-group mb8">
+        <label>Precision</label>
+        <editable
+          class="form-control"
+          placeholder="auto"
+          :content="model.precision"
+          @output="
+            $store.dispatch('settings/updateStat', {
+              id: id,
+              prop: 'precision',
+              value: $event
+            })
+          "
+        ></editable>
+      </div>
     </div>
     <div class="form-group">
       <label for
         >Value
         <span
-          class="icon-info-circle"
+          class="icon-info"
           title="Javascript syntax, use build in variable such as vbuy/vsell (volume) cbuy/csell (trade count) lbuy/lsell (liquidation volume)"
           v-tippy
         ></span

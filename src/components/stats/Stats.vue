@@ -2,9 +2,9 @@
   <div id="stats" class="stats">
     <div v-if="statsChart" class="stats__chart" ref="chart"></div>
     <ul class="stats__counters">
-      <li v-for="(value, id) in data" :key="id" class="stat-counter" @click="editCounter(id)">
-        <div class="stat-counter__name" :style="{ color: colors[id] }">{{ names[id] }}</div>
-        <div class="stat-counter__value">{{ value }}</div>
+      <li v-for="(counter, id) in data" :key="id" class="stat-counter" @click="editCounter(id)">
+        <div class="stat-counter__name" :style="{ color: counter.color }">{{ counter.name }}</div>
+        <div class="stat-counter__value">{{ counter.value }}</div>
       </li>
     </ul>
   </div>
@@ -30,7 +30,6 @@ const counters: { [id: string]: Counter } = {}
   name: 'Stats'
 })
 export default class extends Mixins(PaneMixin) {
-  tickIncrement = 0
   data = {}
 
   $refs!: {
@@ -38,7 +37,7 @@ export default class extends Mixins(PaneMixin) {
   }
 
   private _refreshChartDimensionsTimeout: number
-  private _chartUpdateInterval: number
+  // private _chartUpdateInterval: number
 
   private onStoreMutation: () => void
 
@@ -52,20 +51,6 @@ export default class extends Mixins(PaneMixin) {
 
   get statsCounters() {
     return this.$store.state.settings.statsCounters
-  }
-
-  get colors() {
-    return Object.keys(this.statsCounters).reduce((colors, id) => {
-      colors[id] = this.statsCounters[id].color
-      return colors
-    }, {})
-  }
-
-  get names() {
-    return Object.keys(this.statsCounters).reduce((names, id) => {
-      names[id] = this.statsCounters[id].name
-      return names
-    }, {})
   }
 
   created() {
@@ -136,7 +121,7 @@ export default class extends Mixins(PaneMixin) {
       }
 
       this.refreshChartDimensions(this.$store.state.settings.sidebarWidth)
-      this.chartUpdate()
+      // this.chartUpdate()
     }, 100)
   }
 
@@ -145,7 +130,7 @@ export default class extends Mixins(PaneMixin) {
       return
     }
 
-    this.stopChartUpdate()
+    // this.stopChartUpdate()
 
     for (const id in counters) {
       counters[id].removeSerie(chart)
@@ -156,15 +141,14 @@ export default class extends Mixins(PaneMixin) {
     chart = null
   }
 
-  chartUpdate() {
+  /* chartUpdate() {
     if (!this._chartUpdateInterval) {
-      this._chartUpdateInterval = setInterval(this.chartUpdate.bind(this), 1000)
+      this._chartUpdateInterval = setInterval(this.chartUpdate.bind(this), 100)
+      return
     }
 
-    const now = Math.floor(+new Date() / 1000)
-
     for (const id in counters) {
-      counters[id].addPointToSerie(now)
+      counters[id].updateSerie()
     }
   }
   stopChartUpdate() {
@@ -172,7 +156,7 @@ export default class extends Mixins(PaneMixin) {
       clearInterval(this._chartUpdateInterval)
       delete this._chartUpdateInterval
     }
-  }
+  } */
   refreshChartDimensions(w) {
     if (!this.statsChart) {
       return
@@ -204,7 +188,11 @@ export default class extends Mixins(PaneMixin) {
       if (counters[id].stacks.length) {
         const value = counters[id].getValue()
 
-        this.$set(this.data, id, formatAmount(value, counters[id].precision))
+        this.$set(this.data[id], 'value', formatAmount(value, counters[id].precision))
+      }
+
+      if (chart) {
+        counters[id].updateSerie()
       }
     }
   }
@@ -243,6 +231,8 @@ export default class extends Mixins(PaneMixin) {
 
   recolorCounter(id, color) {
     counters[id].updateColor(color)
+
+    this.$set(this.data[id], 'color', color)
   }
 
   createCounter(statCounter) {
@@ -256,7 +246,11 @@ export default class extends Mixins(PaneMixin) {
 
       counters[statCounter.id] = counter
 
-      this.$set(this.data, statCounter.id, 0)
+      this.$set(this.data, counter.id, {
+        value: 0,
+        name: counter.name,
+        color: counter.color
+      })
     }
   }
 
