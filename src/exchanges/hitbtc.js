@@ -5,7 +5,7 @@ class Huobi extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'hitbtc'
+    this.id = 'HITBTC'
 
     this.endpoints = {
       PRODUCTS: 'https://api.hitbtc.com/api/2/public/symbol',

@@ -335,7 +335,7 @@ class Exchange extends EventEmitter {
         console.log(`[${this.id}] attach ${pair} to connecting api ${api.url}`)
         toResolve = this.connecting[api.url].promise
       } else {
-        console.log(`[${this.id}] attach ${pair} to connected api ${api.url}`)
+        console.log(`[${this.id}] attach ${pair} to already connected api ${api.url}`)
         toResolve = Promise.resolve(api)
       }
     }

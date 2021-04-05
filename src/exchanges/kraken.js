@@ -5,7 +5,7 @@ class Kraken extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'kraken'
+    this.id = 'KRAKEN'
     this.keepAliveIntervals = {}
 
     this.endpoints = {

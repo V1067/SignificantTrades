@@ -51,12 +51,8 @@ class Server extends EventEmitter {
       if (this.options.collect) {
         console.log(
           `\n[server] collect is enabled`,
-          this.options.websocket && this.options.aggr
-            ? '\n\twill aggregate every trades that came on same ms (impact only broadcast)'
-            : '',
-          this.options.websocket && this.options.delay
-            ? `\n\twill broadcast trades every ${this.options.delay}ms`
-            : ''
+          this.options.websocket && this.options.aggr ? '\n\twill aggregate every trades that came on same ms (impact only broadcast)' : '',
+          this.options.websocket && this.options.delay ? `\n\twill broadcast trades every ${this.options.delay}ms` : ''
         )
         console.log(`\tconnect to -> ${this.exchanges.map((a) => a.id).join(', ')}`)
 
@@ -64,18 +60,13 @@ class Server extends EventEmitter {
         this.connectExchanges()
 
         // profile exchanges connections (keep alive)
-        this._activityMonitoringInterval = setInterval(
-          this.monitorExchangesActivity.bind(this, +new Date()),
-          1000 * 60
-        )
+        this._activityMonitoringInterval = setInterval(this.monitorExchangesActivity.bind(this, +new Date()), 1000 * 60)
 
         if (this.storages) {
           const delay = this.scheduleNextBackup()
 
           console.log(
-            `[server] scheduling first save to ${this.storages.map(
-              (storage) => storage.constructor.name
-            )} in ${getHms(delay)}...`
+            `[server] scheduling first save to ${this.storages.map((storage) => storage.constructor.name)} in ${getHms(delay)}...`
           )
         }
       }
@@ -88,10 +79,7 @@ class Server extends EventEmitter {
         this.createWSServer()
 
         if (this.options.aggr) {
-          this._broadcastAggregatedTradesInterval = setInterval(
-            this.broadcastAggregatedTrades.bind(this),
-            50
-          )
+          this._broadcastAggregatedTradesInterval = setInterval(this.broadcastAggregatedTrades.bind(this), 50)
         }
       }
 
@@ -112,11 +100,7 @@ class Server extends EventEmitter {
     for (let name of this.options.storage) {
       console.log(`[storage] Using "${name}" storage solution`)
 
-      if (
-        this.options.api &&
-        this.options.storage.length > 1 &&
-        !this.options.storage.indexOf(name)
-      ) {
+      if (this.options.api && this.options.storage.length > 1 && !this.options.storage.indexOf(name)) {
         console.log(`[storage] Set "${name}" as primary storage for API`)
       }
 
@@ -146,9 +130,7 @@ class Server extends EventEmitter {
       this.storages.map((storage) =>
         storage.save(chunk).then(() => {
           if (exitBackup) {
-            console.log(
-              `[server/exit] performed backup of ${chunk.length} trades into ${storage.constructor.name}`
-            )
+            console.log(`[server/exit] performed backup of ${chunk.length} trades into ${storage.constructor.name}`)
           }
         })
       )
@@ -165,8 +147,7 @@ class Server extends EventEmitter {
     }
 
     const now = new Date()
-    let delay =
-      Math.ceil(now / this.options.backupInterval) * this.options.backupInterval - now - 20
+    let delay = Math.ceil(now / this.options.backupInterval) * this.options.backupInterval - now - 20
 
     if (delay < 1000) {
       delay += this.options.backupInterval
@@ -218,9 +199,7 @@ class Server extends EventEmitter {
         const id = exchange.id + ':' + pair
 
         if (!this.connections[id]) {
-          throw new Error(
-            `[server] couldn't delete connection ${id} because the connections[${id}] does not exists`
-          )
+          throw new Error(`[server] couldn't delete connection ${id} because the connections[${id}] does not exists`)
           return
         }
 
@@ -233,9 +212,7 @@ class Server extends EventEmitter {
         const id = exchange.id + ':' + pair
 
         if (this.connections[id]) {
-          throw new Error(
-            `[server] couldn't register connection ${id} because the connections[${id}] does not exists`
-          )
+          throw new Error(`[server] couldn't register connection ${id} because the connections[${id}] does not exists`)
           return
         }
 
@@ -304,9 +281,7 @@ class Server extends EventEmitter {
         }),
       }
 
-      console.log(
-        `[${ip}/ws/${ws.pairs.join('+')}] joined ${req.url} from ${req.headers['origin']}`
-      )
+      console.log(`[${ip}/ws/${ws.pairs.join('+')}] joined ${req.url} from ${req.headers['origin']}`)
 
       this.emit('connections', this.wss.clients.size)
 
@@ -450,35 +425,40 @@ class Server extends EventEmitter {
         })
     })
 
-    app.get('/:pairs?/historical/:from/:to/:timeframe?/:exchanges?', (req, res) => {
+    app.get('/historical/:from/:to/:timeframe?/:markets?', (req, res) => {
       const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress
       let from = req.params.from
       let to = req.params.to
       let timeframe = req.params.timeframe
-      let exchanges = req.params.exchanges
-      let pairs = req.params.pairs
+      let markets = req.params.markets
 
-      if (pairs && pairs.length) {
-        pairs = pairs
+      if (markets && markets.length) {
+        markets = markets
           .split('+')
           .map((a) => a.trim())
           .filter((a) => a.length)
-
-        for (let pair of pairs) {
-          if (!/^[A-Z_\-+]+$/.test(pair)) {
-            return res.status(400).json({
-              error: 'pair must be string full cap only',
-            })
-          } else if (this.options.pairs.indexOf(pair) === -1) {
-            return res.status(400).json({
-              error: 'unsupported pair "' + pair + '"',
-            })
-          }
-        }
       }
 
-      if (!pairs.length) {
-        pairs = ['BTCUSD', 'BTCUSDT']
+      if (!markets.length) {
+        markets = [
+          'BITMEX:XBTUSD',
+          'BINANCE:btcusdt',
+          'BITSTAMP:btcusd',
+          'BITFINEX:BTCUSD',
+          'BINANCE_FUTURES:btcusdt',
+          'COINBASE:BTC-USD',
+          'POLONIEX:USDT_BTC',
+          'KRAKEN:XBT/USD',
+          'OKEX:BTC-USDT',
+          'DERIBIT:BTC-PERPETUAL',
+          'HUOBI:btcusdt',
+          'HUOBI:BTC-USD',
+          'HITBTC:BTCUSD',
+          'FTX:BTC-PERP',
+          'BYBIT:BTCUSD',
+          'BITFINEX:BTCF0:USTF0',
+          'OKEX:BTC-USD-SWAP',
+        ]
       }
 
       if (!this.options.api || !this.storages) {
@@ -496,7 +476,6 @@ class Server extends EventEmitter {
       }
 
       if (storage.format === 'point') {
-        exchanges = exchanges ? exchanges.split('/') : []
         timeframe = parseInt(timeframe) || 1000 * 60 // default to 1m
 
         from = Math.floor(from / timeframe) * timeframe
@@ -527,17 +506,14 @@ class Server extends EventEmitter {
             from,
             to,
             timeframe,
-            exchanges,
-            pairs,
+            markets,
           })
         : Promise.resolve([])
       )
         .then((output) => {
           if (to - from > 1000 * 60) {
             console.log(
-              `[${ip}] requesting ${getHms(to - from)} (${output.length} ${
-                storage.format
-              }s, took ${getHms(+new Date() - fetchStartAt)})`
+              `[${ip}] requesting ${getHms(to - from)} (${output.length} ${storage.format}s, took ${getHms(+new Date() - fetchStartAt)})`
             )
           }
 
@@ -679,9 +655,7 @@ class Server extends EventEmitter {
     for (let exchange of this.exchanges) {
       for (let pair of pairs) {
         if (!exchange.pairs.indexOf(pair) === -1) {
-          console.log(
-            `[server/disconnectPairs] ${pair} is NOT currently connected on ${exchange.id} exchange (warning)`
-          )
+          console.log(`[server/disconnectPairs] ${pair} is NOT currently connected on ${exchange.id} exchange (warning)`)
           continue
         }
 

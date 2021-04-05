@@ -5,7 +5,7 @@ class Ftx extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'ftx'
+    this.id = 'FTX'
 
     this.endpoints = {
       PRODUCTS: 'https://ftx.com/api/markets',

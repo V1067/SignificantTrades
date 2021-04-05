@@ -4,7 +4,7 @@ class Bitfinex extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'bitfinex'
+    this.id = 'BITFINEX'
     this.channels = {}
     this.prices = {}
 

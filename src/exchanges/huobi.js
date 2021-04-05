@@ -5,7 +5,7 @@ class Huobi extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'huobi'
+    this.id = 'HUOBI'
 
     this.contractTypesAliases = {
       this_week: 'CW',

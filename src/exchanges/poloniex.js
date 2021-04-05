@@ -5,7 +5,7 @@ class Poloniex extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'poloniex'
+    this.id = 'POLONIEX'
     this.channels = {}
 
     this.endpoints = {

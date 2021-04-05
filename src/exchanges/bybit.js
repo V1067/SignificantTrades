@@ -5,7 +5,7 @@ class Bybit extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'bybit'
+    this.id = 'BYBIT'
 
     this.endpoints = {
       PRODUCTS: 'https://api.bybit.com/v2/public/symbols',

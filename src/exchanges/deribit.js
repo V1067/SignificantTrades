@@ -4,7 +4,7 @@ class Deribit extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'deribit'
+    this.id = 'DERIBIT'
 
     this.endpoints = {
       PRODUCTS: 'https://www.deribit.com/api/v1/public/getinstruments',

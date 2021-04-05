@@ -4,7 +4,7 @@ class Coinbase extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'coinbase'
+    this.id = 'COINBASE'
 
     this.endpoints = {
       PRODUCTS: 'https://api.pro.coinbase.com/products',

@@ -4,7 +4,7 @@ class Binance extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'binance'
+    this.id = 'BINANCE'
     this.lastSubscriptionId = 0
     this.subscriptions = {}
 

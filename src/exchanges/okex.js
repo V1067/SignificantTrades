@@ -7,7 +7,7 @@ class Okex extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'okex'
+    this.id = 'OKEX'
 
     this.endpoints = {
       PRODUCTS: [

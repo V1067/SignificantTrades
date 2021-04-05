@@ -88,7 +88,7 @@ class InfluxStorage {
       const query_from = `${this.options.influxDatabase}.autogen.${this.options.influxMeasurement}_${sourceTimeframe}`
       const query_into = `${this.options.influxDatabase}.autogen.${this.options.influxMeasurement}_${destinationTimeframe}`
       const coverage = `WHERE time > ${flooredRange.from}ms AND time < ${flooredRange.to}ms`
-      const group = `GROUP BY time(${destinationTimeframe}), exchange, pair fill(none)`
+      const group = `GROUP BY time(${destinationTimeframe}), market fill(none)`
 
       await this.influx
         .query(`${query} INTO ${query_into} FROM ${query_from} ${coverage} ${group}`)
@@ -107,11 +107,11 @@ class InfluxStorage {
       .query(
         `SELECT close FROM ${this.options.influxMeasurement}${
           this.options.influxTimeframe ? '_' + getHms(this.options.influxTimeframe) : ''
-        } GROUP BY "exchange", "pair" ORDER BY time DESC LIMIT 1`
+        } GROUP BY "market" ORDER BY time DESC LIMIT 1`
       )
       .then((data) => {
         for (let bar of data) {
-          this.lastClose[bar.exchange + ':' + bar.pair] = bar.close
+          this.lastClose[bar.market] = bar.close
         }
       })
   }
@@ -318,21 +318,13 @@ class InfluxStorage {
                 (fields.low = bar.low),
                 (fields.close = bar.close)
             }
-
-            if (bar.high < bar.open || bar.high < bar.close) {
-              console.log('inside high', bar.high, bar)
-            }
-            if (bar.low > bar.open || bar.low > bar.close) {
-              console.log('inside low', bar.low, bar)
-            }
-
+            
             return {
               measurement:
                 'trades' +
                 (this.options.influxTimeframe ? '_' + getHms(this.options.influxTimeframe) : ''),
               tags: {
-                exchange: bar.exchange,
-                pair: bar.pair,
+                market: trade.exchange + ':' + trade.pair,
               },
               fields: fields,
               timestamp: +bar.time,
@@ -359,8 +351,7 @@ class InfluxStorage {
               return {
                 measurement: 'liquidations',
                 tags: {
-                  exchange: trade.exchange,
-                  pair: trade.pair,
+                  market: trade.exchange + ':' + trade.pair,
                 },
                 fields: fields,
                 timestamp: +trade.timestamp,
@@ -378,17 +369,13 @@ class InfluxStorage {
     }))
   }
 
-  fetch({ from, to, timeframe = 60000, exchanges = [], pairs }) {
+  fetch({ from, to, timeframe = 60000, markets = [] }) {
     const timeframeText = getHms(timeframe)
 
     let query = `SELECT * FROM "${this.options.influxDatabase}"."autogen"."trades_${timeframeText}" WHERE time >= ${from}ms AND time < ${to}ms`
 
-    if (pairs.length) {
-      query += ` AND pair =~ /${pairs.join('|')}/`
-    }
-
-    if (exchanges.length) {
-      query += ` AND exchange =~ /${exchanges.join('|')}/`
+    if (markets.length) {
+      query += ` AND market =~ /${markets.join('|')}/`
     }
 
     console.log(query)

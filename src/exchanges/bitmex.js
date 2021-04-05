@@ -5,7 +5,7 @@ class Bitmex extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'bitmex'
+    this.id = 'BITMEX'
     this.pairCurrencies = {}
 
     this.endpoints = {
