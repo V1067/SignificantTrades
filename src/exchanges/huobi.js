@@ -11,6 +11,7 @@ class Huobi extends Exchange {
       this_week: 'CW',
       next_week: 'NW',
       quarter: 'CQ',
+      next_quarter: 'NQ'
     }
 
     this.endpoints = {
@@ -54,9 +55,11 @@ class Huobi extends Exchange {
             break
           case 'futures':
             pair = product.symbol + '_' + this.contractTypesAliases[product.contract_type]
+            specs[pair] = product.contract_size
             break
           case 'swap':
             pair = product.contract_code
+            specs[pair] = product.contract_size
             break
         }
 
@@ -125,33 +128,29 @@ class Huobi extends Exchange {
       api.send(JSON.stringify({ pong: json.ping }))
       return
     } else if (json.tick && json.tick.data && json.tick.data.length) {
-      const remotePair = json.ch.replace(/market.(.*).trade.detail/, '$1')
+      const pair = json.ch.replace(/market.(.*).trade.detail/, '$1')
 
       let name = this.id
 
-      if (!this.types[remotePair]) {
-        debugger
-      }
-
-      if (this.types[remotePair] !== 'spot') {
+      if (this.types[pair] !== 'spot') {
         name += '_futures'
       }
 
       this.emitTrades(
         api.id,
         json.tick.data.map((trade) => {
-          let amount = +trade.amount
+          let size = +trade.amount
 
-          if (typeof this.specs[remotePair] !== 'undefined') {
-            amount = (amount * this.specs[remotePair]) / trade.price
+          if (typeof this.specs[pair] === 'number') {
+            size = (size * this.specs[pair]) / trade.price
           }
 
           return {
             exchange: name,
-            pair: remotePair,
+            pair: pair,
             timestamp: trade.ts,
             price: +trade.price,
-            size: amount,
+            size: size,
             side: trade.direction,
           }
         })
