@@ -324,7 +324,7 @@ class InfluxStorage {
                 'trades' +
                 (this.options.influxTimeframe ? '_' + getHms(this.options.influxTimeframe) : ''),
               tags: {
-                market: trade.exchange + ':' + trade.pair,
+                market: bar.exchange + ':' + bar.pair,
               },
               fields: fields,
               timestamp: +bar.time,

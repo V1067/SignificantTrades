@@ -139,7 +139,7 @@ class Kraken extends Exchange {
 
       return this.emitTrades(api.id, [
         {
-          exchange: this.id + '_futures',
+          exchange: this.id,
           pair: json.product_id,
           timestamp: json.time,
           price: json.price,

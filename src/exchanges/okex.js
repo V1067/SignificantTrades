@@ -168,7 +168,7 @@ class Okex extends Exchange {
           size =
             ((trade.size || trade.qty) * this.specs[trade.instrument_id]) /
             (this.inversed[trade.instrument_id] ? trade.price : 1)
-          name += '_futures'
+          // name += '_futures'
         } else {
           size = trade.size
         }
@@ -266,7 +266,7 @@ class Okex extends Exchange {
             const size = +((trade.size * this.specs[productId]) / trade.price).toFixed(8)
 
             return {
-              exchange: this.id + '_futures',
+              exchange: this.id,
               pair: productId,
               timestamp,
               price: +trade.price,

@@ -132,9 +132,9 @@ class Huobi extends Exchange {
 
       let name = this.id
 
-      if (this.types[pair] !== 'spot') {
+      /*if (this.types[pair] !== 'spot') {
         name += '_futures'
-      }
+      }*/
 
       this.emitTrades(
         api.id,
