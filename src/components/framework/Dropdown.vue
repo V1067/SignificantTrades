@@ -2,25 +2,27 @@
   <div class="dropdown">
     <div v-if="label" class="dropdown__label" @click="toggle" v-html="label"></div>
     <div class="dropdown__selected" @click="toggle">
-      {{ (alwaysShowPlaceholder && options[selected]) || placeholder || 'Selection' }}
-      <transition name="scale">
-        <div class="dropdown__options" v-if="isOpen">
-          <div class="dropdown__scroller custom-scrollbar">
-            <div
-              class="dropdown__option"
-              v-for="(value, index) in options"
-              :key="index"
-              :class="{ active: !alwaysShowPlaceholder && index === selected }"
-              @click="set(index)"
-            >
-              <slot :value="value" :index="index">
-                <div>{{ value }}</div>
-              </slot>
-            </div>
+      <slot name="selection" :item="options[selected]" :placeholder="placeholder">
+        {{ (alwaysShowPlaceholder && options[selected]) || placeholder || 'Selection' }}
+      </slot>
+    </div>
+    <transition name="scale">
+      <div class="dropdown__options" v-if="isOpen">
+        <div class="dropdown__scroller custom-scrollbar">
+          <div
+            class="dropdown__option"
+            v-for="(value, index) in options"
+            :key="index"
+            :class="{ active: !alwaysShowPlaceholder && index === selected }"
+            @click="set(index)"
+          >
+            <slot name="option" :value="value" :index="index">
+              <div>{{ value }}</div>
+            </slot>
           </div>
         </div>
-      </transition>
-    </div>
+      </div>
+    </transition>
   </div>
 </template>
 

@@ -12,7 +12,7 @@ export default class extends Exchange {
     if (typeof this.specs[pair] !== 'undefined') {
       return 'wss://futures.kraken.com/ws/v1'
     } else {
-      return 'wss://ws.krasken.com'
+      return 'wss://ws.kraken.com/'
     }
   }
 

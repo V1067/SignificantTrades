@@ -1,16 +1,10 @@
 <template>
-  <div class="settings-stats settings-section -activable column" :class="{ active: showStats }">
+  <div class="settings-stats settings-section">
     <div class="settings-section__controls">
-      <a href="javascript:void(0);" class="settings-controls__add" v-tippy title="Add a stat" @click="$store.dispatch('settings/createStat')">
+      <a href="javascript:void(0);" class="settings-controls__add" v-tippy title="Add a stat" @click="$store.dispatch(paneId + '/createStat')">
         Add
         <i class="icon-add"></i>
       </a>
-    </div>
-    <div class="form-group -tight">
-      <label class="checkbox-control -on-off checkbox-control-input flex-right" v-tippy="{ placement: 'bottom' }" title="Enable stats">
-        <input type="checkbox" class="form-control" :checked="showStats" @change="$store.commit('settings/TOGGLE_STATS', $event.target.checked)" />
-        <div></div>
-      </label>
     </div>
     <div class="form-group -fill">
       <div class="column">
@@ -20,7 +14,7 @@
             class="form-control"
             :value="statsWindowStringified"
             placeholder="Window (minutes)"
-            @change="$store.commit('settings/SET_STATS_WINDOW', $event.target.value)"
+            @change="$store.commit(paneId + '/SET_STATS_WINDOW', $event.target.value)"
           />
         </div>
         <div class="form-group -tight">
@@ -29,7 +23,7 @@
               type="checkbox"
               class="form-control"
               :checked="statsChart"
-              @change="$store.commit('settings/TOGGLE_STATS_CHART', $event.target.checked)"
+              @change="$store.commit(paneId + '/TOGGLE_STATS_CHART', $event.target.checked)"
             />
             <div></div>
           </label>
@@ -42,7 +36,7 @@
               type="checkbox"
               class="form-control"
               :checked="counter.enabled"
-              @change="$store.dispatch('settings/updateStat', { id: counter.id, prop: 'enabled', value: $event.target.checked })"
+              @change="$store.dispatch(paneId + '/updateStat', { id: counter.id, prop: 'enabled', value: $event.target.checked })"
             />
             <div></div>
           </label>
@@ -65,31 +59,35 @@ import { Component, Vue } from 'vue-property-decorator'
 import { getHms } from '@/utils/helpers'
 
 @Component({
-  name: 'StatsSettings'
+  name: 'StatsSettings',
+  props: {
+    paneId: {
+      type: String,
+      required: true
+    }
+  }
 })
 export default class extends Vue {
-  get showStats() {
-    return this.$store.state.settings.showStats
+  paneId: string
+
+  get chart() {
+    return this.$store.state[this.paneId].chart
   }
 
-  get statsChart() {
-    return this.$store.state.settings.statsChart
+  get buckets() {
+    return Object.keys(this.$store.state[this.paneId].buckets).map(id => this.$store.state[this.paneId].buckets[id])
   }
 
-  get statsCounters() {
-    return Object.keys(this.$store.state.settings.statsCounters).map(id => this.$store.state.settings.statsCounters[id])
-  }
-
-  get statsWindow() {
-    return this.$store.state.settings.statsWindow
+  get window() {
+    return this.$store.state[this.paneId].window
   }
 
   get statsWindowStringified() {
-    return getHms(this.statsWindow || 0)
+    return getHms(this.window || 0)
   }
 
   openStat(id) {
-    dialogService.open(StatDialog, { id })
+    dialogService.open(StatDialog, { statId: id })
   }
 }
 </script>

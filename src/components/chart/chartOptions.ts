@@ -1,4 +1,6 @@
-import { LineWidth } from 'lightweight-charts'
+import store from '@/store'
+import { formatRgb, toRgb } from 'color-fns'
+import { ChartOptions, DeepPartial, LineWidth } from 'lightweight-charts'
 
 export const defaultChartOptions = {
   crosshair: {
@@ -18,6 +20,14 @@ export const defaultChartOptions = {
       labelVisible: true
     },
     mode: 0
+  },
+  watermark: {
+    color: 'rgba(255,255,255, 0.1)',
+    visible: false,
+    text: 'Loading',
+    fontSize: 24,
+    horzAlign: 'center',
+    vertAlign: 'center'
   },
   layout: {
     backgroundColor: 'transparent',
@@ -52,7 +62,7 @@ export const defaultChartOptions = {
       bottom: 0.2
     }
   }
-}
+} as DeepPartial<ChartOptions>
 
 export const defaultSerieOptions = {
   crosshairMarkerVisible: false,
@@ -125,6 +135,57 @@ export const defaultStatsChartOptions = {
     borderColor: 'rgba(255, 255, 255, .2)',
     timeVisible: true
   }
+}
+
+export function getCustomColorsOptions(color?: string) {
+  let textColor = color
+
+  if (!textColor) {
+    if (store.state.settings.textColor) {
+      textColor = store.state.settings.textColor
+    } else {
+      textColor = store.state.settings.theme === 'light' ? '#111111' : '#f6f6f6'
+    }
+  }
+
+  const borderColor = formatRgb({ ...toRgb(textColor), alpha: 0.2 })
+
+  const crossHairColor = store.state.settings.theme === 'light' ? 'rgba(0, 0, 0, .25)' : 'rgba(255, 255, 255, .25)'
+
+  const customColorsOptions = {
+    crosshair: {
+      vertLine: {
+        color: crossHairColor
+      },
+      horzLine: {
+        color: crossHairColor
+      }
+    },
+    layout: {
+      textColor: textColor,
+      borderColor
+    },
+    priceScale: {
+      borderColor
+    },
+    timeScale: {
+      borderColor
+    }
+  }
+
+  return customColorsOptions
+}
+
+export function getChartOptions(baseOptions: DeepPartial<ChartOptions>): DeepPartial<ChartOptions> {
+  const chartOptions = Object.assign({}, baseOptions)
+
+  const chartColorOptions = getCustomColorsOptions()
+
+  for (const prop in chartColorOptions) {
+    Object.assign(chartOptions[prop], chartColorOptions[prop])
+  }
+
+  return chartOptions
 }
 
 export const defaultPlotsOptions = {

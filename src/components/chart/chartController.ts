@@ -1,7 +1,6 @@
-import { formatRgb, toRgb } from 'color-fns'
 import { MAX_BARS_PER_CHUNKS } from '../../utils/constants'
 import { formatAmount, formatTime, getHms, setValueByDotNotation } from '../../utils/helpers'
-import { defaultChartOptions, defaultPlotsOptions, defaultSerieOptions } from './chartOptions'
+import { defaultChartOptions, defaultPlotsOptions, defaultSerieOptions, getChartOptions } from './chartOptions'
 import store from '../../store'
 import * as seriesUtils from './serieUtils'
 import * as TV from 'lightweight-charts'
@@ -52,13 +51,13 @@ export type SerieAdapter = (
 export type SerieTranspilationOutputType = 'ohlc' | 'value' | 'custom'
 
 export interface ActiveSerie {
-  enabled: boolean
   id: string
   type: string
   input: string
   options: any
   model: SerieTranspilationResult
   adapter: SerieAdapter
+  outputType?: SerieTranspilationOutputType
   api: TV.ISeriesApi<any>
 }
 
@@ -94,50 +93,54 @@ interface RendererSerieData {
 }
 
 export default class ChartController {
+  paneId: string
+
   chartInstance: TV.IChartApi
   chartElement: HTMLElement
   activeSeries: ActiveSerie[] = []
   activeRenderer: Renderer
   activeChunk: Chunk
-  renderedRange: TimeRange
+  renderedRange: TimeRange = { from: null, to: null }
   queuedTrades: Trade[] = []
   chartCache: ChartCache
   serieTranspiler: SerieTranspiler
   preventRender: boolean
   panPrevented: boolean
+  markets: { [identifier: string]: true }
 
   private _releaseQueueInterval: number
   private _releasePanTimeout: number
   private _preventImmediateRender: boolean
 
-  constructor() {
+  constructor(id: string) {
+    this.paneId = id
+
     this.chartCache = new ChartCache()
     this.serieTranspiler = new SerieTranspiler()
+
+    this.setMarkets(store.state.panes.panes[this.paneId].markets)
   }
 
-  createChart(containerElement, chartDimensions) {
+  setMarkets(markets: string[]) {
+    this.markets = markets.reduce((output, identifier) => {
+      output[identifier.replace(/:/g, '')] = true
+
+      return output
+    }, {})
+
+    this.updateWatermark()
+  }
+
+  createChart(containerElement) {
     console.log(`[chart/controller] create chart`)
 
-    let chartColor
+    const chartOptions = getChartOptions(defaultChartOptions)
 
-    if (store.state.settings.chartColor) {
-      chartColor = store.state.settings.chartColor
-    } else {
-      chartColor = store.state.settings.chartTheme === 'light' ? '#111111' : '#f6f6f6'
-    }
-
-    const options = Object.assign({}, defaultChartOptions, chartDimensions)
-
-    const chartColorOptions = this.getChartColorOptions(chartColor)
-
-    for (const prop in chartColorOptions) {
-      Object.assign(options[prop], chartColorOptions[prop])
-    }
-
-    this.chartInstance = TV.createChart(containerElement, options)
+    this.chartInstance = TV.createChart(containerElement, chartOptions)
     this.chartElement = containerElement
 
     this.addEnabledSeries()
+    this.updateWatermark()
   }
 
   /**
@@ -181,7 +184,7 @@ export default class ChartController {
   setSerieOption({ id, key, value }) {
     const serie = this.getSerie(id)
 
-    if (!serie || serie.enabled === false) {
+    if (!serie) {
       return
     }
 
@@ -269,13 +272,26 @@ export default class ChartController {
    * Add all enabled series
    */
   addEnabledSeries() {
-    for (const id in store.state.settings.series) {
-      if (store.state.settings.series[id].enabled === false) {
+    for (const id in store.state[this.paneId].series) {
+      if (store.state[this.paneId].series[id].enabled === false) {
         continue
       }
 
       this.addSerie(id)
     }
+  }
+
+  updateWatermark() {
+    if (!this.chartInstance) {
+      return
+    }
+
+    this.chartInstance.applyOptions({
+      watermark: {
+        text: `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0${Object.keys(this.markets).join(' + ')}\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`,
+        visible: true
+      }
+    })
   }
 
   /**
@@ -307,7 +323,7 @@ export default class ChartController {
    * @returns {string[]} id of series
    */
   getSeriesDependances(serie) {
-    return serie.model.references
+    return serie.model.references.slice()
   }
 
   /**
@@ -329,7 +345,7 @@ export default class ChartController {
    * @returns {boolean} success if true
    */
   addSerie(id) {
-    const serieSettings = store.state.settings.series[id] || {}
+    const serieSettings = store.state[this.paneId].series[id] || {}
     const defaultSerieSettings = defaultChartSeries[id] || {}
     const serieType = serieSettings.type || defaultSerieSettings.type
 
@@ -359,13 +375,12 @@ export default class ChartController {
       type: serieType,
       input: serieInput,
       options: serieOptions,
-      enabled: false,
       model: null,
       api: null,
       adapter: null
     }
 
-    store.commit('app/ENABLE_SERIE', id)
+    store.commit(this.paneId + '/ENABLE_SERIE', id)
 
     if (!this.prepareSerie(serie)) {
       return
@@ -402,7 +417,7 @@ export default class ChartController {
       console.log(`\t ${functions.length} function(s)`)
       console.log(`\t ${references.length} references(s)`)
 
-      store.commit('app/SET_SERIE_ERROR', {
+      store.commit(this.paneId + '/SET_SERIE_ERROR', {
         id: serie.id,
         error: null
       })
@@ -427,7 +442,7 @@ export default class ChartController {
       console.error(`[chart/prepareSerie] transpilation failed`)
       console.error(`\t->`, error)
 
-      store.commit('app/SET_SERIE_ERROR', {
+      store.commit(this.paneId + '/SET_SERIE_ERROR', {
         id: serie.id,
         error: error.message
       })
@@ -452,14 +467,14 @@ export default class ChartController {
    * @param {Renderer} renderer
    * @returns
    */
-  bindSerie(serie, renderer) {
+  bindSerie(serie: ActiveSerie, renderer) {
     if (!renderer || typeof renderer.series[serie.id] !== 'undefined' || !serie.model) {
       return
     }
 
     const { functions, variables } = JSON.parse(JSON.stringify(serie.model))
 
-    this.serieTranspiler.updateInstructionsArgument(functions)
+    this.serieTranspiler.updateInstructionsArgument(functions, serie.options)
 
     console.log(`[chart/bindSerie] binding ${serie.id} ...`)
 
@@ -512,7 +527,7 @@ export default class ChartController {
     this.unbindSerie(serie, this.activeRenderer)
 
     // update store (runtime prop)
-    store.commit('app/DISABLE_SERIE', serie.id)
+    store.commit(this.paneId + '/DISABLE_SERIE', serie.id)
 
     // recursive remove of dependent series
     /* for (let dependentId of this.getSeriesDependendingOn(serie)) {
@@ -533,7 +548,7 @@ export default class ChartController {
   toggleSerie(id) {
     let enabled = true
 
-    if (!store.state.settings.series[id] || store.state.settings.series[id].enabled === false) {
+    if (!store.state[this.paneId].series[id] || store.state[this.paneId].series[id].enabled === false) {
       enabled = false
     }
 
@@ -607,17 +622,17 @@ export default class ChartController {
    * start queuing next trades
    */
   setupQueue() {
-    if (this._releaseQueueInterval || !store.state.settings.chartRefreshRate) {
+    if (this._releaseQueueInterval || !store.state[this.paneId].refreshRate) {
       return
     }
 
-    console.log(`[chart/controller] setup queue (${getHms(store.state.settings.chartRefreshRate)})`)
+    console.log(`[chart/controller] setup queue (${getHms(store.state[this.paneId].refreshRate)})`)
 
     this._releaseQueueInterval = setInterval(() => {
       if (!this._preventImmediateRender) {
         this.releaseQueue()
       }
-    }, store.state.settings.chartRefreshRate)
+    }, store.state[this.paneId].refreshRate)
   }
 
   /**
@@ -682,12 +697,15 @@ export default class ChartController {
       return
     }
 
-    let i = 0
-
-    for (i; i < trades.length; i++) {
+    for (let i = 0; i < trades.length; i++) {
       const trade = trades[i]
       const identifier = trade.exchange + trade.pair
-      const timestamp = Math.floor(trade.timestamp / 1000 / store.state.settings.timeframe) * store.state.settings.timeframe
+
+      if (!this.markets[identifier]) {
+        continue
+      }
+
+      const timestamp = Math.floor(trade.timestamp / 1000 / store.state[this.paneId].timeframe) * store.state[this.paneId].timeframe
 
       if (!this.activeRenderer || this.activeRenderer.timestamp < timestamp) {
         if (this.activeRenderer) {
@@ -767,7 +785,7 @@ export default class ChartController {
 
       this.activeRenderer.sources[identifier].empty = false
 
-      const isActive = store.state.app.activeExchanges[identifier]
+      const isActive = store.state.app.activeExchanges[trade.exchange]
 
       if (trade.liquidation) {
         this.activeRenderer.sources[identifier]['l' + trade.side] += amount
@@ -789,7 +807,7 @@ export default class ChartController {
 
       if (isActive) {
         this.activeRenderer.bar['v' + trade.side] += amount
-        this.activeRenderer.bar['c' + trade.side]++
+        this.activeRenderer.bar['c' + trade.side] += trade.count
         this.activeRenderer.bar.empty = false
       }
     }
@@ -848,13 +866,13 @@ export default class ChartController {
     let from = null
     let to = null
 
-    let temporaryRenderer
+    let temporaryRenderer: Renderer
 
     for (let i = 0; i <= bars.length; i++) {
       const bar = bars[i]
 
       if (!bar || !temporaryRenderer || bar.timestamp > temporaryRenderer.timestamp) {
-        if (temporaryRenderer && temporaryRenderer.bar.hasData) {
+        if (temporaryRenderer && !temporaryRenderer.bar.empty) {
           if (from === null) {
             from = temporaryRenderer.timestamp
           }
@@ -883,11 +901,11 @@ export default class ChartController {
         }
       }
 
-      if (!store.state.app.activeExchanges[bar.exchange]) {
+      if (!store.state.app.activeExchanges[bar.exchange] || !this.markets[bar.exchange + bar.pair]) {
         continue
       }
 
-      temporaryRenderer.bar.hasData = true
+      temporaryRenderer.bar.empty = false
       temporaryRenderer.bar.vbuy += bar.vbuy
       temporaryRenderer.bar.vsell += bar.vsell
       temporaryRenderer.bar.cbuy += bar.cbuy
@@ -895,7 +913,7 @@ export default class ChartController {
       temporaryRenderer.bar.lbuy += bar.lbuy
       temporaryRenderer.bar.lsell += bar.lsell
 
-      temporaryRenderer.exchanges[bar.exchange] = this.cloneSourceBar(bar)
+      temporaryRenderer.sources[bar.exchange + bar.pair] = this.cloneSourceBar(bar)
     }
 
     if (!series) {
@@ -939,7 +957,7 @@ export default class ChartController {
       from = visibleRange.from
 
       if (visibleLogicalRange.from < 0) {
-        from += store.state.settings.timeframe * visibleLogicalRange.from
+        from += store.state[this.paneId].timeframe * visibleLogicalRange.from
 
         console.log(
           '[chart/renderVisibleChunks] Ajusted visibleRange using visibleLogicalRange: ',
@@ -951,7 +969,7 @@ export default class ChartController {
     const selection = ['------------------------']
     const bars = this.chartCache.chunks
       .filter(c => {
-        c.rendered = !visibleRange || c.to > from - store.state.settings.timeframe * 20
+        c.rendered = !visibleRange || c.to > from - store.state[this.paneId].timeframe * 20
         selection.push(
           `${c.rendered ? '[selected] ' : ''} #${this.chartCache.chunks.indexOf(c)} | FROM: ${formatTime(c.from)} | TO: ${formatTime(
             c.to
@@ -1077,7 +1095,7 @@ export default class ChartController {
       if (isNaN(serieData.value)) {
         this.unbindSerie(serie, this.activeRenderer)
 
-        store.commit('app/SET_SERIE_ERROR', {
+        store.commit(this.paneId + '/SET_SERIE_ERROR', {
           id: serie.id,
           error: `${serie.id} is NaN`
         })
@@ -1188,7 +1206,7 @@ export default class ChartController {
   /**
    * @param {Renderer} bar bar to clear for next timestamp
    */
-  resetRendererBar(renderer) {
+  resetRendererBar(renderer: Renderer) {
     renderer.bar = {
       vbuy: 0,
       vsell: 0,
@@ -1196,12 +1214,12 @@ export default class ChartController {
       csell: 0,
       lbuy: 0,
       lsell: 0,
-      hasData: false
+      empty: true
     }
 
-    if (typeof renderer.exchanges !== 'undefined') {
-      for (const exchange in renderer.exchanges) {
-        this.resetBar(renderer.exchanges[exchange])
+    if (typeof renderer.sources !== 'undefined') {
+      for (const identifier in renderer.sources) {
+        this.resetBar(renderer.sources[identifier])
       }
     }
   }
@@ -1221,36 +1239,5 @@ export default class ChartController {
     bar.lbuy = 0
     bar.lsell = 0
     bar.empty = false
-  }
-
-  getChartColorOptions(color) {
-    const borderColor = formatRgb({ ...toRgb(color), alpha: 0.2 })
-
-    const crossHairColor = store.state.settings.chartTheme === 'light' ? 'rgba(0, 0, 0, .25)' : 'rgba(255, 255, 255, .25)'
-
-    return {
-      crosshair: {
-        vertLine: {
-          color: crossHairColor
-        },
-        horzLine: {
-          color: crossHairColor
-        }
-      },
-      layout: {
-        textColor: color,
-        borderColor
-      },
-      priceScale: {
-        borderColor
-      },
-      timeScale: {
-        borderColor
-      }
-    }
-  }
-
-  setChartColor(color) {
-    this.chartInstance.applyOptions(this.getChartColorOptions(color))
   }
 }

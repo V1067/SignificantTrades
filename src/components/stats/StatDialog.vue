@@ -14,8 +14,8 @@
           class="form-control"
           :value="model.name"
           @change="
-            $store.dispatch('settings/updateStat', {
-              id: id,
+            $store.dispatch(paneId + '/updateStat', {
+              id: statId,
               prop: 'name',
               value: $event.target.value
             })
@@ -29,8 +29,8 @@
           model="rgb"
           :value="model.color"
           @input="
-            $store.dispatch('settings/updateStat', {
-              id: id,
+            $store.dispatch(paneId + '/updateStat', {
+              id: statId,
               prop: 'color',
               value: $event
             })
@@ -45,10 +45,10 @@
           type="text"
           class="form-control"
           :value="getHms(model.window)"
-          :placeholder="getHms($store.state.settings.statsWindow) + ' (default)'"
+          :placeholder="getHms($store.state[paneId].window) + ' (default)'"
           @change="
-            $store.dispatch('settings/updateStat', {
-              id: id,
+            $store.dispatch(paneId + '/updateStat', {
+              id: statId,
               prop: 'window',
               value: $event.target.value
             })
@@ -62,8 +62,8 @@
           placeholder="auto"
           :content="model.precision"
           @output="
-            $store.dispatch('settings/updateStat', {
-              id: id,
+            $store.dispatch(paneId + '/updateStat', {
+              id: statId,
               prop: 'precision',
               value: $event
             })
@@ -85,20 +85,25 @@
         rows="5"
         :value="model.output"
         @change="
-          $store.dispatch('settings/updateStat', {
-            id: id,
+          $store.dispatch(paneId + '/updateStat', {
+            id: statId,
             prop: 'output',
             value: $event.target.value
           })
         "
       ></textarea>
       <p class="help-text mt-8">
-        Sum <code>{{ model.output }}</code> over {{ getHms(model.window || $store.state.settings.statsWindow) }} window
+        Sum <code>{{ model.output }}</code> over {{ getHms(model.window || $store.state[paneId].window) }} window
       </p>
     </div>
     <hr />
     <div class="form-group">
-      <label class="checkbox-control -on-off" v-tippy="{ placement: 'bottom' }" :title="enabled ? 'Enable' : 'Disable'" @change="disable(id, $event)">
+      <label
+        class="checkbox-control -on-off"
+        v-tippy="{ placement: 'bottom' }"
+        :title="enabled ? 'Enable' : 'Disable'"
+        @change="disable(statId, $event)"
+      >
         <input type="checkbox" class="form-control" :checked="enabled" />
         <span>
           {{ enabled ? 'Active' : 'Disabled' }}
@@ -117,7 +122,7 @@ import Dialog from '@/components/framework/Dialog.vue'
 import DialogMixin from '@/mixins/dialogMixin'
 
 export default {
-  props: ['id'],
+  props: ['paneId', 'statId'],
   mixins: [DialogMixin],
   components: {
     Dialog
@@ -135,7 +140,7 @@ export default {
     }
   }),
   created() {
-    this.model = store.state.settings.statsCounters[this.id] || {}
+    this.model = store.state[this.paneId].statsCounters[this.statId] || {}
 
     if (this.model.name) {
       this.title = this.model.name
@@ -146,7 +151,7 @@ export default {
       return getHms(value)
     },
     disable(id, event) {
-      this.$store.dispatch('settings/updateStat', { id: id, prop: 'enabled', value: event.target.checked })
+      this.$store.dispatch(this.paneId + '/updateStat', { id: id, prop: 'enabled', value: event.target.checked })
       this.close()
     }
   }

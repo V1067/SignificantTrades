@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import App from './App.vue'
-import VueTippy from 'vue-tippy'
+import VueTippy, { TippyComponent } from 'vue-tippy'
 import './assets/sass/app.scss'
 import store from './store'
 // import router from './router'
@@ -20,7 +20,7 @@ Vue.use(VueTippy, {
   arrow: false,
   animation: !store.state.settings.disableAnimations ? 'scale' : 'none',
   size: 'small',
-  delay: 0,
+  delay: !store.state.settings.disableAnimations ? 0 : [200, 0],
   animateFill: false,
   theme: 'blue'
 })
@@ -28,6 +28,7 @@ Vue.use(VueTippy, {
 import Verte from '@/components/framework/picker/Verte.vue'
 import Editable from '@/components/framework/Editable.vue'
 import Dropdown from '@/components/framework/Dropdown.vue'
+Vue.component('tippy', TippyComponent)
 Vue.component('verte', Verte)
 Vue.component('dropdown', Dropdown)
 Vue.component('editable', Editable)

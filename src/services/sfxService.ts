@@ -23,38 +23,52 @@ class SfxService {
     this.context = new AudioContext()
 
     if (this.context.state === 'suspended') {
-      let lastTryTimestamp = 0
+      const app = document.getElementById('app')
+
+      setTimeout(() => {
+        app.focus()
+      }, 500)
 
       const resumeOnFocus = (event => {
-        if (event.type !== 'mousemove' || event.timeStamp - lastTryTimestamp > 3000) {
-          console.log('[sfx] Yet another try to start AudioContext')
+        store.dispatch('app/showNotice', {
+          id: 'audio',
+          type: 'error',
+          title: 'Browser prevented audio from starting 😣<br>Click somewhere to retry.'
+        })
 
-          if (event.type === 'mousemove') {
-            lastTryTimestamp = event.timeStamp
-          }
+        console.log('[sfx] Yet another try to start AudioContext')
 
-          if (this.context && store.state.settings.useAudio) {
-            this.context.resume()
-          }
+        if (this.context && store.state.settings.useAudio) {
+          this.context.resume()
+        }
 
-          if (!store.state.settings.useAudio || this.context.state !== 'suspended') {
-            console.info(`[sfx] AudioContext resumed successfully during the "${event.type}" event.`)
-            window.removeEventListener('focus', resumeOnFocus)
-            window.removeEventListener('blur', resumeOnFocus)
-            document.body.removeEventListener('mousemove', resumeOnFocus)
-            document.body.removeEventListener('mouseenter', resumeOnFocus)
-            document.body.removeEventListener('mouseleave', resumeOnFocus)
-            document.body.removeEventListener('mouseup', resumeOnFocus)
-          }
+        if (!store.state.settings.useAudio || this.context.state !== 'suspended') {
+          store.dispatch('app/showNotice', {
+            id: 'audio',
+            type: 'success',
+            title: 'Audio resumed successfully 🔊'
+          })
+
+          console.info(`[sfx] AudioContext resumed successfully during the "${event.type}" event.`)
+          window.removeEventListener('focus', resumeOnFocus)
+          window.removeEventListener('blur', resumeOnFocus)
+          app.removeEventListener('mouseenter', resumeOnFocus)
+          app.removeEventListener('mouseleave', resumeOnFocus)
+          app.removeEventListener('mouseup', resumeOnFocus)
         }
       }).bind(this)
 
       window.addEventListener('blur', resumeOnFocus)
       window.addEventListener('focus', resumeOnFocus)
-      document.body.addEventListener('mousemove', resumeOnFocus)
-      document.body.addEventListener('mouseenter', resumeOnFocus)
-      document.body.addEventListener('mouseleave', resumeOnFocus)
-      document.body.addEventListener('mouseup', resumeOnFocus)
+      app.addEventListener('mouseenter', resumeOnFocus)
+      app.addEventListener('mouseleave', resumeOnFocus)
+      app.addEventListener('mouseup', resumeOnFocus)
+    } else {
+      store.dispatch('app/showNotice', {
+        id: 'audio',
+        type: 'success',
+        title: 'Audio enabled 🔊'
+      })
     }
 
     return this.context
@@ -196,6 +210,11 @@ class SfxService {
 
     this.context = null
     this.output = null
+
+    store.dispatch('app/showNotice', {
+      id: 'audio',
+      title: 'Audio disabled 🔇'
+    })
   }
 }
 

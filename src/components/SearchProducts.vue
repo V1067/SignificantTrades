@@ -20,8 +20,17 @@ export default class extends Vue {
     return this.$store.state.app.showSearch
   }
 
+  get searchTarget() {
+    return this.$store.state.app.searchTarget
+  }
+
   get pairs() {
-    return this.$store.state.settings.pairs
+    console.log('get pairs', this.searchTarget)
+    if (this.searchTarget) {
+      return this.$store.state.panes.panes[this.searchTarget].markets
+    } else {
+      return Object.keys(this.$store.state.panes.marketsListeners)
+    }
   }
 
   get indexedProducts() {
@@ -53,8 +62,16 @@ export default class extends Vue {
   }
 
   setPairs(pairs: string[]) {
-    this.$store.dispatch('settings/mergePairs', pairs)
-    this.$store.commit('app/TOGGLE_SEARCH', false)
+    if (this.searchTarget) {
+      this.$store.dispatch('panes/setMarketsForAll', pairs)
+    } else {
+      this.$store.dispatch('panes/setMarketsForPane', {
+        id: this.searchTarget,
+        markets: pairs
+      })
+    }
+
+    this.$store.dispatch('app/hideSearch')
   }
 
   bindSearchOpenByKey() {
@@ -92,7 +109,7 @@ export default class extends Vue {
 
     if (/[a-z0-9]/i.test(charStr)) {
       this.query = charStr
-      this.$store.commit('app/TOGGLE_SEARCH', true)
+      this.$store.dispatch('app/showSearch')
     }
   }
 
@@ -100,7 +117,7 @@ export default class extends Vue {
     const element = this.$el.children[0]
 
     if (element !== event.target && !element.contains(event.target)) {
-      this.$store.commit('app/TOGGLE_SEARCH', false)
+      this.$store.dispatch('app/hideSearch')
     }
   }
 }

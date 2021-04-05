@@ -62,11 +62,15 @@ export default class extends Exchange {
     const liquidations: Trade[] = []
 
     for (let i = 0; i < json.data.length; i++) {
+      json.data[i].exchange = this.id
+      json.data[i].pair = json.market
+      json.data[i].timestamp = +new Date(json.data[i].time)
+
       if (json.data[i].liquidation) {
         liquidations.push(json.data[i])
-      } else {
-        trades.push(json.data[i])
       }
+
+      trades.push(json.data[i])
     }
 
     if (liquidations.length) {

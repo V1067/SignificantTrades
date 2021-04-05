@@ -1,26 +1,20 @@
-// import { Pane } from '@/store/panes'
 import { Pane } from '@/store/panes'
 import Vue from 'vue'
 import Component from 'vue-class-component'
-// import Component from 'vue-class-component'
 
 @Component({
   props: {
-    pane: {
+    paneId: {
       required: true,
-      type: Object as () => Pane
+      type: String
     }
   }
 })
 export default class PaneMixin extends Vue {
-  private pane: Pane
+  paneId: string
 
-  get id() {
-    return this.pane.i
-  }
-
-  get settings() {
-    return this.pane.settings
+  get pane(): Pane {
+    return this.$store.state.panes.panes[this.paneId]
   }
 
   onResize?(newWidth: number, newHeight: number)

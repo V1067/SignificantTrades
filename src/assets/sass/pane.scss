@@ -1,0 +1,117 @@
+.vue-grid-item {
+  > .vue-resizable-handle {
+    background: 0;
+    opacity: 0.2;
+    font-size: 0.8rem;
+    padding: 0.5rem;
+    width: auto;
+    height: auto;
+
+    &:before {
+      font-family: 'icon';
+      content: $icon-bottom-right;
+    }
+
+    &:hover {
+      opacity: 1;
+      background-color: rgba(white, 0.2);
+    }
+  }
+
+  &.vue-grid-placeholder {
+    background-color: $blue;
+    opacity: 0.4;
+  }
+}
+
+#app.-light {
+  .vue-grid-item {
+    > .vue-resizable-handle:hover {
+      background-color: rgba(black, 0.2);
+    }
+  }
+}
+
+.pane {
+  position: relative;
+  background-color: rgba(black, 0.2);
+
+  &:hover .pane-header {
+    display: flex;
+  }
+}
+
+#app.-light .pane {
+  background-color: rgba(white, 0.2);
+}
+
+.pane-header {
+  display: none;
+  height: 20px;
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  right: 0;
+  justify-content: space-between;
+
+  .dropdown {
+    align-self: stretch;
+
+    .dropdown__selected {
+      padding-bottom: 4px;
+    }
+
+    .options {
+      position: absolute;
+    }
+  }
+
+  button,
+  .dropdown__selected {
+    padding: 2px;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  button {
+    border: 0;
+    background: none;
+    color: inherit;
+    position: relative;
+
+    align-self: stretch;
+    cursor: pointer;
+
+    > span {
+      display: inline-block;
+      transition: all 0.5s $ease-elastic;
+    }
+
+    &.-volume {
+      font-size: 14px;
+    }
+  }
+}
+
+.pane-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: 0 0 8px 0;
+}
+
+.pane-controls {
+  display: flex;
+  align-items: stretch;
+  border-radius: 0 0 0 8px;
+}
+
+.pane-name,
+.pane-controls {
+  background-color: rgba(black, 0.5);
+  backdrop-filter: blur(5px);
+  padding: 0 4px;
+}

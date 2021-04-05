@@ -224,13 +224,23 @@ export function array_move(arr, old_index, new_index) {
   arr.splice(new_index, 0, arr.splice(old_index, 1)[0])
 }
 
-export function getSerieSettings(id) {
-  const serieSettings = store.state.settings.series[id] || {}
-  const defaultSerieSettings = defaultChartSeries[id] || {}
+export function getSerieSettings(paneId: string, serieId: string) {
+  const serieSettings = store.state[paneId].series[serieId] || {}
+  const defaultSerieSettings = defaultChartSeries[serieId] || {}
 
-  return { ...serieSettings, ...defaultSerieSettings, options: Object.assign({}, defaultSerieSettings.options || {}, serieSettings.options || {}) }
+  return {
+    ...defaultSerieSettings,
+    ...serieSettings,
+    options: Object.assign({}, defaultSerieSettings.options || {}, serieSettings.options || {}),
+    id: serieId
+  }
 }
 
+export function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1)
+}
+
+/*
 export function getAllSeries() {
   const ids = Object.keys(store.state.settings.series)
     .concat(Object.keys(defaultChartSeries))
@@ -242,6 +252,7 @@ export function getAllSeries() {
     return series
   }, [])
 }
+*/
 
 export function getErrorMessage(error: Error | string) {
   let errorMessage = 'Something wrong happened.'

@@ -2,7 +2,7 @@
 import * as seriesUtils from './serieUtils'
 
 import exchanges from '@/exchanges'
-import { Renderer, SerieInstruction, SerieTranspilationResult } from './chartController'
+import { Renderer, SerieAdapter, SerieInstruction, SerieTranspilationResult } from './chartController'
 const AVERAGE_FUNCTIONS_NAMES = ['sma', 'ema', 'cma']
 const VARIABLE_REGEX = /([a-zA-Z0_9_]+)\s*=\s*(.*)/
 const STRIP_COMMENTS_REGEX = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/gm
@@ -382,7 +382,7 @@ export default class SerieTranspiler {
     return (function() {
       'use strict'
       return new Function('renderer', FUNCTIONS_VAR_NAME, VARIABLES_VAR_NAME, 'options', 'utils', '"use strict"; return ' + output)
-    })()
+    })() as SerieAdapter
   }
 
   findClosingBracketMatchIndex(str, pos) {
@@ -418,7 +418,8 @@ export default class SerieTranspiler {
     return result
   }
 
-  updateInstructionsArgument(functions) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  updateInstructionsArgument(functions, options) {
     for (const instruction of functions) {
       if (typeof instruction.arg === 'undefined') {
         continue

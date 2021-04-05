@@ -63,7 +63,7 @@ export default class extends Vue {
   }
 
   onBlur(event) {
-    if (event.which === 13) {
+    if (event.which === 13 && !isNaN(event.target.innerText)) {
       event.preventDefault()
       return
     }

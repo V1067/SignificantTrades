@@ -195,7 +195,13 @@ export default {
     updateWidth() {
       const trackRect = this.track.getBoundingClientRect()
       this.currentX = trackRect.left
-      this.width = trackRect.width
+
+      if (!trackRect.width) {
+        this.width = parseInt(this.track.parentElement.style.width)
+      } else {
+        this.width = trackRect.width
+      }
+
       this.stepWidth = (this.width / (this.max - this.min)) * this.step
     },
     /**
@@ -339,7 +345,6 @@ export default {
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  margin-bottom: 0.5rem;
 
   &.-alpha {
     .slider__track {
@@ -388,7 +393,7 @@ export default {
   margin: 0;
   width: auto;
   height: 8px;
-  background: rgba(black, 33%);
+  background: lighten($dark, 20%);
   will-change: transfom;
   border-radius: 10px;
 }

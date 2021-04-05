@@ -1,7 +1,7 @@
 .tippy-tooltip {
   max-width: 180px;
   &.blue-theme {
-    background-color: rgba(black, .8);
+    background-color: rgba(black, 0.8);
   }
 
   ul,
@@ -19,4 +19,23 @@
       }
     }
   }
+}
+
+.tippy-popper[x-placement^='bottom'] .tippy-arrow {
+  border-bottom-color: rgba(black, 0.8);
+  top: -8px;
+}
+
+.tippy-popper[x-placement^='top'] .tippy-arrow {
+  border-top-color: rgba(black, 0.8);
+  bottom: -8px;
+}
+
+.tippy-popper[x-placement^='left'] .tippy-arrow {
+  border-left-color: rgba(black, 0.8);
+  right: -8px;
+}
+.tippy-popper[x-placement^='right'] .tippy-arrow {
+  border-right-color: rgba(black, 0.8);
+  left: -8px;
 }

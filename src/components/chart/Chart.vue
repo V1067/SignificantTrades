@@ -1,41 +1,15 @@
 <template>
-  <div id="chart">
+  <div class="pane-chart">
+    <pane-header :paneId="paneId" :showTimeframe="true" />
     <div class="chart__container" ref="chartContainer"></div>
-    <div
-      class="chart__handler -width"
-      ref="chartWidthHandler"
-      @mousedown="startManualResize($event, 'width')"
-      @dblclick.stop.prevent="resetWidth"
-    ></div>
-    <div
-      class="chart__handler -height"
-      ref="chartHeightHandler"
-      @mousedown="startManualResize($event, 'height')"
-      @dblclick.stop.prevent="resetHeight"
-    ></div>
-
     <div class="chart__series">
-      <SerieControl v-for="(serie, index) in activeSeries" :key="index" :id="serie" :legend="legend[serie]" />
+      <SerieControl v-for="(serie, index) in activeSeries" :key="index" :serieId="serie" :paneId="paneId" :legend="legend[serie]" />
 
-      <dropdown
-        class="available-series -left"
-        v-if="inactiveSeries.length"
-        :options="inactiveSeries"
-        :alwaysShowPlaceholder="true"
-        placeholder="+ serie"
-        @output="addSerie"
-        v-slot="{ value }"
-      >
-        <template v-if="!value.id">
-          <div class="-orange">+ serie</div>
-        </template>
-        <template v-else>
-          <div class="serie-dropdown-control">
-            <span>{{ value.name }}</span>
-            <i class="icon-trash -action" @click="$store.dispatch('settings/removeSerie', value.id)"></i>
-          </div>
-        </template>
-      </dropdown>
+      <div class="column mt8">
+        <a href="javascript:void(0);" @click="addSerie" v-tippy="{ placement: 'bottom' }" title="Add" class="mr4">
+          <i class="icon-plus"></i>
+        </a>
+      </div>
     </div>
     <div class="chart__controls">
       <!--<button class="btn -small" @click="refreshChart">Refresh</button>-->
@@ -62,7 +36,7 @@ import { Component, Mixins } from 'vue-property-decorator'
 import ChartController, { TimeRange } from './chartController'
 
 import dialogService from '../../services/dialogService'
-import { formatPrice, formatAmount, formatTime, getSerieSettings } from '../../utils/helpers'
+import { formatPrice, formatAmount, formatTime } from '../../utils/helpers'
 
 import SerieControl from './SerieControl.vue'
 import { MAX_BARS_PER_CHUNKS } from '../../utils/constants'
@@ -71,79 +45,59 @@ import CreateSerieDialog from './CreateSerieDialog.vue'
 import aggregatorService from '@/services/aggregatorService'
 import historicalService from '@/services/historicalService'
 import PaneMixin from '@/mixins/paneMixin'
+import { getCustomColorsOptions } from './chartOptions'
+import PaneHeader from '../panes/PaneHeader.vue'
 
 let chart: ChartController = null
 
 @Component({
   name: 'Chart',
   components: {
-    SerieControl
+    SerieControl,
+    PaneHeader
   }
 })
 export default class extends Mixins(PaneMixin) {
   resizing = {}
   fetching = false
+  reachedEnd = false
   legend = {}
 
   private onStoreMutation: () => void
-  private _doManualResize: () => void
-  private _stopManualResize: () => void
+  private _refreshChartDimensionsTimeout: number
   private _keepAliveTimeout: number
   private _onPanTimeout: number
 
   get activeSeries() {
-    return this.$store.state.app.activeSeries
+    return this.$store.state[this.paneId].activeSeries
   }
 
   get timeframe() {
-    return this.$store.state.settings.timeframe
+    return this.$store.state[this.paneId].timeframe
   }
 
   get exchanges() {
     return this.$store.state.exchanges
   }
 
-  get chartHeight() {
-    return this.$store.state.settings.chartHeight
+  get markets() {
+    return this.$store.state.panes.panes[this.paneId].markets
   }
 
-  get sidebarWidth() {
-    return this.$store.state.settings.sidebarWidth
+  get refreshRate() {
+    return this.$store.state[this.paneId].refreshRate
   }
 
-  get chartRefreshRate() {
-    return this.$store.state.settings.chartRefreshRate
+  get series() {
+    return this.$store.state[this.paneId].series
   }
 
-  get showExchangesBar() {
-    return this.$store.state.settings.showExchangesBar
+  get theme() {
+    return this.$store.state.settings.theme
   }
 
   get timezoneOffset() {
     return this.$store.state.settings.timezoneOffset
-  }
-
-  get series() {
-    return this.$store.state.settings.series
-  }
-
-  get chartTheme() {
-    return this.$store.state.settings.chartTheme
-  }
-
-  get inactiveSeries() {
-    const series = Object.keys(this.$store.state.settings.series)
-      .map(id => getSerieSettings(id))
-      .filter(serie => {
-        return serie.enabled === false
-      })
-      .concat([
-        {
-          id: null
-        }
-      ])
-
-    return series
   }
 
   $refs!: {
@@ -151,12 +105,18 @@ export default class extends Mixins(PaneMixin) {
   }
 
   created() {
-    chart = new ChartController()
-
-    aggregatorService.on('trades', this.onTrades)
+    chart = new ChartController(this.paneId)
 
     this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
+        case 'settings/SET_CHART_COLOR':
+          if (mutation.payload) {
+            chart.chartInstance.applyOptions(getCustomColorsOptions(mutation.payload))
+          }
+          break
+        case 'settings/SET_CHART_THEME':
+          chart.chartInstance.applyOptions(getCustomColorsOptions())
+          break
         case 'settings/SET_TIMEZONE_OFFSET':
           chart.clearChart()
           chart.renderVisibleChunks()
@@ -164,45 +124,40 @@ export default class extends Mixins(PaneMixin) {
         case 'app/EXCHANGE_UPDATED':
           chart.renderVisibleChunks()
           break
-        case 'settings/SET_PAIR':
-          chart.clear()
+        case 'panes/SET_PANE_MARKETS':
+          if (mutation.payload.id === this.paneId) {
+            chart.setMarkets(mutation.payload.markets)
+
+            this.clear()
+            this.fetch()
+          }
           break
-        case 'settings/SET_TIMEFRAME':
-          chart.clear()
+        case this.paneId + '/SET_TIMEFRAME':
+          this.clear()
           this.fetch()
           break
-        case 'settings/SET_CHART_REFRESH_RATE':
+        case this.paneId + '/SET_REFRESH_RATE':
           chart.clearQueue()
           chart.setupQueue()
           break
-        case 'settings/SET_SERIE_OPTION':
+        case this.paneId + '/SET_SERIE_OPTION':
           chart.setSerieOption(mutation.payload)
           break
-        case 'settings/SET_SERIE_TYPE':
-        case 'settings/SET_SERIE_INPUT':
+        case this.paneId + '/SET_SERIE_TYPE':
+        case this.paneId + '/SET_SERIE_INPUT':
           chart.rebuildSerie(mutation.payload.id)
           break
-        case 'settings/SET_CHART_COLOR':
-          if (mutation.payload) {
-            chart.setChartColor(mutation.payload)
-          }
-          break
-        case 'settings/SET_CHART_THEME':
-          chart.setChartColor(this.chartTheme === 'light' ? '#111111' : '#f6f6f6')
-          break
-        case 'settings/TOGGLE_SERIE':
+        case this.paneId + '/TOGGLE_SERIE':
           chart.toggleSerie(mutation.payload)
           break
-        case 'settings/TOGGLE_EXCHANGES_BAR':
-          setTimeout(this.refreshChartDimensions.bind(this))
-          break
         case 'app/SET_OPTIMAL_DECIMAL':
-        case 'settings/SET_DECIMAL_PRECISION':
-          // eslint-disable-next-line no-case-declarations
-          const priceFormat = { precision: mutation.payload, minMove: 1 / Math.pow(10, mutation.payload) }
+        case this.paneId + '/SET_DECIMAL_PRECISION':
+          if (this.$store.state[this.paneId].decimalPrecision && mutation.payload.type === 'app/SET_OPTIMAL_DECIMAL') {
+            break
+          }
 
           for (const id of this.activeSeries) {
-            const serie = this.$store.state.settings.series[id]
+            const serie = this.$store.state[this.paneId].series[id]
 
             if (!serie.options) {
               continue
@@ -212,13 +167,13 @@ export default class extends Mixins(PaneMixin) {
               chart.setSerieOption({
                 id: serie.id,
                 key: 'priceFormat.precision',
-                value: priceFormat.precision
+                value: mutation.payload
               })
 
               chart.setSerieOption({
                 id: serie.id,
                 key: 'priceFormat.minMove',
-                value: priceFormat.minMove
+                value: 1 / Math.pow(10, mutation.payload)
               })
             }
           }
@@ -230,29 +185,34 @@ export default class extends Mixins(PaneMixin) {
 
   mounted() {
     console.log(`[chart.mounted]`)
-
-    chart.createChart(this.$refs.chartContainer, this.getChartDimensions())
     chart.setupQueue()
 
-    this.bindChartEvents()
-
-    this.fetch().then(() => {
-      // this.fetchOrRecover(chart.chartInstance.timeScale().getVisibleLogicalRange())
-    })
+    this.createChart()
 
     this.keepAlive()
   }
 
-  beforeDestroy() {
-    this.unbindChartEvents()
+  async createChart() {
+    await this.$nextTick()
 
-    this.onStoreMutation()
+    chart.createChart(this.$refs.chartContainer)
+
+    this.bindChartEvents()
+
+    this.fetch()
+  }
+
+  destroyChart() {
+    this.unbindChartEvents()
 
     chart.destroy()
 
     clearTimeout(this._keepAliveTimeout)
+  }
 
-    aggregatorService.off('trades', this.onTrades)
+  beforeDestroy() {
+    this.destroyChart()
+    this.onStoreMutation()
   }
 
   /**
@@ -260,12 +220,14 @@ export default class extends Mixins(PaneMixin) {
    * @param {boolean} clear will clear the chart / initial fetch
    */
   fetch(rangeToFetch?: TimeRange) {
-    if (!historicalService.canFetch()) {
+    const historicalMarkets = historicalService.getHistoricalMarktets(this.markets)
+
+    if (!historicalMarkets) {
       return Promise.reject('Fetch is disabled')
     }
 
     const visibleRange = chart.chartInstance.timeScale().getVisibleRange() as TimeRange
-    const timeframe = +this.$store.state.settings.timeframe
+    const timeframe = +this.$store.state[this.paneId].timeframe
 
     if (!rangeToFetch) {
       const barsCount = window.innerWidth / 2
@@ -294,7 +256,7 @@ export default class extends Mixins(PaneMixin) {
     chart.lockRender()
 
     return historicalService
-      .fetch(Math.round(rangeToFetch.from * 1000), Math.round(rangeToFetch.to * 1000 - 1))
+      .fetch(Math.round(rangeToFetch.from * 1000), Math.round(rangeToFetch.to * 1000 - 1), timeframe, historicalMarkets)
       .then(({ data, from, to, format }) => {
         /**
          * @type {Chunk}
@@ -334,8 +296,6 @@ export default class extends Mixins(PaneMixin) {
           while (chunk.bars.length) {
             const bar = chunk.bars.shift()
 
-            bar.timestamp
-
             if (chunks[0].bars.length >= MAX_BARS_PER_CHUNKS && chunks[0].to < bar.timestamp) {
               chunks.unshift({
                 from: bar.timestamp,
@@ -372,6 +332,10 @@ export default class extends Mixins(PaneMixin) {
         }
       })
       .catch(err => {
+        if (err === 'no-more-data') {
+          this.reachedEnd = true
+        }
+
         console.error(err)
       })
       .then(() => {
@@ -421,7 +385,7 @@ export default class extends Mixins(PaneMixin) {
    * @param{Trade[]} trades trades to process
    */
   onTrades(trades) {
-    if (chart.preventRender || this.chartRefreshRate) {
+    if (chart.preventRender || this.refreshRate) {
       chart.queueTrades(trades)
       return
     }
@@ -429,33 +393,20 @@ export default class extends Mixins(PaneMixin) {
     chart.renderRealtimeTrades(trades)
   }
 
-  /**
-   * refresh chart dimensions based on container dimensions
-   */
-  refreshChartDimensions(width, height) {
-    const dimensions = this.getChartDimensions()
-
-    chart.chartInstance.resize(width || dimensions.width, height || dimensions.height)
-
-    this.$el.parentElement.style.width = (width || dimensions.width) + 'px'
-  }
-
-  /**
-   * get chart height based on container dimensions
-   */
-  getChartDimensions() {
-    const w = document.documentElement.clientWidth
-    const h = document.documentElement.clientHeight
-
-    return {
-      width: window.innerWidth < 768 ? window.innerWidth : this.sidebarWidth > 0 ? window.innerWidth - this.sidebarWidth : w - 320,
-      height:
-        window.innerWidth >= 768
-          ? this.$el.parentElement.clientHeight - (this.showExchangesBar ? 24 : 0)
-          : this.chartHeight > 0
-          ? this.chartHeight
-          : +Math.min(w / 2, Math.max(300, h / 3)).toFixed()
+  refreshChartDimensions(debounceTime = 500) {
+    if (!chart || !chart.chartInstance) {
+      return
     }
+
+    clearTimeout(this._refreshChartDimensionsTimeout)
+
+    this._refreshChartDimensionsTimeout = setTimeout(() => {
+      if (!chart || !chart.chartInstance) {
+        return
+      }
+
+      chart.chartInstance.resize(this.$el.clientWidth, this.$el.clientHeight)
+    }, debounceTime)
   }
 
   /**
@@ -483,11 +434,15 @@ export default class extends Mixins(PaneMixin) {
   }
 
   bindChartEvents() {
+    aggregatorService.on('trades', this.onTrades)
+
     chart.chartInstance.subscribeCrosshairMove(this.onCrosshair)
     chart.chartInstance.timeScale().subscribeVisibleLogicalRangeChange(this.onPan)
   }
 
   unbindChartEvents() {
+    aggregatorService.off('trades', this.onTrades)
+
     chart.chartInstance.unsubscribeCrosshairMove(this.onCrosshair)
     chart.chartInstance.timeScale().unsubscribeVisibleLogicalRangeChange(this.onPan)
   }
@@ -508,21 +463,13 @@ export default class extends Mixins(PaneMixin) {
     chart.redraw()
   }
 
-  async addSerie(index) {
-    const option = this.inactiveSeries[index]
+  async addSerie() {
+    const serie = await dialogService.openAsPromise(CreateSerieDialog, { paneId: this.paneId })
 
-    if (!option || !option.id) {
-      const serie = await dialogService.openAsPromise(CreateSerieDialog)
-
-      if (serie) {
-        this.$store.dispatch('settings/createSerie', serie)
-        dialogService.open(SerieDialog, { id: serie.id }, 'serie')
-      }
-
-      return
+    if (serie) {
+      this.$store.dispatch(this.paneId + '/createSerie', serie)
+      dialogService.open(SerieDialog, { paneId: this.paneId, serieId: serie.id }, 'serie')
     }
-
-    this.$store.dispatch('settings/toggleSerie', option.id)
   }
 
   fetchOrRecover(visibleLogicalRange) {
@@ -532,7 +479,7 @@ export default class extends Mixins(PaneMixin) {
 
     const barsToLoad = Math.abs(visibleLogicalRange.from)
     const rangeToFetch = {
-      from: chart.chartCache.cacheRange.from - barsToLoad * this.$store.state.settings.timeframe,
+      from: chart.chartCache.cacheRange.from - barsToLoad * this.timeframe,
       to: chart.chartCache.cacheRange.from
     }
 
@@ -542,7 +489,7 @@ export default class extends Mixins(PaneMixin) {
     console.log(`\t-> current cacheRange: FROM: ${formatTime(chart.chartCache.cacheRange.from)} | TO: ${formatTime(chart.chartCache.cacheRange.to)}`)
     // this.debugPosition()
 
-    if (!chart.chartCache.cacheRange.from || rangeToFetch.to <= chart.chartCache.cacheRange.from) {
+    if (!this.reachedEnd && (!chart.chartCache.cacheRange.from || rangeToFetch.to <= chart.chartCache.cacheRange.from)) {
       this.fetch(rangeToFetch)
     } else {
       console.warn(
@@ -555,13 +502,22 @@ export default class extends Mixins(PaneMixin) {
       chart.renderVisibleChunks()
     }
   }
+
+  onResize(newWidth: number, newHeight: number) {
+    console.log('trigger resize frome parrent', newWidth, newHeight)
+    this.refreshChartDimensions()
+  }
+
+  clear() {
+    chart.clear()
+
+    this.reachedEnd = false
+  }
 }
 </script>
 
 <style lang="scss">
-#chart {
-  position: relative;
-
+.pane-chart {
   &:hover .chart__series,
   &:hover .chart__controls {
     opacity: 1;
@@ -570,7 +526,8 @@ export default class extends Mixins(PaneMixin) {
 
 .chart__container {
   position: relative;
-  width: calc(100% + 1px);
+  width: 100%;
+  height: 100%;
 
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -578,15 +535,11 @@ export default class extends Mixins(PaneMixin) {
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-
-  &.-fetching {
-    opacity: 0.5;
-  }
 }
 
 .chart__series {
   position: absolute;
-  top: 1em;
+  top: 2em;
   left: 1em;
   font-family: 'Barlow Semi Condensed';
   z-index: 2;
@@ -595,6 +548,8 @@ export default class extends Mixins(PaneMixin) {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+
+  font-size: 12px;
 }
 
 .chart__layout {

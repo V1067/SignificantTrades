@@ -5,22 +5,22 @@ import store from '../store'
 class HistoricalService extends EventEmitter {
   lastFetchUrl: string
 
-  canFetch() {
-    // todo check historicalSupportedMarkets
-    return false
+  getHistoricalMarktets(markets: string[]) {
+    return markets.filter(market => store.state.app.historicalMarkets.indexOf(market) !== -1)
   }
-  getApiUrl(from, to) {
+
+  getApiUrl(from, to, timeframe, markets) {
     let url = store.state.app.apiUrl
 
     url = url.replace(/\{from\}/, from)
     url = url.replace(/\{to\}/, to)
-    url = url.replace(/\{timeframe\}/, (store.state.settings.timeframe * 1000).toString())
-    url = url.replace(/\{markets\}/, store.state.settings.pairs.map(m => m.replace(/:/g, '_')).join('+'))
+    url = url.replace(/\{timeframe\}/, (timeframe * 1000).toString())
+    url = url.replace(/\{markets\}/, markets.join('+'))
 
     return url
   }
-  fetch(from, to) {
-    const url = this.getApiUrl(from, to)
+  fetch(from: number, to: number, timeframe: number, markets: string[]) {
+    const url = this.getApiUrl(from, to, timeframe, markets)
 
     if (this.lastFetchUrl === url) {
       return Promise.reject()
@@ -29,8 +29,6 @@ class HistoricalService extends EventEmitter {
     this.lastFetchUrl = url
 
     store.commit('app/TOGGLE_LOADING', true)
-
-    this.emit('fetchStart', to - from)
 
     return new Promise((resolve, reject) => {
       fetch(url)
@@ -91,28 +89,14 @@ class HistoricalService extends EventEmitter {
     const refs = {}
 
     for (let i = data.length - 1; i >= 0; i--) {
-      refs[data[i].exchange] = data[i].open
-      if (typeof data[i].vol_buy !== 'undefined') {
-        data[i].vbuy = data[i].vol_buy
-        data[i].vsell = data[i].vol_sell
-        data[i].cbuy = data[i].count_buy
-        data[i].csell = data[i].count_sell
-        data[i].lbuy = data[i].liquidation_buy
-        data[i].lsell = data[i].liquidation_sell
-      }
       data[i].timestamp = +new Date(data[i].time) / 1000
 
-      delete data[i].time
-      delete data[i].count
-      delete data[i].vol
-      if (typeof data[i].vol_buy !== 'undefined') {
-        delete data[i].vol_buy
-        delete data[i].vol_sell
-        delete data[i].count_buy
-        delete data[i].count_sell
-        delete data[i].liquidation_buy
-        delete data[i].liquidation_sell
-      }
+      const market: string[] = data[i].market.split(':')
+      data[i].exchange = market.shift()
+      data[i].pair = market.join(':')
+      delete data[i].market
+
+      refs[data[i].exchange] = data[i].open
 
       if (data[i].time === initialTs) {
         delete refs[data[i].exchange]

@@ -11,10 +11,10 @@
         <button class="btn -small" @click="edit" v-tippy title="Edit"><i class="icon-edit"></i></button>
         <button class="btn -small" @click="remove" v-tippy title="Disable"><i class="icon-cross"></i></button>
       </div>
-      <div v-if="legend" class="serie__legend">{{ legend }}</div>
+      <div class="serie__legend" :style="'color: ' + color">{{ legend }}</div>
     </template>
     <template v-else>
-      <i class="icon-warning mr15"></i>
+      <i class="icon-warning ml4 mr8"></i>
       {{ error }}
     </template>
   </div>
@@ -26,45 +26,49 @@ import dialogService from '../../services/dialogService'
 import { defaultChartSeries } from './chartSeries'
 
 export default {
-  props: ['id', 'legend'],
+  props: ['paneId', 'serieId', 'legend'],
   computed: {
     serie: function() {
-      return this.$store.state.settings.series[this.id]
+      return this.$store.state[this.paneId].series[this.serieId]
     },
     name: function() {
       if (this.serie.name && this.serie.name.length) {
         return this.serie.name
-      } else if (defaultChartSeries[this.id]) {
-        return defaultChartSeries[this.id].name
+      } else if (defaultChartSeries[this.serieId]) {
+        return defaultChartSeries[this.serieId].name
       } else {
-        return this.id
+        return this.serieId
       }
     },
     visible: function() {
       return !this.serie.options || typeof this.serie.options.visible === 'undefined' ? true : this.serie.options.visible
     },
+    color: function() {
+      if (!this.serie.options) {
+        return null
+      }
+
+      return this.serie.options.color || this.serie.options.lineColor || this.serie.options.upColor
+    },
     error: function() {
-      return this.$store.state.app.activeSeriesErrors[this.id]
+      return this.$store.state[this.paneId].activeSeriesErrors[this.serieId]
     }
   },
   methods: {
     edit() {
-      dialogService.open(SerieDialog, { id: this.id }, 'serie')
-    },
-    bringOnTop() {
-      alert('top')
+      dialogService.open(SerieDialog, { paneId: this.paneId, serieId: this.serieId }, 'serie')
     },
     toggleVisibility() {
       if (!this.serie.options) {
-        this.$store.commit('settings/CUSTOMIZE_SERIE', this.id)
+        this.$store.commit(this.paneId + '/CUSTOMIZE_SERIE', this.serieId)
       }
 
       this.$nextTick(() => {
-        this.$store.dispatch('settings/toggleSerieVisibility', this.id)
+        this.$store.dispatch(this.paneId + '/toggleSerieVisibility', this.serieId)
       })
     },
     remove() {
-      this.$store.dispatch('settings/toggleSerie', this.id)
+      this.$store.dispatch(this.paneId + '/toggleSerie', this.serieId)
     }
   }
 }
@@ -75,6 +79,7 @@ export default {
   display: flex;
   width: 0;
   white-space: nowrap;
+  height: 14px;
 
   &.-error {
     color: $red;
@@ -87,7 +92,6 @@ export default {
   &__name {
     position: relative;
     cursor: pointer;
-    line-height: 1.5;
   }
 
   &__legend {
@@ -95,11 +99,12 @@ export default {
     margin-left: 0.4em;
     font-family: monospace;
     pointer-events: none;
-    line-height: 1.8;
+    line-height: 1.6;
     letter-spacing: 0px;
     order: 2;
     transition: visibility;
     transition-delay: 1s;
+    font-size: 11px;
 
     text-shadow: 1px 1px black;
   }

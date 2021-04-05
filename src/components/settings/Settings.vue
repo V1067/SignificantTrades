@@ -5,17 +5,51 @@
         <a href="#" class="stack__toggler icon-cross" @click="close"></a>
 
         <section>
-          <trade-list-settings v-if="settings.indexOf('list') > -1" class="mb8"></trade-list-settings>
+          <div v-if="settings.indexOf('list') > -1" class="settings-section settings-trades">
+            <div class="form-group mb8">
+              <label class="checkbox-control -aggr" @change="$store.commit('settings/TOGGLE_AGGREGATION', $event.target.checked)">
+                <input type="checkbox" class="form-control" :checked="aggregateTrades" />
+                <div></div>
+                <span>Trades aggregation is {{ aggregateTrades ? 'enabled' : 'disabled' }}</span>
+              </label>
+            </div>
+
+            <div class="form-group mb8">
+              <label
+                class="checkbox-control -slippage"
+                :title="
+                  calculateSlippage === 'price'
+                    ? 'Show slippage in $'
+                    : calculateSlippage === 'bps'
+                    ? 'Show slippage in basis point (bps)'
+                    : 'Slippage disabled'
+                "
+                v-tippy="{ placement: 'left' }"
+              >
+                <input type="checkbox" class="form-control" :checked="calculateSlippage" @change="$store.commit('settings/TOGGLE_SLIPPAGE')" />
+                <div></div>
+                <span v-if="calculateSlippage === 'price'"> Calculate slippage in price difference (<i class="icon-dollar"></i>) </span>
+                <span v-if="calculateSlippage === 'bps'"> Calculate slippage in bps <i class="icon-bps"></i> </span>
+                <span v-if="!calculateSlippage">Do not show slippage</span>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-control checkbox-control-input -auto" v-tippy="{ placement: 'left' }" title="Size display preference">
+                <input
+                  type="checkbox"
+                  class="form-control"
+                  :checked="preferQuoteCurrencySize"
+                  @change="$store.commit('settings/SET_QUOTE_AS_PREFERED_CURRENCY', $event.target.checked)"
+                />
+                <span>Size in</span>
+                <div on="quote currency" off="base currency"></div>
+                <span>(<i :class="preferQuoteCurrencySize ? 'icon-quote' : 'icon-base'"></i>)</span>
+              </label>
+            </div>
+          </div>
           <div class="settings__title" @click="$store.commit('settings/TOGGLE_SETTINGS_PANEL', 'list')">
             Trades list
-            <i class="icon-up"></i>
-          </div>
-        </section>
-
-        <section>
-          <thresholds-settings v-if="settings.indexOf('thresholds') > -1"></thresholds-settings>
-          <div class="settings__title" @click="$store.commit('settings/TOGGLE_SETTINGS_PANEL', 'thresholds')">
-            Thresholds ({{ thresholds.length }})
             <i class="icon-up"></i>
           </div>
         </section>
@@ -29,16 +63,36 @@
         </section>
 
         <section>
-          <stats-settings v-if="settings.indexOf('stats') > -1"></stats-settings>
-          <div class="settings__title" @click="$store.commit('settings/TOGGLE_SETTINGS_PANEL', 'stats')">Stats <i class="icon-up"></i></div>
-        </section>
-        <section>
-          <counters-settings v-if="settings.indexOf('counters') > -1"></counters-settings>
-          <div class="settings__title" @click="$store.commit('settings/TOGGLE_SETTINGS_PANEL', 'counters')">Counter <i class="icon-up"></i></div>
-        </section>
-
-        <section>
-          <chart-settings v-if="settings.indexOf('chart') > -1"></chart-settings>
+          <div v-if="settings.indexOf('chart') > -1" class="settings-section settings-chart">
+            <div class="form-group mb8">
+              <label class="checkbox-control flex-left">
+                <input
+                  type="checkbox"
+                  class="form-control"
+                  :checked="!!timezoneOffset"
+                  @change="$store.commit('settings/SET_TIMEZONE_OFFSET', !timezoneOffset ? new Date().getTimezoneOffset() * 60000 * -1 : 0)"
+                />
+                <div></div>
+                <span>Show local time</span>
+              </label>
+            </div>
+            <div class="form-group column mb8">
+              <verte :value="backgroundColor" @input="$event !== backgroundColor && $store.dispatch('settings/setBackgroundColor', $event)"></verte>
+              <label class="-fill -center ml8">Background color</label>
+            </div>
+            <div class="form-group column mb8">
+              <verte
+                picker="square"
+                menuPosition="left"
+                model="rgb"
+                :value="textColor"
+                @input="$event !== textColor && $store.commit('settings/SET_CHART_COLOR', $event)"
+              ></verte>
+              <label for="" class="-fill -center ml8"
+                >Text color <a><i class="icon-cross text-small" v-if="textColor" @click="$store.commit('settings/SET_CHART_COLOR', null)"></i></a
+              ></label>
+            </div>
+          </div>
           <div class="settings__title" @click="$store.commit('settings/TOGGLE_SETTINGS_PANEL', 'chart')">
             Chart
             <i class="icon-up"></i>
@@ -106,25 +160,15 @@ import Exchange from './Exchange.vue'
 import SettingsImportConfirmation from './ImportConfirmation.vue'
 
 import dialogService from '../../services/dialogService'
-import TradeListSettings from '../trades/TradeListSettings.vue'
-import ThresholdsSettings from './ThresholdsSettings.vue'
 import AudioSettings from './AudioSettings.vue'
-import StatsSettings from '../stats/StatsSettings.vue'
-import CountersSettings from '../counters/CountersSettings.vue'
 import OtherSettings from './OtherSettings.vue'
-import ChartSettings from './ChartSettings.vue'
 
 @Component({
   name: 'Settings',
   components: {
     Exchange,
-    TradeListSettings,
-    ThresholdsSettings,
     AudioSettings,
-    CountersSettings,
-    StatsSettings,
-    OtherSettings,
-    ChartSettings
+    OtherSettings
   }
 })
 export default class extends Vue {
@@ -136,16 +180,36 @@ export default class extends Vue {
     return this.$store.state.app.version
   }
 
-  get thresholds() {
-    return this.$store.state.settings.thresholds
-  }
-
   get buildDate() {
     return this.$store.state.app.buildDate
   }
 
   get settings() {
     return this.$store.state.settings.settings
+  }
+
+  get timezoneOffset() {
+    return this.$store.state.settings.timezoneOffset
+  }
+
+  get backgroundColor() {
+    return this.$store.state.settings.backgroundColor
+  }
+
+  get textColor() {
+    return this.$store.state.settings.textColor
+  }
+
+  get aggregateTrades() {
+    return this.$store.state.settings.aggregateTrades
+  }
+
+  get preferQuoteCurrencySize() {
+    return this.$store.state.settings.preferQuoteCurrencySize
+  }
+
+  get calculateSlippage() {
+    return this.$store.state.settings.calculateSlippage
   }
 
   created() {
@@ -414,17 +478,6 @@ export default class extends Vue {
 
       &:after {
         content: unicode($icon-magic);
-      }
-    }
-
-    &.-rip input ~ div {
-      &:before,
-      &:after {
-        content: unicode($icon-tomb);
-      }
-
-      &:before {
-        font-size: 1.5em;
       }
     }
 

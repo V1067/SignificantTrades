@@ -17,6 +17,7 @@ export interface Trade {
   price: number
   size: number
   side: 'buy' | 'sell'
+  count?: number
   originalPrice?: number
   liquidation?: boolean
   slippage?: number
@@ -72,13 +73,14 @@ class Aggregator extends EventEmitter {
     // cache calculateSlippage & aggregateTrades values
     // to avoid re-evaluate vuex getters each time it is called
     store.subscribe(mutation => {
-      if (mutation.type === 'settings/TOGGLE_STATS' || mutation.type === 'settings/TOGGLE_COUNTERS') {
-        if (store.state.settings.showStats || store.state.settings.showCounters) {
-          this.setupStatsInterval()
-        } else {
-          this.clearStatsInterval()
-        }
+      switch (mutation.type) {
+        case 'panes/SET_PANE_MARKETS':
+        case 'panes/ADD_PANE':
+        case 'panes/REMOVE_PANE':
+          this.refreshStatsBuckets()
+          break
       }
+
       if (mutation.type === 'settings/TOGGLE_SLIPPAGE') {
         this.calculateSlippage = store.state.settings.calculateSlippage.valueOf()
       } else if (mutation.type === 'settings/TOGGLE_AGGREGATION') {
@@ -90,20 +92,13 @@ class Aggregator extends EventEmitter {
   }
 
   initialize() {
-    this.bindTimers()
     this.bindExchanges()
     this.bindTradesEvent()
+    this.setupAggrInterval()
+    this.refreshStatsBuckets()
 
     if (this.optimalDecimalToBeDetermined) {
       this.determineOptimalDecimal()
-    }
-  }
-
-  bindTimers() {
-    this.setupAggrInterval()
-
-    if (store.state.settings.showStats || store.state.settings.showCounters) {
-      this.setupStatsInterval()
     }
   }
 
@@ -129,7 +124,7 @@ class Aggregator extends EventEmitter {
     }
   }
 
-  onTrades(trades) {
+  onTrades(trades: Trade[]) {
     for (let i = 0; i < trades.length; i++) {
       const trade = trades[i]
       const market = trade.exchange + ':' + trade.pair
@@ -138,13 +133,15 @@ class Aggregator extends EventEmitter {
         trade.originalPrice = this.marketsPrices[market] || trade.price
       }
 
+      trade.count = 1
+
       this.marketsPrices[market] = trade.price
 
       this.queueTrade(trade)
     }
   }
 
-  onAggrTrades(trades) {
+  onAggrTrades(trades: Trade[]) {
     const now = +new Date()
 
     for (let i = 0; i < trades.length; i++) {
@@ -157,6 +154,7 @@ class Aggregator extends EventEmitter {
         if (aggTrade.timestamp === trade.timestamp && aggTrade.side === trade.side) {
           aggTrade.size += trade.size
           aggTrade.price = trade.price
+          aggTrade.count++
           continue
         } else {
           this.queueTrade(aggTrade)
@@ -169,7 +167,9 @@ class Aggregator extends EventEmitter {
 
       this.marketsPrices[market] = trade.price
 
-      this.onGoingAggregations[market] = Object.assign({}, trade)
+      trade.count = 1
+
+      this.onGoingAggregations[market] = trade
       this.onGoingAggregations[market].timeout = now + 50
     }
   }
@@ -194,12 +194,8 @@ class Aggregator extends EventEmitter {
         this.pendingStats.timestamp = trade.timestamp
       }
 
-      if (trade.liquidation) {
-        this.pendingStats['l' + trade.side] += size
-      } else {
-        this.pendingStats['c' + trade.side]++
-        this.pendingStats['v' + trade.side] += size
-      }
+      this.pendingStats['c' + trade.side] += trade.count
+      this.pendingStats['v' + trade.side] += size
     }
 
     this.pendingTrades.push(trade)
@@ -243,10 +239,22 @@ class Aggregator extends EventEmitter {
     }
   }
 
-  onLiquidations(trades) {
-    for (let i = 0; i < trades.length; i++) {
-      this.pendingTrades.push(trades)
+  onLiquidations(trades: Trade[]) {
+    if (this._statsInterval !== null) {
+      for (let i = 0; i < trades.length; i++) {
+        const trade = trades[i]
+
+        if (store.state.app.activeExchanges[trade.exchange]) {
+          if (!this.pendingStats.timestamp) {
+            this.pendingStats.timestamp = trade.timestamp
+          }
+
+          this.pendingStats['l' + trade.side] += (store.state.settings.preferQuoteCurrencySize ? trade.price : 1) * trade.size
+        }
+      }
     }
+
+    this.emit('trades', trades)
   }
 
   onSubscribed(exchangeId, pair) {
@@ -310,7 +318,7 @@ class Aggregator extends EventEmitter {
     const promises: Promise<void>[] = []
 
     for (const exchangeId in marketsByExchange) {
-      if (store.state.exchanges[exchangeId].disabled === true) {
+      if (!store.state.exchanges[exchangeId] || store.state.exchanges[exchangeId].disabled === true) {
         continue
       }
 
@@ -353,11 +361,11 @@ class Aggregator extends EventEmitter {
       return output
     }, {})
 
-    let promises: Promise<void>[]
+    const promises: Promise<void>[] = []
 
     for (const exchangeId in marketsByExchange) {
       const exchange = getExchangeById(exchangeId)
-      debugger
+
       if (exchange) {
         for (const market of marketsByExchange[exchangeId]) {
           promises.push(exchange.unlink(market))
@@ -390,6 +398,27 @@ class Aggregator extends EventEmitter {
     if (this._statsInterval) {
       clearInterval(this._statsInterval)
       this._statsInterval = null
+    }
+  }
+
+  refreshStatsBuckets() {
+    // todo: different buckets for each pane
+
+    let requireStatsInterval = false
+
+    for (const id in store.state.panes.panes) {
+      const pane = store.state.panes.panes[id]
+
+      if (pane.type === 'stats' || pane.type === 'counters') {
+        requireStatsInterval = true
+        break
+      }
+    }
+
+    if (requireStatsInterval && !this._statsInterval) {
+      this.setupStatsInterval()
+    } else if (!requireStatsInterval && this._statsInterval) {
+      this.clearStatsInterval()
     }
   }
 
@@ -429,12 +458,12 @@ class Aggregator extends EventEmitter {
       const prices = Object.values(this.marketsPrices)
 
       if (prices.length > store.state.app.activeMarkets.length / 2) {
-        const optimalDecimal = Math.round(prices.map(price => countDecimals(price)).reduce((a, b) => a + b, 0) / prices.length)
+        const optimalDecimal = Math.ceil(prices.map(price => countDecimals(price)).reduce((a, b) => a + b, 0) / prices.length)
 
         store.dispatch('app/showNotice', {
           type: 'info',
-          title: `According to the recent trades, the decimal precision has been set to ${optimalDecimal}.`,
-          timeout: 10000
+          title: `Precision set to ${optimalDecimal}`,
+          timeout: 5000
         })
 
         store.commit('app/SET_OPTIMAL_DECIMAL', optimalDecimal)

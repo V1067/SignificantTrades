@@ -24,13 +24,13 @@ const applyBackgroundColor = (el, rgb, modifier: number | boolean = false) => {
 export default {
   bind(el, binding) {
     const unwatchBackground = store.watch(
-      state => state.settings.chartBackgroundColor,
+      state => state.settings.backgroundColor,
       rgb => {
         applyBackgroundColor(el, rgb, +binding.value)
       }
     )
     const unwatchColor = store.watch(
-      state => state.settings.chartColor,
+      state => state.settings.textColor,
       rgb => {
         el.style.color = rgb ? rgb : ''
       }
@@ -39,7 +39,7 @@ export default {
     el.__background_unwatch_background_color__ = unwatchBackground
     el.__background_unwatch_color__ = unwatchColor
 
-    applyBackgroundColor(el, store.state.settings.chartBackgroundColor, +binding.value)
+    applyBackgroundColor(el, store.state.settings.backgroundColor, +binding.value)
   },
   unbind(el) {
     el.__background_unwatch_color__ && el.__background_unwatch_color__()

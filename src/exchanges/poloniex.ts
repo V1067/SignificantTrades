@@ -7,7 +7,7 @@ export default class extends Exchange {
     PRODUCTS: 'https://www.poloniex.com/public?command=returnTicker'
   }
 
-  private channels: { [id: string]: string }
+  private channels: { [id: string]: string } = {}
 
   getUrl() {
     return 'wss://api2.poloniex.com'

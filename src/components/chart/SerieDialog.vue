@@ -3,8 +3,7 @@
     <template v-slot:header>
       <div class="title">
         <editable :class="{ '-no-grab': renaming }" :content="name" :editable="renaming" @output="name = $event" placeholder="Nom"></editable>
-        <code class="text-lowercase">({{ id }})</code>
-        <i class="icon-sm -no-grab" style="cursor: pointer" :class="{ 'icon-check': renaming, 'icon-edit': !renaming }" @click="renameSerie"></i>
+        <i class="icon-sm -no-grab ml4" style="cursor: pointer" :class="{ 'icon-check': renaming, 'icon-edit': !renaming }" @click="renameSerie"></i>
       </div>
       <div class="column -center"></div>
     </template>
@@ -28,7 +27,7 @@
           v-tippy
         ></span
       ></label>
-      <textarea ref="behaveInput" class="form-control" rows="5" :value="input" @change="setInput($event.target.value)"></textarea>
+      <textarea ref="behaveInput" class="form-control" rows="5" :value="input" @blur="setInput($event.target.value)"></textarea>
       <p v-if="error" class="form-feedback"><i class="icon-warning mr15"></i> {{ error }}</p>
     </div>
     <hr />
@@ -133,7 +132,12 @@
     </div>
     <hr />
     <div class="form-group column">
-      <label class="checkbox-control -on-off" v-tippy :title="!enabled ? 'Enable' : 'Disable'" @change="$store.dispatch('settings/toggleSerie', id)">
+      <label
+        class="checkbox-control -on-off"
+        v-tippy
+        :title="!enabled ? 'Enable' : 'Disable'"
+        @change="$store.dispatch(paneId + '/toggleSerie', serieId)"
+      >
         <input type="checkbox" class="form-control" :checked="enabled" />
         <div></div>
         <span>
@@ -141,7 +145,7 @@
         </span>
       </label>
       <button class="btn -blue mr15" v-tippy title="Duplicate" @click="duplicateSerie">
-        <i class="icon-duplicate"></i>
+        <i class="icon-copy"></i>
       </button>
       <button class="btn -red" v-tippy title="Serie will be lost forever" @click="removeSerie">
         <i class="icon-trash"></i>
@@ -162,7 +166,7 @@ import { defaultChartSeries } from './chartSeries'
 const ignoredOptionsKeys = ['crosshairMarkerVisible']
 
 export default {
-  props: ['id'],
+  props: ['paneId', 'serieId'],
   mixins: [DialogMixin],
   data: () => ({
     editor: null,
@@ -178,13 +182,13 @@ export default {
   }),
   computed: {
     serieSettings: function() {
-      return store.state.settings.series[this.id]
+      return store.state[this.paneId].series[this.serieId]
     },
     defaultSettings: function() {
-      return defaultChartSeries[this.id] || {}
+      return defaultChartSeries[this.serieId] || {}
     },
     error: function() {
-      return store.state.app.activeSeriesErrors[this.id]
+      return store.state[this.paneId].activeSeriesErrors[this.serieId]
     },
     name: {
       get: function() {
@@ -225,7 +229,7 @@ export default {
   },
   created() {
     if (!this.serieSettings.options) {
-      this.$store.commit('settings/CUSTOMIZE_SERIE', this.id)
+      this.$store.commit(this.paneId + '/CUSTOMIZE_SERIE', this.serieId)
     }
 
     this.$nextTick(() => {
@@ -269,8 +273,8 @@ export default {
     validate(option, value) {
       const key = typeof option === 'string' ? option : option.key
 
-      store.dispatch('settings/setSerieOption', {
-        id: this.id,
+      store.dispatch(this.paneId + '/setSerieOption', {
+        id: this.serieId,
         key,
         value
       })
@@ -351,30 +355,16 @@ export default {
       }
 
       this.currentValues[key] = finalValue
-      /*
-      if (
-        finalValue &&
-        typeof finalValue !== 'object' &&
-        typeof preferedValue === 'undefined' &&
-        typeof (defaultPlotsOptions[this.type] || {})[key] === 'undefined'
-      ) {
-        debugger
-        store.dispatch('settings/setSerieOption', {
-          id: this.id,
-          key,
-          value: finalValue
-        })
-      }
-*/
+
       return this.currentValues[key]
     },
     setType(newType) {
-      this.$store.commit('settings/SET_SERIE_TYPE', { id: this.id, value: newType })
+      this.$store.commit(this.paneId + '/SET_SERIE_TYPE', { id: this.serieId, value: newType })
 
       this.refreshOptions()
     },
     setInput(newInput) {
-      this.$store.commit('settings/SET_SERIE_INPUT', { id: this.id, value: newInput })
+      this.$store.commit(this.paneId + '/SET_SERIE_INPUT', { id: this.serieId, value: newInput })
 
       this.refreshOptions()
     },
@@ -393,7 +383,7 @@ export default {
       return keys
     },
     removeOption(key) {
-      this.$store.commit('settings/REMOVE_SERIE_OPTION', { id: this.id, key })
+      this.$store.commit(this.paneId + '/REMOVE_SERIE_OPTION', { id: this.serieId, key })
 
       for (const options of [this.colorOptions, this.otherOptions]) {
         const option = options.find(o => o.key === key)
@@ -451,12 +441,6 @@ export default {
         }
       }
 
-      /*for (let key of this.inputOptionsKeys) {
-        if (mergedOptionsKeys.indexOf(key) === -1) {
-          this.removeOption(key)
-        }
-      }*/
-
       this.colorOptionsKeys = colorOptionsKeys
       this.otherOptionsKeys = otherOptionsKeys
 
@@ -477,23 +461,24 @@ export default {
     async removeSerie() {
       await this.close()
 
-      store.dispatch('settings/removeSerie', this.id)
+      store.dispatch(this.paneId + '/removeSerie', this.serieId)
     },
     async renameSerie() {
       if (!this.renaming) {
         this.renaming = true
+        this.newName = this.name
 
         return
       }
 
       if (this.newName && this.newName.length) {
-        this.id = await store.dispatch('settings/renameSerie', { id: this.id, name: this.newName })
+        this.serieId = await store.dispatch(this.paneId + '/renameSerie', { id: this.serieId, name: this.newName })
         this.renaming = false
         this.newName = null
       }
     },
     async duplicateSerie() {
-      const id = await store.dispatch('settings/createSerie', store.state.settings.series[this.id])
+      const id = await store.dispatch(this.paneId + '/createSerie', store.state.settings.series[this.serieId])
 
       await this.close()
       dialogService.open(

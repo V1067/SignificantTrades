@@ -4,7 +4,7 @@
  * @param {Renderer} renderer
  */
 export function avg_ohlc$(state, renderer) {
-  let nbExchanges = 0
+  let nbSources = 0
   let setOpen = false
 
   if (typeof state.open === 'undefined') {
@@ -16,29 +16,29 @@ export function avg_ohlc$(state, renderer) {
   state.low = 0
   state.close = 0
 
-  for (const exchange in renderer.exchanges) {
+  for (const identifier in renderer.sources) {
     if (setOpen) {
-      state.open += renderer.exchanges[exchange].open
+      state.open += renderer.sources[identifier].open
     }
 
-    state.high += renderer.exchanges[exchange].high
-    state.low += renderer.exchanges[exchange].low
-    state.close += renderer.exchanges[exchange].close
+    state.high += renderer.sources[identifier].high
+    state.low += renderer.sources[identifier].low
+    state.close += renderer.sources[identifier].close
 
-    nbExchanges++
+    nbSources++
   }
 
-  if (!nbExchanges) {
-    nbExchanges = 1
+  if (!nbSources) {
+    nbSources = 1
   }
 
   if (setOpen) {
-    state.open /= nbExchanges
+    state.open /= nbSources
   }
 
-  state.high /= nbExchanges
-  state.low /= nbExchanges
-  state.close /= nbExchanges
+  state.high /= nbSources
+  state.low /= nbSources
+  state.close /= nbSources
   if (isNaN(state.close)) {
     throw new Error('is NaN!')
   }
@@ -52,21 +52,21 @@ export function avg_ohlc$(state, renderer) {
  * @param {Renderer} renderer
  */
 export function avg_close$(state, renderer) {
-  let nbExchanges = 0
+  let nbSources = 0
 
   state.close = 0
 
-  for (const exchange in renderer.exchanges) {
-    state.close += renderer.exchanges[exchange].close
+  for (const identifier in renderer.sources) {
+    state.close += renderer.sources[identifier].close
 
-    nbExchanges++
+    nbSources++
   }
 
-  if (!nbExchanges) {
-    nbExchanges = 1
+  if (!nbSources) {
+    nbSources = 1
   }
 
-  state.close /= nbExchanges
+  state.close /= nbSources
   if (isNaN(state.close)) {
     throw new Error('is NaN!')
   }

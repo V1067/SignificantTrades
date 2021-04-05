@@ -2,7 +2,7 @@ import { Market } from '@/services/aggregatorService'
 import { randomString } from '@/utils/helpers'
 import Vue from 'vue'
 import { ActionTree, GetterTree, MutationTree } from 'vuex'
-import { AppModule, ModulesState } from '.'
+import { AppModule } from '.'
 
 export interface Notice {
   id?: string
@@ -35,12 +35,11 @@ export interface AppState {
   redirectUrl: string
   showSettings: boolean
   showSearch: boolean
-  historicalSupportedMarkets: string[]
+  searchTarget: string
+  historicalMarkets: string[]
   indexedProducts: { [exchangeId: string]: string[] }
   activeExchanges: { [exchangeId: string]: boolean }
   activeMarkets: Market[]
-  activeSeries: string[]
-  activeSeriesErrors: { [serieId: string]: string }
   proxyUrl: string
   apiUrl: string
   version: string
@@ -61,12 +60,11 @@ const state = {
   pairs: [],
   showSettings: false,
   showSearch: false,
+  searchTarget: null,
   activeExchanges: {},
   activeMarkets: [],
-  activeSeries: [],
-  activeSeriesErrors: {},
   notices: [],
-  historicalSupportedMarkets: [],
+  historicalMarkets: [],
   indexedProducts: {},
   proxyUrl: null,
   apiUrl: null,
@@ -93,7 +91,12 @@ const actions = {
       if (notice.update) {
         return this.dispatch('app/updateNotice', notice)
       } else {
-        await this.dispatch('app/hideNotice', notice.id)
+        try {
+          await this.dispatch('app/hideNotice', notice.id)
+        } catch (error) {
+          // notice was already hiding, no worries
+          return
+        }
       }
     }
 
@@ -126,11 +129,12 @@ const actions = {
     }
 
     if (notice._reject) {
+      // notice is already hiding
       notice._reject()
     }
 
     return new Promise((resolve, reject) => {
-      notice._reject = reject
+      notice._reject = reject // mark notice as hiding
       notice._timeout = setTimeout(() => {
         commit('REMOVE_NOTICE', notice)
         delete notice._reject
@@ -152,16 +156,14 @@ const actions = {
       notice
     })
   },
-  refreshCurrencies({ commit }) {
-    const state = (this.state as unknown) as ModulesState
-
-    const market = state.settings.pairs[0]
+  refreshCurrencies({ commit, state }) {
+    const market = state.activeMarkets[0]
 
     if (!market) {
       return
     }
 
-    const [, pair] = market.split(':')
+    const pair = market.pair
 
     const symbols = {
       BTC: ['bitcoin', '฿'],
@@ -205,6 +207,22 @@ const actions = {
     )
 
     commit('SET_CURRENCIES', currencies)
+  },
+  showSearch({ commit }, paneId: string) {
+    if (state.showSearch) {
+      return
+    }
+
+    commit('SET_SEARCH_TARGET', paneId)
+    commit('TOGGLE_SEARCH', true)
+  },
+  hideSearch({ commit }) {
+    if (!state.showSearch) {
+      return
+    }
+
+    commit('TOGGLE_SEARCH', false)
+    commit('SET_SEARCH_TARGET', null)
   }
 } as ActionTree<AppState, AppState>
 
@@ -245,6 +263,9 @@ const mutations = {
   TOGGLE_SEARCH(state, value) {
     state.showSearch = typeof value === 'boolean' ? value : !state.showSearch
   },
+  SET_SEARCH_TARGET(state, value) {
+    state.searchTarget = value
+  },
   TOGGLE_SETTINGS(state, value) {
     state.showSettings = typeof value === 'boolean' ? value : !state.showSettings
   },
@@ -259,11 +280,11 @@ const mutations = {
   },
   SET_API_SUPPORTED_PAIRS(state, value) {
     if (!value) {
-      state.historicalSupportedMarkets = []
+      state.historicalMarkets = []
     } else if (typeof value === 'string') {
-      state.historicalSupportedMarkets = value.split(',').map(a => a.trim())
+      state.historicalMarkets = value.split(',').map(a => a.trim())
     } else {
-      state.historicalSupportedMarkets = value
+      state.historicalMarkets = value
     }
   },
   SET_VERSION(state, value) {
@@ -272,33 +293,8 @@ const mutations = {
   SET_BUILD_DATE(state, value) {
     state.buildDate = value
   },
-  ENABLE_SERIE(state, id) {
-    const index = state.activeSeries.indexOf(id)
-
-    if (index === -1) {
-      state.activeSeries.push(id)
-    }
-  },
-  DISABLE_SERIE(state, id) {
-    const index = state.activeSeries.indexOf(id)
-
-    if (index !== -1) {
-      state.activeSeries.splice(index, 1)
-    }
-
-    if (state.activeSeriesErrors[id]) {
-      Vue.delete(state.activeSeriesErrors, id)
-    }
-  },
-  SET_SERIE_ERROR(state, { id, error }) {
-    if (error) {
-      Vue.set(state.activeSeriesErrors, id, error)
-    } else {
-      Vue.set(state.activeSeriesErrors, id, null)
-    }
-  },
   SET_HISTORICAL_SUPPORTED_MARKETS(state, markets) {
-    state.historicalSupportedMarkets = markets
+    state.historicalMarkets = markets
   },
   INDEX_EXCHANGE_PRODUCTS(state, { exchange, products }: { exchange: string; products: string[] }) {
     state.indexedProducts[exchange] = products.map(p => exchange + ':' + p)

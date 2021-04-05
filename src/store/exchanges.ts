@@ -31,7 +31,7 @@ const actions = {
       const exchangeRegex = new RegExp(`^${id}:`, 'i')
       const state = (this.state as unknown) as ModulesState
 
-      await exchange.linkAll(state.settings.pairs.filter(p => exchangeRegex.test(p)))
+      await exchange.linkAll(Object.keys(state.panes.marketsListeners).filter(p => exchangeRegex.test(p)))
     }
 
     this.commit('app/EXCHANGE_UPDATED', id)

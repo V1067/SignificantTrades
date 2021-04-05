@@ -14,37 +14,6 @@
         </label>
       </div>
       <p v-if="chartRefreshRate < 500" class="form-feedback"><i class="icon-warning"></i> Low refresh rate can be very CPU intensive</p>
-      <div class="form-group mb8">
-        <label class="checkbox-control flex-left">
-          <input
-            type="checkbox"
-            class="form-control"
-            :checked="!!timezoneOffset"
-            @change="$store.commit('settings/SET_TIMEZONE_OFFSET', !timezoneOffset ? new Date().getTimezoneOffset() * 60000 * -1 : 0)"
-          />
-          <div></div>
-          <span>Show local time</span>
-        </label>
-      </div>
-      <div class="form-group column mb8">
-        <verte
-          :value="chartBackgroundColor"
-          @input="$event !== chartBackgroundColor && $store.dispatch('settings/setBackgroundColor', $event)"
-        ></verte>
-        <label class="-fill -center ml8">Background color</label>
-      </div>
-      <div class="form-group column mb8">
-        <verte
-          picker="square"
-          menuPosition="left"
-          model="rgb"
-          :value="chartColor"
-          @input="$event !== chartColor && $store.commit('settings/SET_CHART_COLOR', $event)"
-        ></verte>
-        <label for="" class="-fill -center ml8"
-          >Text color <a><i class="icon-cross text-small" v-if="chartColor" @click="$store.commit('settings/SET_CHART_COLOR', null)"></i></a
-        ></label>
-      </div>
     </div>
   </div>
 </template>
@@ -53,27 +22,19 @@
 import { Component, Vue } from 'vue-property-decorator'
 
 @Component({
-  name: 'ChartSettings'
+  name: 'ChartSettings',
+  props: {
+    paneId: {
+      type: String,
+      required: true
+    }
+  }
 })
 export default class extends Vue {
-  get showChart() {
-    return this.$store.state.settings.showChart
-  }
+  paneId: string
 
   get chartRefreshRate() {
-    return this.$store.state.settings.chartRefreshRate
-  }
-
-  get timezoneOffset() {
-    return this.$store.state.settings.timezoneOffset
-  }
-
-  get chartBackgroundColor() {
-    return this.$store.state.settings.chartBackgroundColor
-  }
-
-  get chartColor() {
-    return this.$store.state.settings.chartColor
+    return this.$store.state[this.paneId].chartRefreshRate
   }
 }
 </script>

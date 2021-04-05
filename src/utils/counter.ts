@@ -33,15 +33,15 @@ export default class Counter {
   private serie: ISeriesApi<'Line'>
   private timeouts: number[] = []
 
-  constructor(outputFunction, options: CounterOptions) {
+  constructor(outputFunction, options: CounterOptions, paneId: string) {
     this.id = options.id
     this.name = options.name
     this.outputFunction = outputFunction
 
-    this.window = (!isNaN(options.window) ? +options.window : store.state.settings.statsWindow) || 60000
+    this.window = (!isNaN(options.window) ? +options.window : store.state[paneId].window) || 60000
     this.precision = options.precision
     this.color = options.color
-    this.granularity = Math.max(store.state.settings.statsGranularity, this.window / 5000)
+    this.granularity = Math.max(store.state[paneId].granularity, this.window / 5000)
     this.type = options.type || 'line'
 
     const windowLabel = getHms(this.window).replace(/^1(\w)$/, '$1')

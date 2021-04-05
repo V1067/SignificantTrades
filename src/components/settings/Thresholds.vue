@@ -9,7 +9,7 @@
               placeholder="Amount*"
               :value="thresholds[index].amount"
               @change="
-                $store.commit('settings/SET_THRESHOLD_AMOUNT', {
+                $store.commit(paneId + '/SET_THRESHOLD_AMOUNT', {
                   index: index,
                   value: $event.target.value
                 })
@@ -23,7 +23,7 @@
               placeholder="Giphy"
               :value="thresholds[index].gif"
               @change="
-                $store.commit('settings/SET_THRESHOLD_GIF', {
+                $store.commit(paneId + '/SET_THRESHOLD_GIF', {
                   index: index,
                   value: $event.target.value
                 })
@@ -76,7 +76,7 @@
           <editable
             :content="thresholds[selectedIndex].amount"
             @output="
-              $store.commit('settings/SET_THRESHOLD_AMOUNT', {
+              $store.commit(paneId + '/SET_THRESHOLD_AMOUNT', {
                 index: selectedIndex,
                 value: $event
               })
@@ -113,7 +113,7 @@
                 :value="thresholds[selectedIndex].buyColor"
                 :style="{ backgroundColor: thresholds[selectedIndex].buyColor }"
                 @change="
-                  $store.commit('settings/SET_THRESHOLD_COLOR', {
+                  $store.commit(paneId + '/SET_THRESHOLD_COLOR', {
                     index: selectedIndex,
                     side: 'buyColor',
                     value: $event.target.value
@@ -131,7 +131,7 @@
                   backgroundColor: thresholds[selectedIndex].sellColor
                 }"
                 @change="
-                  $store.commit('settings/SET_THRESHOLD_COLOR', {
+                  $store.commit(paneId + '/SET_THRESHOLD_COLOR', {
                     index: selectedIndex,
                     side: 'sellColor',
                     value: $event.target.value
@@ -156,9 +156,17 @@ import dialogService from '@/services/dialogService'
 let thresholdIndex = 0
 
 @Component({
-  name: 'Thresholds'
+  name: 'Thresholds',
+  props: {
+    paneId: {
+      type: String,
+      required: true
+    }
+  }
 })
 export default class extends Vue {
+  paneId: string
+
   rendering = true
   dragging = null
   editing = null
@@ -171,9 +179,9 @@ export default class extends Vue {
     timestamp: number
     position: number
   } = null
+
   private _minimum = null
   private _maximum = null
-  private _offsetTop = null
   private _offsetLeft = null
 
   private onStoreMutation: () => void
@@ -184,11 +192,13 @@ export default class extends Vue {
   private _width: number
 
   get thresholds() {
-    return this.$store.state.settings.thresholds
+    return this.$store.state[this.paneId].thresholds
   }
+
   get showThresholdsAsTable() {
-    return this.$store.state.settings.showThresholdsAsTable
+    return this.$store.state[this.paneId].showThresholdsAsTable
   }
+
   get preferQuoteCurrencySize() {
     return this.$store.state.settings.preferQuoteCurrencySize
   }
@@ -207,11 +217,11 @@ export default class extends Vue {
   created() {
     this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
-        case 'settings/TOGGLE_SETTINGS_PANEL':
-        case 'settings/TOGGLE_THRESHOLDS_TABLE':
+        case this.paneId + '/TOGGLE_SETTINGS_PANEL':
+        case this.paneId + '/TOGGLE_THRESHOLDS_TABLE':
           if (
-            (mutation.type === 'settings/TOGGLE_SETTINGS_PANEL' && mutation.payload === 'thresholds') ||
-            (mutation.type === 'settings/TOGGLE_THRESHOLDS_TABLE' && mutation.payload === false)
+            (mutation.type === this.paneId + '/TOGGLE_SETTINGS_PANEL' && mutation.payload === 'thresholds') ||
+            (mutation.type === this.paneId + '/TOGGLE_THRESHOLDS_TABLE' && mutation.payload === false)
           ) {
             this.rendering = true
 
@@ -219,14 +229,14 @@ export default class extends Vue {
             this.refreshGradients()
           }
           break
-        case 'settings/SET_THRESHOLD_AMOUNT':
+        case this.paneId + '/SET_THRESHOLD_AMOUNT':
           this.reorderThresholds()
           this.refreshHandlers()
           break
-        case 'settings/SET_THRESHOLD_COLOR':
+        case this.paneId + '/SET_THRESHOLD_COLOR':
           this.refreshGradients()
           break
-        case 'settings/ADD_THRESHOLD':
+        case this.paneId + '/ADD_THRESHOLD':
           this.refreshHandlers()
           break
       }
@@ -368,7 +378,6 @@ export default class extends Vue {
 
     const bounds = this.$refs.thresholdContainer.getBoundingClientRect()
 
-    this._offsetTop = bounds.top
     this._offsetLeft = bounds.left
     this._width = this.$refs.thresholdContainer.clientWidth
 
@@ -435,7 +444,7 @@ export default class extends Vue {
       selectedThreshold = this.thresholds[this.selectedIndex]
     }
 
-    this.$store.state.settings.thresholds = this.thresholds.sort((a, b) => a.amount - b.amount)
+    this.$store.state[this.paneId].thresholds = this.thresholds.sort((a, b) => a.amount - b.amount)
 
     if (selectedThreshold) {
       for (let i = 0; i < this.thresholds.length; i++) {
@@ -451,12 +460,12 @@ export default class extends Vue {
       return
     }
 
-    this.$store.commit('settings/DELETE_THRESHOLD', index)
+    this.$store.commit(this.paneId + '/DELETE_THRESHOLD', index)
   }
 
   openPicker(side, index) {
     if (!this.thresholds[index][side]) {
-      this.$store.commit('settings/SET_THRESHOLD_COLOR', {
+      this.$store.commit(this.paneId + '/SET_THRESHOLD_COLOR', {
         index: index,
         side: side,
         value: '#ffffff'
@@ -464,7 +473,7 @@ export default class extends Vue {
     }
 
     dialogService.openPicker(this.thresholds[index][side], color => {
-      this.$store.commit('settings/SET_THRESHOLD_COLOR', {
+      this.$store.commit(this.paneId + '/SET_THRESHOLD_COLOR', {
         index: index,
         side: side,
         value: color

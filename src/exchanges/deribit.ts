@@ -64,11 +64,20 @@ export default class extends Exchange {
     const liquidations: Trade[] = []
 
     for (let i = 0; i < json.params.data.length; i++) {
-      if (json.params.data[i].liquidation) {
-        liquidations.push(json.params.data[i])
-      } else {
-        trades.push(json.params.data[i])
+      const trade: Trade = {
+        exchange: this.id,
+        pair: json.params.data[i].instrument_name,
+        timestamp: json.params.data[i].timestamp,
+        price: json.params.data[i].price,
+        size: json.params.data[i].amount / json.params.data[i].price,
+        side: json.params.data[i].direction
       }
+
+      if (trade.liquidation) {
+        liquidations.push({ ...trade, liquidation: true })
+      }
+
+      trades.push(trade)
     }
 
     if (liquidations.length) {

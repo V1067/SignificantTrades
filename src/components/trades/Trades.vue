@@ -1,5 +1,6 @@
 <template>
-  <div id="trades" class="custom-scrollbar" :class="{ '-logos': this.showLogos, '-slippage': this.calculateSlippage }">
+  <div class="pane-trades custom-scrollbar" :class="{ '-logos': this.showLogos, '-slippage': this.calculateSlippage }">
+    <pane-header :paneId="paneId" />
     <ul ref="tradesContainer"></ul>
     <div v-if="!tradesCount" class="trade -empty">Nothing to show, yet.</div>
   </div>
@@ -14,31 +15,61 @@ import { getColorByWeight, getColorLuminance, getAppBackgroundColor, splitRgba, 
 import aggregatorService, { Trade } from '@/services/aggregatorService'
 import sfxService from '../../services/sfxService'
 import PaneMixin from '@/mixins/paneMixin'
+import PaneHeader from '../panes/PaneHeader.vue'
 
-let LAST_TRADE_TIMESTAMP // to control whether we show timestamp on trade or not
-let LAST_SIDE // to control wheter we show "up" or "down" icon in front of trade
-let MINIMUM_AMOUNT // alias threshold[0].amount
-let SIGNIFICANT_AMOUNT // alias threshold[1].amount
-let COLORS // prepared array of buy / sell colors ranges
-let GIFS // gifs from storages, by threshold gif keyword
-
-let activeExchanges = []
+const GIFS = {} // gifs from storages, by threshold gif keyword
 
 @Component({
+  components: { PaneHeader },
   name: 'Trades'
 })
 export default class extends Mixins(PaneMixin) {
   tradesCount = 0
 
   private onStoreMutation: () => void
+
+  private _colors: {
+    threshold: number
+    range: number
+    buy: {
+      from: number[]
+      to: number[]
+      fromLuminance: number
+      toLuminance: number
+    }
+    sell: {
+      from: number[]
+      to: number[]
+      fromLuminance: number
+      toLuminance: number
+    }
+  }[]
+  private _lastTradeTimestamp: number
+  private _lastSide: 'buy' | 'sell'
+  private _minimumAmount: number
+  private _significantAmount: number
+  private _activeExchanges: { [exchange: string]: boolean }
+  private _paneMarkets: { [identifier: string]: boolean }
   private _timeAgoInterval: number
 
   get maxRows() {
-    return this.$store.state.settings.maxRows
+    return this.$store.state[this.paneId].maxRows
   }
 
   get thresholds() {
-    return this.$store.state.settings.thresholds
+    return this.$store.state[this.paneId].thresholds
+  }
+
+  get liquidationsOnly() {
+    return this.$store.state[this.paneId].liquidationsOnly
+  }
+
+  get showTradesPairs() {
+    return this.$store.state[this.paneId].showTradesPairs
+  }
+
+  get showLogos() {
+    return this.$store.state[this.paneId].showLogos
   }
 
   get exchanges() {
@@ -53,10 +84,6 @@ export default class extends Mixins(PaneMixin) {
     return this.$store.state.settings.calculateSlippage
   }
 
-  get liquidationsOnly() {
-    return this.$store.state.settings.liquidationsOnly
-  }
-
   get audioIncludeInsignificants() {
     return this.$store.state.settings.audioIncludeInsignificants
   }
@@ -65,16 +92,8 @@ export default class extends Mixins(PaneMixin) {
     return this.$store.state.settings.preferQuoteCurrencySize
   }
 
-  get showTradesPairs() {
-    return this.$store.state.settings.showTradesPairs
-  }
-
   get decimalPrecision() {
     return this.$store.state.settings.decimalPrecision
-  }
-
-  get showLogos() {
-    return this.$store.state.settings.showLogos
   }
 
   get activeExchanges() {
@@ -90,7 +109,7 @@ export default class extends Mixins(PaneMixin) {
   }
 
   created() {
-    activeExchanges = Object.keys(this.activeExchanges).filter(id => !!this.activeExchanges[id])
+    this.cacheFilters()
 
     this.retrieveStoredGifs()
     this.prepareColorsSteps()
@@ -100,10 +119,13 @@ export default class extends Mixins(PaneMixin) {
     this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
         case 'app/EXCHANGE_UPDATED':
-          activeExchanges = Object.keys(this.activeExchanges).filter(id => !!this.activeExchanges[id])
+          this.cacheFilters()
           break
-        case 'settings/SET_PAIR':
-          this.clearList()
+        case 'panes/SET_PANE_MARKETS':
+          if (mutation.payload.id === this.paneId) {
+            this.cacheFilters()
+            this.clearList()
+          }
           break
         case 'settings/TOGGLE_AUDIO':
           if (mutation.payload) {
@@ -112,13 +134,13 @@ export default class extends Mixins(PaneMixin) {
             sfxService.disconnect()
           }
           break
-        case 'settings/SET_THRESHOLD_GIF':
+        case this.paneId + '/SET_THRESHOLD_GIF':
           this.fetchGifByKeyword(mutation.payload.value, mutation.payload.isDeleted)
           break
-        case 'settings/SET_THRESHOLD_COLOR':
-        case 'settings/SET_THRESHOLD_AMOUNT':
-        case 'settings/DELETE_THRESHOLD':
-        case 'settings/ADD_THRESHOLD':
+        case this.paneId + '/SET_THRESHOLD_COLOR':
+        case this.paneId + '/SET_THRESHOLD_AMOUNT':
+        case this.paneId + '/DELETE_THRESHOLD':
+        case this.paneId + '/ADD_THRESHOLD':
           this.prepareColorsSteps()
           break
       }
@@ -156,6 +178,7 @@ export default class extends Mixins(PaneMixin) {
       }
     }, 2500)
   }
+
   beforeDestroy() {
     aggregatorService.off('trades', this.onTrades)
 
@@ -165,9 +188,10 @@ export default class extends Mixins(PaneMixin) {
 
     sfxService.disconnect()
   }
+
   onTrades(trades: Trade[]) {
     for (let i = 0; i < trades.length; i++) {
-      if (activeExchanges.indexOf(trades[i].exchange) === -1) {
+      if (!this._activeExchanges[trades[i].exchange] || !this._paneMarkets[trades[i].exchange + trades[i].pair]) {
         continue
       }
 
@@ -176,11 +200,11 @@ export default class extends Mixins(PaneMixin) {
       const multiplier = typeof this.exchanges[trade.exchange].threshold !== 'undefined' ? +this.exchanges[trade.exchange].threshold : 1
 
       if (trade.liquidation) {
-        if (this.useAudio && amount > SIGNIFICANT_AMOUNT * multiplier * 0.1) {
-          sfxService.liquidation((amount / SIGNIFICANT_AMOUNT) * multiplier)
+        if (this.useAudio && amount > this._significantAmount * multiplier * 0.1) {
+          sfxService.liquidation((amount / this._significantAmount) * multiplier)
         }
 
-        if (amount >= MINIMUM_AMOUNT * multiplier) {
+        if (amount >= this._minimumAmount * multiplier) {
           let liquidationMessage = `<i class="icon-currency"></i> <strong>${formatAmount(amount, 1)}</strong>`
 
           liquidationMessage += `&nbsp;liq<span class="min-280">uidate</span>d <strong>${
@@ -194,11 +218,11 @@ export default class extends Mixins(PaneMixin) {
         continue
       }
 
-      if (amount >= MINIMUM_AMOUNT * multiplier) {
+      if (amount >= this._minimumAmount * multiplier) {
         this.appendRow(trade, amount, multiplier)
       } else {
-        if (this.useAudio && this.audioIncludeInsignificants && amount >= SIGNIFICANT_AMOUNT * 0.1) {
-          sfxService.tradeToSong(amount / (SIGNIFICANT_AMOUNT * multiplier), trade.side, 0)
+        if (this.useAudio && this.audioIncludeInsignificants && amount >= this._significantAmount * 0.1) {
+          sfxService.tradeToSong(amount / (this._significantAmount * multiplier), trade.side, 0)
         }
       }
     }
@@ -221,7 +245,7 @@ export default class extends Mixins(PaneMixin) {
       li.className += ' -sm'
     }
 
-    if (amount >= SIGNIFICANT_AMOUNT * multiplier) {
+    if (amount >= this._significantAmount * multiplier) {
       li.className += ' -significant'
     }
 
@@ -230,7 +254,7 @@ export default class extends Mixins(PaneMixin) {
 
       if (!this.thresholds[i + 1] || amount < this.thresholds[i + 1].amount * multiplier) {
         // THIS IS OUR THRESHOLD
-        const color = COLORS[Math.min(this.thresholds.length - 2, i)]
+        const color = this._colors[Math.min(this.thresholds.length - 2, i)]
         const threshold = this.thresholds[i]
 
         if (!this.disableAnimations && threshold.gif && GIFS[threshold.gif]) {
@@ -249,17 +273,17 @@ export default class extends Mixins(PaneMixin) {
         li.style.backgroundColor = 'rgb(' + backgroundColor[0] + ', ' + backgroundColor[1] + ', ' + backgroundColor[2] + ')'
 
         if (i >= 1) {
-          // ajusted amount > SIGNIFICANT_AMOUNT
+          // ajusted amount > this._significantAmount
           // only pure black or pure white foreground
           li.style.color = luminance < 175 ? 'white' : 'black'
         } else {
-          // take background color and apply logarithmic shade based on amount to SIGNIFICANT_AMOUNT percentage
+          // take background color and apply logarithmic shade based on amount to this._significantAmount percentage
           // darken if luminance of background is high, lighten otherwise
-          li.style.color = getLogShade(backgroundColor, Math.max(0.25, Math.min(1, amount / SIGNIFICANT_AMOUNT)) * (luminance < 175 ? 1 : -1))
+          li.style.color = getLogShade(backgroundColor, Math.max(0.25, Math.min(1, amount / this._significantAmount)) * (luminance < 175 ? 1 : -1))
         }
 
-        if (this.useAudio && amount >= (this.audioIncludeInsignificants ? SIGNIFICANT_AMOUNT * 0.1 : MINIMUM_AMOUNT * 1) * multiplier) {
-          sfxService.tradeToSong(amount / (SIGNIFICANT_AMOUNT * multiplier), trade.side, i)
+        if (this.useAudio && amount >= (this.audioIncludeInsignificants ? this._significantAmount * 0.1 : this._minimumAmount * 1) * multiplier) {
+          sfxService.tradeToSong(amount / (this._significantAmount * multiplier), trade.side, i)
         }
 
         break
@@ -267,13 +291,13 @@ export default class extends Mixins(PaneMixin) {
     }
 
     if (!message) {
-      if (trade.side !== LAST_SIDE) {
+      if (trade.side !== this._lastSide) {
         const side = document.createElement('div')
         side.className = 'trade__side icon-side'
         li.appendChild(side)
       }
 
-      LAST_SIDE = trade.side
+      this._lastSide = trade.side
     }
 
     const exchange = document.createElement('div')
@@ -331,8 +355,8 @@ export default class extends Mixins(PaneMixin) {
 
     const timestamp = Math.floor(trade.timestamp / 1000) * 1000
 
-    if (timestamp !== LAST_TRADE_TIMESTAMP) {
-      LAST_TRADE_TIMESTAMP = timestamp
+    if (timestamp !== this._lastTradeTimestamp) {
+      this._lastTradeTimestamp = timestamp
 
       date.setAttribute('timestamp', trade.timestamp.toString())
       date.innerText = ago(timestamp)
@@ -351,10 +375,8 @@ export default class extends Mixins(PaneMixin) {
   }
 
   retrieveStoredGifs(refresh = false) {
-    GIFS = {}
-
     this.thresholds.forEach(threshold => {
-      if (!threshold.gif) {
+      if (!threshold.gif || GIFS[threshold.gif]) {
         return
       }
 
@@ -411,9 +433,9 @@ export default class extends Mixins(PaneMixin) {
   prepareColorsSteps() {
     const appBackgroundColor = getAppBackgroundColor()
 
-    COLORS = []
-    MINIMUM_AMOUNT = this.thresholds[0].amount
-    SIGNIFICANT_AMOUNT = this.thresholds[1].amount
+    this._colors = []
+    this._minimumAmount = this.thresholds[0].amount
+    this._significantAmount = this.thresholds[1].amount
 
     for (let i = 0; i < this.thresholds.length - 1; i++) {
       const buyFrom = splitRgba(this.thresholds[i].buyColor, appBackgroundColor)
@@ -421,7 +443,7 @@ export default class extends Mixins(PaneMixin) {
       const sellFrom = splitRgba(this.thresholds[i].sellColor, appBackgroundColor)
       const sellTo = splitRgba(this.thresholds[i + 1].sellColor, appBackgroundColor)
 
-      COLORS.push({
+      this._colors.push({
         threshold: this.thresholds[i].amount,
         range: this.thresholds[i + 1].amount - this.thresholds[i].amount,
         buy: {
@@ -444,6 +466,14 @@ export default class extends Mixins(PaneMixin) {
     this.$refs.tradesContainer.innerHTML = ''
     this.tradesCount = 0
   }
+
+  cacheFilters() {
+    this._activeExchanges = { ...this.activeExchanges }
+    this._paneMarkets = this.$store.state.panes.panes[this.paneId].markets.reduce((output, identifier) => {
+      output[identifier.replace(/:/g, '')] = true
+      return output
+    }, {})
+  }
 }
 </script>
 
@@ -458,8 +488,7 @@ export default class extends Mixins(PaneMixin) {
   }
 }
 
-#trades {
-  background-color: rgba(black, 0.2);
+.pane-trades {
   line-height: 1;
   overflow: auto;
 

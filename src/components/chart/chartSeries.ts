@@ -21,7 +21,7 @@ export const defaultChartSeries = {
     }
   },
   price: {
-    name: '{pair}',
+    name: 'PRICE',
     type: 'area',
     description: 'Price',
     input: 'avg_close(bar)',

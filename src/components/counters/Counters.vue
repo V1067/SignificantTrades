@@ -1,16 +1,19 @@
 <template>
-  <ul class="counters">
-    <li v-for="(step, index) in activeSteps" :key="index" v-bind:duration="step.duration" class="counter">
-      <div class="counter__side -buy" v-bind:style="{ width: (step.buy / (step.buy + step.sell)) * 100 + '%' }">
-        <span v-if="!countersCount">{{ formatAmount(step.buy) }}</span>
-        <span v-else>{{ step.buy }}</span>
-      </div>
-      <div class="counter__side -sell" v-bind:style="{ width: (step.sell / (step.buy + step.sell)) * 100 + '%' }">
-        <span v-if="!countersCount">{{ formatAmount(step.sell) }}</span>
-        <span v-else>{{ step.sell }}</span>
-      </div>
-    </li>
-  </ul>
+  <div class="pane-counters">
+    <pane-header :paneId="paneId" :markets="false" />
+    <ul class="counters">
+      <li v-for="(step, index) in activeSteps" :key="index" v-bind:duration="step.duration" class="counter">
+        <div class="counter__side -buy" v-bind:style="{ width: (step.buy / (step.buy + step.sell)) * 100 + '%' }">
+          <span v-if="!countersCount">{{ formatAmount(step.buy) }}</span>
+          <span v-else>{{ step.buy }}</span>
+        </div>
+        <div class="counter__side -sell" v-bind:style="{ width: (step.sell / (step.buy + step.sell)) * 100 + '%' }">
+          <span v-if="!countersCount">{{ formatAmount(step.sell) }}</span>
+          <span v-else>{{ step.sell }}</span>
+        </div>
+      </li>
+    </ul>
+  </div>
 </template>
 
 <script lang="ts">
@@ -20,6 +23,7 @@ import { formatAmount, formatPrice, getHms } from '../../utils/helpers'
 
 import aggregatorService from '@/services/aggregatorService'
 import PaneMixin from '@/mixins/paneMixin'
+import PaneHeader from '../panes/PaneHeader.vue'
 
 const CHUNK = {
   timestamp: null,
@@ -30,6 +34,7 @@ const CHUNK = {
 const COUNTERS = []
 
 @Component({
+  components: { PaneHeader },
   name: 'Counters'
 })
 export default class extends Mixins(PaneMixin) {
@@ -42,24 +47,20 @@ export default class extends Mixins(PaneMixin) {
     return this.$store.state.settings.preferQuoteCurrencySize
   }
 
-  get thresholds() {
-    return this.$store.state.settings.thresholds
-  }
-
   get liquidationsOnly() {
-    return this.$store.state.settings.liquidationsOnly
+    return this.$store.state[this.paneId].liquidationsOnly
   }
 
   get countersSteps() {
-    return this.$store.state.settings.countersSteps
+    return this.$store.state[this.paneId].dteps
   }
 
   get countersCount() {
-    return this.$store.state.settings.countersCount
+    return this.$store.state[this.paneId].count
   }
 
   get countersGranularity() {
-    return this.$store.state.settings.countersGranularity
+    return this.$store.state[this.paneId].granularity
   }
 
   get activeSteps() {
@@ -71,10 +72,15 @@ export default class extends Mixins(PaneMixin) {
 
     this.onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
-        case 'settings/SET_PAIR':
-        case 'settings/REPLACE_COUNTERS':
-        case 'settings/TOGGLE_LIQUIDATIONS_ONLY':
-        case 'settings/TOGGLE_COUNTERS_COUNT':
+        case 'panes/SET_PANE_MARKETS':
+          if (mutation.payload.id === this.paneId) {
+            this.createCounters()
+          }
+          break
+
+        case this.paneId + '/REPLACE_COUNTERS':
+        case this.paneId + '/TOGGLE_LIQUIDATIONS_ONLY':
+        case this.paneId + '/TOGGLE_COUNT':
           this.createCounters()
           break
       }

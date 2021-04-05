@@ -1,11 +1,12 @@
 import Vue from 'vue'
-import Vuex, { Module, Store, StoreOptions } from 'vuex'
-import { prepareModules, scheduleSync } from '@/utils/store'
+import Vuex, { Module, StoreOptions } from 'vuex'
+import { prepareModules, preparePaneSettings, scheduleSync } from '@/utils/store'
 
 import app, { AppState } from './app'
 import settings, { SettingsState } from './settings'
 import exchanges, { ExchangesState } from './exchanges'
 import panes, { PanesState } from './panes'
+import panesSettings from './panesSettings'
 
 Vue.use(Vuex)
 
@@ -16,7 +17,7 @@ export interface AppModuleTree<R> {
 }
 
 export interface AppModule<R> extends Module<any, R> {
-  boot?: (store: Store<ModulesState>) => void
+  boot?: (store: any, state: any) => void
 }
 
 export interface ModulesState {
@@ -32,6 +33,14 @@ const modules = prepareModules({
   panes,
   exchanges
 })
+
+for (const paneId in modules.panes.state.panes) {
+  const type = modules.panes.state.panes[paneId].type
+
+  if (panesSettings[type]) {
+    modules[paneId] = preparePaneSettings(paneId, panesSettings[type])
+  }
+}
 
 const store = new Vuex.Store({
   modules

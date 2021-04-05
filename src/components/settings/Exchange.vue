@@ -38,7 +38,7 @@
       <div class="form-group">
         <label class="column" style="justify-content:space-between">
           <span class="condensed">Adj. threshold:</span>
-          <span v-if="settings.threshold !== 1">{{ formatAmount(minimumThreshold * exchangeMultiplier) }}</span>
+          <span v-if="settings.threshold !== 1">×{{ exchangeMultiplier }}</span>
         </label>
         <Slider
           :step="0.0001"
@@ -94,10 +94,6 @@ export default class extends Vue {
 
   get settings() {
     return this.$store.state.exchanges[this.id]
-  }
-
-  get minimumThreshold() {
-    return this.$store.state.settings.thresholds[1].amount
   }
 
   get exchangeMultiplier() {
