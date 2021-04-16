@@ -56,7 +56,7 @@ class BinanceFutures extends Exchange {
     return {
       products,
       specs,
-      types,
+      dapi,
     }
   }
 
