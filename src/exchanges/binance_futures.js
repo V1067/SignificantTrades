@@ -143,7 +143,7 @@ class BinanceFutures extends Exchange {
         const symbol = json.o.s.toLowerCase()
 
         if (typeof this.specs[symbol] === 'number') {
-          size = (size * this.specs[symbol]) / json.o.q
+          size = (size * this.specs[symbol]) / json.o.p
         }
 
         return this.emitLiquidations(api.id, [
