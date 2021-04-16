@@ -84,7 +84,7 @@ class Exchange extends EventEmitter {
     if (this.products.indexOf(pair) === -1) {
       console.debug(`[${this.id}] couldn't match ${pair}`)
 
-      const caseInsencitiveMatch = this.products.find(
+      const caseInsencitiveMatch = this.products.filter(
         (exchangePair) =>
           exchangePair.toLowerCase().replace(/[^a-z]/g, '') ===
           pair.toLowerCase().replace(/[^a-z]/g, '')

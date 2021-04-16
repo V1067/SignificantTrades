@@ -10,23 +10,25 @@ console.log(`[init] reading config.json...`)
 const DEFAULTS = {
   // default pairs we track
   pairs: [
-    'BITMEX:XBTUSD',
-    'BINANCE:btcusdt',
-    'BITSTAMP:btcusd',
     'BITFINEX:BTCUSD',
-    'BINANCE_FUTURES:btcusdt',
+    'BINANCE:btcusdt',
+    'OKEX:BTC-USDT',
+    'KRAKEN:XBT/USD',
     'COINBASE:BTC-USD',
     'POLONIEX:USDT_BTC',
-    'KRAKEN:XBT/USD',
-    'OKEX:BTC-USDT',
-    'DERIBIT:BTC-PERPETUAL',
     'HUOBI:btcusdt',
-    'HUOBI:BTC-USD',
-    'HITBTC:BTCUSD',
-    'FTX:BTC-PERP',
-    'BYBIT:BTCUSD',
+    'BITSTAMP:btcusd',
+    'BITMEX:XBTUSD',
     'BITFINEX:BTCF0:USTF0',
     'OKEX:BTC-USD-SWAP',
+    'OKEX:BTC-USDT-SWAP',
+    'BINANCE_FUTURES:btcusdt',
+    'BINANCE_FUTURES:btcusd_perp',
+    'HUOBI:BTC-USD',
+    'KRAKEN:PI_XBTUSD',
+    'DERIBIT:BTC-PERPETUAL',
+    'FTX:BTC-PERP',
+    'BYBIT:BTCUSD'
   ],
 
   // will connect to exchanges and subscribe to pairs on startup

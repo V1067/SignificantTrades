@@ -375,7 +375,7 @@ class InfluxStorage {
     let query = `SELECT * FROM "${this.options.influxDatabase}"."autogen"."trades_${timeframeText}" WHERE time >= ${from}ms AND time < ${to}ms`
 
     if (markets.length) {
-      query += ` AND market =~ /${markets.join('|')}/`
+      query += ` AND market =~ /${markets.join('|').replace(/\//g, '\\/')}/`
     }
 
     console.log(query)

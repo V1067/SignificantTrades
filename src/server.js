@@ -430,7 +430,7 @@ class Server extends EventEmitter {
       let from = req.params.from
       let to = req.params.to
       let timeframe = req.params.timeframe
-      let markets = req.params.markets
+      let markets = req.params.markets || []
 
       if (markets && markets.length) {
         markets = markets
