@@ -1,3 +1,5 @@
+// const WorkerPlugin = require('worker-plugin')
+
 const date = new Date()
 
 process.env.VUE_APP_VERSION = require('./package.json').version
@@ -8,19 +10,28 @@ process.env.VUE_APP_API_SUPPORTED_PAIRS = process.env.API_SUPPORTED_PAIRS
 
 module.exports = {
   productionSourceMap: false,
-  configureWebpack: {
-    // See available sourcemaps:
-    // https://webpack.js.org/configuration/devtool/#devtool
-    // and try out different ones
-    devtool: 'eval-source-map'
+  /* configureWebpack: {
+    plugins: [new WorkerPlugin({ sharedWorker: true })]
+  }, */
+
+  chainWebpack: config => {
+    config.module.rule('js').exclude.add(/\.worker$/)
+
+    config.module
+      .rule('worker')
+      .test(/\.worker$/)
+      .use('worker-loader')
+      .loader('worker-loader')
+      .tap(options => ({
+        ...options,
+        worker: 'Worker'
+      }))
+      .end()
   },
   devServer: {
     // progress: true,
-    hot: true,
-    inline: true,
     // https: true,
     // port: 8081,
-    historyApiFallback: true,
     proxy: [
       'https://futures.kraken.com',
       'https://api.kraken.com',
@@ -39,6 +50,7 @@ module.exports = {
       'https://api.liquid.com',
       'https://www.deribit.com',
       'https://fapi.binance.com',
+      'https://dapi.binance.com',
       'https://api.hbdm.com',
       'https://ftx.com',
       'https://api.bybit.com'

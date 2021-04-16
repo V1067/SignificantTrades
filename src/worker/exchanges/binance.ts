@@ -1,17 +1,17 @@
-import Exchange from './exchangeAbstract'
+import Exchange from '../exchange'
 
 export default class extends Exchange {
   id = 'BINANCE'
   private lastSubscriptionId = 0
   private subscriptions = {}
-  protected endpoints = { PRODUCTS: 'https://api.binance.com/api/v1/ticker/allPrices' }
+  protected endpoints = { PRODUCTS: 'https://api.binance.com/api/v3/exchangeInfo' }
 
   getUrl() {
     return `wss://stream.binance.com:9443/ws`
   }
 
   formatProducts(data) {
-    return data.map(product => product.symbol.toLowerCase())
+    return data.symbols.filter(product => product.status === 'TRADING').map(product => product.symbol.toLowerCase())
   }
 
   /**

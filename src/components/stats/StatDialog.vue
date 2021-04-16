@@ -2,8 +2,8 @@
   <Dialog :open="open" @clickOutside="close">
     <template v-slot:header>
       <div>
-        <div class="title">STAT</div>
-        <div class="subtitle">{{ title }}</div>
+        <div class="title">BUCKET</div>
+        <div class="subtitle">{{ name }}</div>
       </div>
     </template>
     <div class="column mb8">
@@ -12,10 +12,10 @@
         <input
           type="text"
           class="form-control"
-          :value="model.name"
+          :value="name"
           @change="
             $store.dispatch(paneId + '/updateStat', {
-              id: statId,
+              id: bucketId,
               prop: 'name',
               value: $event.target.value
             })
@@ -27,10 +27,10 @@
           picker="square"
           menuPosition="left"
           model="rgb"
-          :value="model.color"
+          :value="color"
           @input="
             $store.dispatch(paneId + '/updateStat', {
-              id: statId,
+              id: bucketId,
               prop: 'color',
               value: $event
             })
@@ -44,11 +44,11 @@
         <input
           type="text"
           class="form-control"
-          :value="getHms(model.window)"
+          :value="window"
           :placeholder="getHms($store.state[paneId].window) + ' (default)'"
           @change="
             $store.dispatch(paneId + '/updateStat', {
-              id: statId,
+              id: bucketId,
               prop: 'window',
               value: $event.target.value
             })
@@ -60,10 +60,10 @@
         <editable
           class="form-control"
           placeholder="auto"
-          :content="model.precision"
+          :content="precision"
           @output="
             $store.dispatch(paneId + '/updateStat', {
-              id: statId,
+              id: bucketId,
               prop: 'precision',
               value: $event
             })
@@ -83,33 +83,38 @@
       <textarea
         class="form-control"
         rows="5"
-        :value="model.output"
+        :value="input"
         @change="
           $store.dispatch(paneId + '/updateStat', {
-            id: statId,
-            prop: 'output',
+            id: bucketId,
+            prop: 'input',
             value: $event.target.value
           })
         "
       ></textarea>
-      <p class="help-text mt-8">
-        Sum <code>{{ model.output }}</code> over {{ getHms(model.window || $store.state[paneId].window) }} window
-      </p>
+      <small class="help-text mt-8">
+        Sum <code>{{ input }}</code> over {{ getHms(window) }} window
+      </small>
     </div>
     <hr />
-    <div class="form-group">
-      <label
-        class="checkbox-control -on-off"
-        v-tippy="{ placement: 'bottom' }"
-        :title="enabled ? 'Enable' : 'Disable'"
-        @change="disable(statId, $event)"
-      >
-        <input type="checkbox" class="form-control" :checked="enabled" />
-        <span>
-          {{ enabled ? 'Active' : 'Disabled' }}
-        </span>
-        <div></div>
-      </label>
+    <div class="column">
+      <div class="form-group">
+        <label
+          class="checkbox-control -on-off"
+          v-tippy="{ placement: 'bottom' }"
+          :title="enabled ? 'Disable' : 'Enable'"
+          @change="disable(bucketId, $event)"
+        >
+          <input type="checkbox" class="form-control" :checked="enabled" />
+          <div></div>
+          <span>
+            {{ enabled ? 'Active' : 'Disabled' }}
+          </span>
+        </label>
+      </div>
+      <button class="btn -red" @click="remove">
+        <i class="icon-trash"></i>
+      </button>
     </div>
   </Dialog>
 </template>
@@ -122,28 +127,35 @@ import Dialog from '@/components/framework/Dialog.vue'
 import DialogMixin from '@/mixins/dialogMixin'
 
 export default {
-  props: ['paneId', 'statId'],
+  props: ['paneId', 'bucketId'],
   mixins: [DialogMixin],
   components: {
     Dialog
   },
-  data: () => ({
-    title: 'Stat',
-    enabled: true,
-    model: {
-      color: null,
-      enabled: null,
-      name: null,
-      output: null,
-      precision: null,
-      window: null
-    }
-  }),
-  created() {
-    this.model = store.state[this.paneId].statsCounters[this.statId] || {}
+  computed: {
+    color: function() {
+      return store.state[this.paneId].buckets[this.bucketId].color
+    },
+    enabled: function() {
+      return store.state[this.paneId].buckets[this.bucketId].enabled
+    },
+    name: function() {
+      return store.state[this.paneId].buckets[this.bucketId].name
+    },
+    input: function() {
+      return store.state[this.paneId].buckets[this.bucketId].input
+    },
+    precision: function() {
+      return store.state[this.paneId].buckets[this.bucketId].precision || null
+    },
+    window: function() {
+      const window = store.state[this.paneId].buckets[this.bucketId].window
 
-    if (this.model.name) {
-      this.title = this.model.name
+      if (window) {
+        return getHms(window)
+      } else {
+        return null
+      }
     }
   },
   methods: {
@@ -153,6 +165,11 @@ export default {
     disable(id, event) {
       this.$store.dispatch(this.paneId + '/updateStat', { id: id, prop: 'enabled', value: event.target.checked })
       this.close()
+    },
+    async remove() {
+      await this.close()
+
+      this.$store.commit(this.paneId + '/REMOVE_BUCKET', this.bucketId)
     }
   }
 }

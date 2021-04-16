@@ -119,7 +119,7 @@
           </div>
         </section>
 
-        <section class="mt15 settings__footer">
+        <section class="mt16 settings__footer">
           <div class="form-group">
             <div v-if="version" class="column">
               <div class="-grow">
@@ -295,11 +295,19 @@ export default class extends Vue {
     }
 
     #app {
-      transform: translateX(-320px);
+      transform: translateX(-260px);
 
       .stack__scroller {
         transform: translateX(100%);
       }
+    }
+  }
+}
+
+@media screen and (min-width: 840px) {
+  body.-translate {
+    #app {
+      transform: translateX(-320px);
     }
   }
 }
@@ -354,9 +362,10 @@ export default class extends Vue {
     position: fixed;
     height: 100%;
     width: 100%;
+    right: 0;
 
     .stack__scroller {
-      width: 320px;
+      width: 260px;
       height: 100%;
       position: absolute;
       right: 0;
@@ -374,11 +383,18 @@ export default class extends Vue {
     }
   }
 
+  @media screen and (min-width: 840px) {
+    .stack__scroller {
+      width: 320px;
+    }
+  }
+
   .stack__wrapper {
     > section {
       display: flex;
       flex-direction: column-reverse;
       padding: 1rem;
+      position: relative;
 
       &:hover {
         background-color: rgba(black, 0.2);
@@ -402,6 +418,8 @@ export default class extends Vue {
 
   .settings__footer {
     margin-top: auto;
+    background: 0 !important;
+    font-size: 80%;
 
     a {
       opacity: 0.5;
@@ -448,100 +466,6 @@ export default class extends Vue {
     }
   }
 
-  .checkbox-control {
-    &.-slippage input ~ div {
-      &:before,
-      &:after {
-        content: unicode($icon-slippery);
-      }
-
-      &:before {
-        font-size: 1.5em;
-      }
-    }
-
-    &.-aggr input ~ div {
-      &:before {
-        content: unicode($icon-ms);
-        font-size: 1.5em;
-      }
-
-      &:after {
-        content: unicode($icon-cross);
-      }
-    }
-
-    &.-animations input ~ div {
-      &:before {
-        content: unicode($icon-cross);
-      }
-
-      &:after {
-        content: unicode($icon-magic);
-      }
-    }
-
-    &.-auto input {
-      ~ div {
-        width: auto;
-        display: flex;
-
-        &:before,
-        &:after {
-          font-family: inherit;
-          position: relative;
-          line-height: 1;
-          order: 0;
-        }
-
-        i {
-          order: 1;
-          top: 0;
-        }
-
-        &:before {
-          content: attr(on);
-          display: none;
-        }
-
-        &:after {
-          content: attr(off);
-        }
-      }
-
-      &:checked ~ div {
-        &:before {
-          display: block;
-        }
-
-        &:after {
-          display: none;
-        }
-      }
-    }
-
-    &.-cml-abs input {
-      ~ div {
-        &:before,
-        &:after {
-          font-family: inherit;
-        }
-
-        &:before {
-          content: 'CML';
-        }
-
-        &:after {
-          content: 'ABS';
-        }
-      }
-
-      &:not(:checked) ~ div {
-        background-color: $blue;
-      }
-    }
-  }
-
   .settings-audio {
     align-items: center;
 
@@ -557,23 +481,6 @@ export default class extends Vue {
 
   .settings-section {
     position: relative;
-
-    &__controls {
-      position: absolute;
-      right: 0;
-      top: -2.05rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      z-index: 1;
-
-      > a {
-        opacity: 0.5;
-
-        &:hover {
-          opacity: 1;
-        }
-      }
-    }
   }
 
   .settings-exchanges {

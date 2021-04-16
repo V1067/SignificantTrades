@@ -174,7 +174,7 @@ class SfxService {
     gain.connect(this.output)
     oscillator.connect(gain)
     length *= 1.3
-
+    length = Math.min(5, length)
     const volume = Math.max(0.02, Math.min(1, value)) * store.state.settings.audioVolume
 
     gain.gain.value = volume

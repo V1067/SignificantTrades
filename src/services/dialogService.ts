@@ -2,6 +2,7 @@ import Vue from 'vue'
 import store from '@/store'
 
 import VerteDialog from '@/components/framework/picker/VerteDialog.vue'
+import ConfirmDialog from '@/components/framework/ConfirmDialog.vue'
 
 class DialogService {
   mountedComponents = {}
@@ -71,6 +72,24 @@ class DialogService {
     }
 
     return dialog
+  }
+
+  async confirm(options: any) {
+    if (!options) {
+      return
+    }
+
+    if (typeof options === 'string') {
+      options = {
+        message: options
+      }
+    }
+
+    if (!options.message) {
+      return
+    }
+
+    return this.openAsPromise(ConfirmDialog, options)
   }
 }
 

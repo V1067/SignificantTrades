@@ -5,7 +5,7 @@
     </template>
     <pre class="pretty-print" v-html="pretty"></pre>
     <footer>
-      <a href="javascript:void(0);" class="-text" @click="close(false)">Annuler</a>
+      <a href="javascript:void(0);" class="btn -text" @click="close(false)">Annuler</a>
       <button class="btn -large" @click="close(true)">IMPORT</button>
     </footer>
   </Dialog>

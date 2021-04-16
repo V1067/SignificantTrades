@@ -19,17 +19,43 @@ export interface TradesPaneState {
   showLogos: boolean
   showTradesPairs: boolean
   liquidationsOnly: boolean
+  multipliers: { [identifier: string]: number }
 }
 
 const getters = {} as GetterTree<TradesPaneState, TradesPaneState>
 
+// https://coolors.co/d91f1c-eb1e2f-ef4352-77945c-3bca6d-00ff7f
+
 const state = {
   thresholds: [
-    { id: 'threshold', amount: 250000, buyColor: 'rgba(76,175,80,.33)', sellColor: 'rgba(229,115,115,.33)' },
-    { id: 'significant', amount: 500000, buyColor: 'rgb(91,130,48)', sellColor: 'rgb(224,91,82)' },
-    { id: 'huge', amount: 1000000, gif: 'cash', buyColor: 'rgb(156,204,101)', sellColor: 'rgb(244,67,54)' },
-    { id: 'rare', amount: 10000000, gif: 'explosion', buyColor: 'rgb(255,160,0)', sellColor: 'rgb(233,30,99)' }
+    {
+      id: 'threshold',
+      amount: 250000,
+      buyColor: 'rgba(119, 148, 92, .5)',
+      sellColor: 'rgba(239, 67, 82,.5)'
+    },
+    {
+      id: 'significant',
+      amount: 500000,
+      buyColor: 'rgb(100, 157, 102)',
+      sellColor: 'rgb(239, 67, 82)'
+    },
+    {
+      id: 'huge',
+      amount: 1000000,
+      gif: 'cash',
+      buyColor: 'rgb(59, 202, 109)',
+      sellColor: 'rgb(235, 30, 47)'
+    },
+    {
+      id: 'rare',
+      amount: 10000000,
+      gif: 'explosion',
+      buyColor: 'rgb(0, 255, 127)',
+      sellColor: 'rgb(217, 31, 28)'
+    }
   ],
+  multipliers: {},
   showThresholdsAsTable: true,
   maxRows: 100,
   showTradesPairs: false,
@@ -70,6 +96,13 @@ const mutations = {
 
       Vue.set(state.thresholds, payload.index, threshold)
     }
+  },
+  SET_THRESHOLD_MULTIPLIER(state, { identifier, multiplier }: { identifier: string; multiplier: number }) {
+    if (isNaN(multiplier) || multiplier < 0) {
+      multiplier = 0
+    }
+    console.log(multiplier)
+    Vue.set(state.multipliers, identifier, multiplier)
   },
   SET_THRESHOLD_GIF(state, payload) {
     const threshold = state.thresholds[payload.index]

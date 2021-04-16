@@ -30,6 +30,10 @@
     content: unicode($icon-pound);
   }
 
+  &[data-quote='coin'] .icon-quote:before {
+    content: unicode($icon-coin);
+  }
+
   &[data-base='bitcoin'] .icon-base:before {
     content: unicode($icon-btc);
   }
@@ -68,6 +72,10 @@
 
   &[data-base='eos'] .icon-base:before {
     content: unicode($icon-eos);
+  }
+
+  &[data-base='coin'] .icon-base:before {
+    content: unicode($icon-coin);
   }
 
   &[data-prefered-sizing-currency='base'] {

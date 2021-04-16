@@ -29,9 +29,9 @@
       </div>
     </div>
 
-    <div class="form-group">
+    <div class="form-group mt8">
       <label
-        class="checkbox-control -rip checkbox-control-input flex-right"
+        class="checkbox-control -rip checkbox-control-input"
         @change="$store.commit(paneId + '/TOGGLE_LIQUIDATIONS_ONLY', $event.target.checked)"
       >
         <input type="checkbox" class="form-control" :checked="liquidationsOnly" />

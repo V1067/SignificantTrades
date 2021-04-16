@@ -2,23 +2,15 @@
   <div
     class="settings-exchange"
     :class="{
-      '-active': exchange.pairs.length,
+      '-active': active,
       '-enabled': !settings.disabled,
-      '-loading': exchange.loading,
       '-invisible': settings.hidden,
       '-expanded': expanded
     }"
   >
     <div class="settings-exchange__header" @click="toggleExchange">
-      <span v-if="!isNaN(exchangeMultiplier) && exchangeMultiplier !== 1" class="settings-exchange__threshold">{{
-        formatAmount(minimumThreshold * exchangeMultiplier)
-      }}</span>
       <div class="settings-exchange__identity">
-        <div class="settings-exchange__name">{{ exchange.id.replace('_', ' ') }}</div>
-        <small class="settings-exchange__error" v-if="exchange.error">
-          {{ exchange.error }}
-        </small>
-        <small class="settings-exchange__price" v-if="price !== null" v-html="price"></small>
+        <div class="settings-exchange__name">{{ id }}</div>
       </div>
       <div class="settings-exchange__controls">
         <button
@@ -36,32 +28,16 @@
     </div>
     <div class="settings-exchange__detail" v-if="expanded">
       <div class="form-group">
-        <label class="column" style="justify-content:space-between">
-          <span class="condensed">Adj. threshold:</span>
-          <span v-if="settings.threshold !== 1">×{{ exchangeMultiplier }}</span>
-        </label>
-        <Slider
-          :step="0.0001"
-          :min="0"
-          :max="2"
-          :editable="false"
-          :value="exchangeMultiplier"
-          @input="
-            $store.commit('exchanges/SET_EXCHANGE_THRESHOLD', {
-              id,
-              threshold: $event
-            })
-          "
-          @reset="
-            $store.commit('exchanges/SET_EXCHANGE_THRESHOLD', {
-              id,
-              threshold: 1
-            })
-          "
-        >
-        </Slider>
+        <label>Connections</label>
+        <div>
+          <div v-for="market in markets" :key="market.identifier" class="d-flex">
+            <div class="-fill -center">{{ market.pair }}</div>
+            <div class="-center">{{ prices[market.identifier] }}</div>
+          </div>
+        </div>
       </div>
-      <div v-if="indexedProducts.length" class="form-group mt8">
+      <div class="form-group mt8">
+        <label>Market</label>
         <button v-if="canRefreshProducts" class="btn -red -small" @click="refreshProducts">Refresh products ({{ indexedProducts.length }})</button>
       </div>
     </div>
@@ -69,12 +45,13 @@
 </template>
 
 <script lang="ts">
-import { getExchangeById } from '@/exchanges'
-import Exchange from '@/exchanges/exchangeAbstract'
-import aggregatorService from '@/services/aggregatorService'
+// import { getExchangeById } from '@/exchanges'
+// import Exchange from '@/exchanges/exchangeAbstract'
+// import aggregatorService from '@/services/aggregatorService'
 import { formatAmount, formatPrice } from '@/utils/helpers'
 import { Component, Vue } from 'vue-property-decorator'
 import Slider from '@/components/framework/picker/Slider.vue'
+import aggregatorService from '@/services/aggregatorService'
 
 @Component({
   name: 'Exchange',
@@ -87,96 +64,67 @@ export default class extends Vue {
   id: string
   canRefreshProducts = true
   expanded = false
-  exchange: Exchange = null
-  price: number = null
+  prices: { [identifier: string]: number } = {}
 
-  private _priceUpdateInterval: number
+  mounted() {
+    aggregatorService.on('prices', this.updateMarketsPrices)
+  }
+
+  beforeDestroy() {
+    aggregatorService.off('prices', this.updateMarketsPrices)
+  }
+
+  updateMarketsPrices(prices) {
+    this.prices = prices
+  }
 
   get settings() {
     return this.$store.state.exchanges[this.id]
   }
 
-  get exchangeMultiplier() {
-    return typeof this.$store.state.exchanges[this.id].threshold === 'undefined' ? 1 : this.$store.state.exchanges[this.id].threshold
+  get markets() {
+    return this.$store.state.app.activeMarkets.filter(m => m.exchange === this.id).sort((a, b) => this.prices[a.id] - this.prices[b.id])
+  }
+
+  get active() {
+    return this.markets.length
   }
 
   get indexedProducts() {
     return this.$store.state.app.indexedProducts[this.id] || []
   }
 
-  created() {
-    this.exchange = getExchangeById(this.id)
-  }
-
-  mounted() {
-    this.updatePrice()
-  }
-
-  beforeDestroy() {
-    this.stopUpdatingPrice()
-  }
-
-  updatePrice() {
-    const marketPrices = aggregatorService.getMarketsPrices()
-    const exchangeRegex = new RegExp(`^${this.id}:`, 'i')
-
-    let price = 0
-    let count = 0
-
-    for (const market in marketPrices) {
-      if (exchangeRegex.test(market)) {
-        price += marketPrices[market]
-        count++
-      }
-    }
-
-    if (count) {
-      this.price = formatPrice(price / count)
-    } else {
-      this.price = null
-    }
-
-    if (!this._priceUpdateInterval) {
-      this._priceUpdateInterval = window.setInterval(this.updatePrice.bind(this), 1000)
-    }
-  }
-
-  stopUpdatingPrice() {
-    if (this._priceUpdateInterval) {
-      clearInterval(this._priceUpdateInterval)
-      this._priceUpdateInterval = null
-    }
-
-    this.price = null
-  }
-
-  refreshProducts() {
+  async refreshProducts() {
     this.canRefreshProducts = false
+
+    await aggregatorService.dispatch({
+      op: 'fetch-products',
+      data: this.id
+    })
 
     setTimeout(() => {
       this.canRefreshProducts = true
     }, 3000)
 
-    const exchange = getExchangeById(this.id)
+    aggregatorService.dispatch({
+      op: 'products',
+      data: {
+        exchange: this.id,
+        data: null
+      }
+    })
 
-    if (exchange) {
-      exchange.refreshProducts().then(() => {
-        this.$store.dispatch('app/showNotice', {
-          type: 'success',
-          title: `${this.id}'s products refreshed`
-        })
-      })
-    }
+    await this.$store.dispatch('exchanges/disconnect', this.id)
+    await this.$store.dispatch('exchanges/connect', this.id)
+
+    this.$store.dispatch('app/showNotice', {
+      type: 'success',
+      title: `${this.indexedProducts.length}'s products refreshed`
+    })
   }
 
   async toggleExchange() {
     await this.$store.dispatch('exchanges/toggleExchange', this.id)
-
-    if (this.settings.disabled) {
-      this.stopUpdatingPrice()
-    } else {
-      this.updatePrice()
-    }
   }
 
   formatAmount(amount) {
@@ -192,9 +140,8 @@ export default class extends Vue {
 <style lang="scss">
 .settings-exchange {
   background-color: rgba(white, 0.15);
-  color: white;
   transition: all 0.2s $ease-out-expo;
-  border-radius: 2px;
+  border-radius: 3px;
   margin-bottom: 8px;
   flex-basis: calc(50% - 4px);
   max-width: calc(50% - 4px);
@@ -318,7 +265,7 @@ export default class extends Vue {
   pointer-events: none;
   font-size: 90%;
   background-color: $blue;
-  border-radius: 2px;
+  border-radius: 3px;
   color: white;
   padding: 0.1em 0.2em;
   box-shadow: 0 0 0 1px rgba(black, 0.2);

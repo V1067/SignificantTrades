@@ -32,9 +32,27 @@ export const defaultChartSeries = {
       lineStyle: 0,
       priceLineVisible: true,
       lastValueVisible: true,
-      topColor: 'rgba(33,150,243,0.26)',
-      lineColor: 'rgb(33,150,243)',
-      bottomColor: 'rgba(33,150,243,0)'
+      topColor: 'rgba(65, 51, 122,0.26)',
+      lineColor: '#6EA4BF',
+      bottomColor: 'rgba(65, 51, 122,0)'
+    }
+  },
+  price_ohlc: {
+    name: 'Candlesticks',
+    type: 'area',
+    description: 'Price',
+    input: 'avg_ohlc(bar)',
+    axisLabelVisible: true,
+    options: {
+      priceScaleId: 'price',
+      priceLineVisible: true,
+      lastValueVisible: true,
+      upColor: 'rgb(100, 157, 102)',
+      borderUpColor: 'rgb(59, 202, 109)',
+      wickUpColor: 'rgba(119, 148, 92, .5)',
+      downColor: 'rgb(239, 67, 82)',
+      borderDownColor: 'rgb(235, 30, 47)',
+      wickDownColor: 'rgba(239, 67, 82,.5)'
     }
   },
   volume: {
@@ -77,8 +95,8 @@ export const defaultChartSeries = {
       priceFormat: {
         type: 'volume'
       },
-      upColor: '#c3a87a',
-      downColor: '#e53935',
+      upColor: '#3BCA6D',
+      downColor: '#EB1E2F',
       priceScaleId: 'volume'
     }
   },
@@ -93,14 +111,26 @@ export const defaultChartSeries = {
       lineWidth: 1
     }
   },
+  'price-200-ma': {
+    type: 'line',
+    name: 'PRICE 200 MA',
+    enabled: true,
+    input: 'sma($price, options.smaLength)',
+    options: {
+      priceScaleId: 'price',
+      color: '#C2EFEB',
+      smaLength: 200,
+      lineWidth: 1
+    }
+  },
   'cvd-50-ma': {
     type: 'line',
     name: 'CVD 50 MA',
-    enabled: true,
+    enabled: false,
     input: 'sma($cvd.close, options.smaLength)',
     options: {
       priceScaleId: 'right',
-      color: 'rgb(255,235,59)',
+      color: 'rgba(236, 254, 232, .5)',
       smaLength: 50,
       lineWidth: 1
     }

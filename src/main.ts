@@ -3,7 +3,6 @@ import App from './App.vue'
 import VueTippy, { TippyComponent } from 'vue-tippy'
 import './assets/sass/app.scss'
 import store from './store'
-// import router from './router'
 
 const vueEnv = process.env
 

@@ -1,9 +1,14 @@
 <template>
-  <Dialog :open="open" @clickOutside="close" class="pane-dialog">
+  <Dialog :open="open" @clickOutside="close" class="pane-dialog" @mousedown="clickOutsideClose = false" @mouseup="clickOutsideClose = true">
     <template v-slot:header>
       <div class="title">
         <editable :class="{ '-no-grab': renaming }" :content="name" :editable="renaming" @output="name = $event" placeholder="Nom"></editable>
-        <i class="icon-sm -no-grab" style="cursor: pointer" :class="{ 'icon-check': renaming, 'icon-edit': !renaming }" @click="renaming = false"></i>
+        <i
+          class="icon-sm -no-grab"
+          style="cursor: pointer"
+          :class="{ 'icon-check': renaming, 'icon-edit': !renaming }"
+          @click="renaming = !renaming"
+        ></i>
       </div>
       <div class="column -center"></div>
     </template>

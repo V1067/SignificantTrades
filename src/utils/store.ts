@@ -32,7 +32,6 @@ export function scheduleSync(state, delay = 500) {
   }
 
   persistModulesTimers[state._id] = setTimeout(() => {
-    console.log(`[store] saving ${state._id}...`)
     syncState(state)
   }, delay)
 }

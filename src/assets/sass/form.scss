@@ -25,14 +25,6 @@
     }
   }
 
-  .help-text {
-    color: rgba(white, 0.6);
-
-    a {
-      text-decoration: underline;
-    }
-  }
-
   label + .help-text {
     margin: -0.5em 0 0.5em;
   }
@@ -45,7 +37,7 @@
 .form-control {
   background: 0;
   padding: 0.5rem;
-  border-radius: 2px;
+  border-radius: 3px;
   border: 0;
   width: calc(100% - 16px);
   letter-spacing: -0.5px;
@@ -53,6 +45,15 @@
   font-size: 14px;
   margin: 0;
   color: inherit;
+}
+
+.help-text {
+  display: block;
+  color: rgba(white, 0.6);
+
+  a {
+    text-decoration: underline;
+  }
 }
 
 .form-control::-webkit-input-placeholder,
@@ -130,6 +131,109 @@
     }
   }
 
+  &.-slippage input ~ div {
+    &:before,
+    &:after {
+      content: unicode($icon-slippery);
+    }
+
+    &:before {
+      font-size: 1.5em;
+    }
+  }
+
+  &.-rip input ~ div {
+    &:before,
+    &:after {
+      content: unicode($icon-tomb);
+    }
+
+    &:before {
+      font-size: 1.5em;
+    }
+  }
+
+  &.-aggr input ~ div {
+    &:before {
+      content: unicode($icon-ms);
+      font-size: 1.5em;
+    }
+
+    &:after {
+      content: unicode($icon-cross);
+    }
+  }
+
+  &.-animations input ~ div {
+    &:before {
+      content: unicode($icon-cross);
+    }
+
+    &:after {
+      content: unicode($icon-magic);
+    }
+  }
+
+  &.-auto input {
+    ~ div {
+      width: auto;
+      display: flex;
+
+      &:before,
+      &:after {
+        font-family: inherit;
+        position: relative;
+        line-height: 1;
+        order: 0;
+      }
+
+      i {
+        order: 1;
+        top: 0;
+      }
+
+      &:before {
+        content: attr(on);
+        display: none;
+      }
+
+      &:after {
+        content: attr(off);
+      }
+    }
+
+    &:checked ~ div {
+      &:before {
+        display: block;
+      }
+
+      &:after {
+        display: none;
+      }
+    }
+  }
+
+  &.-cml-abs input {
+    ~ div {
+      &:before,
+      &:after {
+        font-family: inherit;
+      }
+
+      &:before {
+        content: 'CML';
+      }
+
+      &:after {
+        content: 'ABS';
+      }
+    }
+
+    &:not(:checked) ~ div {
+      background-color: $blue;
+    }
+  }
+
   input {
     display: none;
 
@@ -159,7 +263,7 @@
     padding: 0.563rem;
     width: 1em;
     height: 1em;
-    border-radius: 2px;
+    border-radius: 3px;
     background-color: rgba(white, 0.2);
     transition: all 0.2s $ease-out-expo;
     position: relative;

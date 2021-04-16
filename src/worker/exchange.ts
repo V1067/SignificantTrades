@@ -1,8 +1,7 @@
-import EventEmitter from 'eventemitter3'
-
-import store from '../store'
-
-import { getHms, randomString } from '../utils/helpers'
+import { ProductsData, ProductsStorage } from '@/types/test'
+import { EventEmitter } from 'eventemitter3'
+import { dispatchAsync } from './helpers/com'
+import { getHms, randomString } from './helpers/utils'
 
 interface Api extends WebSocket {
   _id: string
@@ -10,7 +9,7 @@ interface Api extends WebSocket {
   _timestamp: number
 }
 
-abstract class Exchange extends EventEmitter {
+class Exchange extends EventEmitter {
   public id: string
 
   public pairs: string[] = []
@@ -29,21 +28,29 @@ abstract class Exchange extends EventEmitter {
 
   private _keepAliveIntervals: { [url: string]: number } = {}
 
-  public loading = false
-
   constructor() {
     super()
+  }
+
+  get requireProducts() {
+    return !this.products && this.endpoints.PRODUCTS
   }
 
   /**
    * Fire when a new websocket connection received something
    */
-  abstract onMessage(event, api): boolean
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onMessage(event, api) {
+    return false
+  }
 
   /**
    * Get exchange ws url
    */
-  abstract getUrl(pair?: string): string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getUrl(pair?: string) {
+    return null
+  }
 
   /**
    * Fire when a new websocket connection is created
@@ -81,6 +88,7 @@ abstract class Exchange extends EventEmitter {
    * @returns {Promise<WebSocket>}
    */
   async link(pair) {
+    console.log('[' + this.id + ']', 'linking pair', pair)
     pair = pair.replace(/[^:]*:/, '')
 
     if (!this.isMatching(pair)) {
@@ -93,10 +101,13 @@ abstract class Exchange extends EventEmitter {
 
     this.pairs.push(pair)
 
-    store.commit('app/ADD_ACTIVE_MARKET', {
-      exchange: this.id,
-      pair
-    })
+    /*postMessage({
+      op: 'connection',
+      data: {
+        pair,
+        exchange: this.id
+      }
+    })*/
 
     console.debug(`[${this.id}] linking ${pair}`)
 
@@ -131,11 +142,6 @@ abstract class Exchange extends EventEmitter {
     this.unsubscribe(api, pair)
 
     this.pairs.splice(this.pairs.indexOf(pair), 1)
-
-    store.commit('app/REMOVE_ACTIVE_MARKET', {
-      exchange: this.id,
-      pair
-    })
 
     if (!api._pairs.length) {
       return this.unbindApi(api)
@@ -319,149 +325,37 @@ abstract class Exchange extends EventEmitter {
     })
   }
 
-  /**
-   * Get exchange products and save them
-   * @returns {Promise<void>}
-   */
-  fetchProducts(forceRenew = false): Promise<void> {
-    return new Promise<void>(resolve => {
-      if (!this.endpoints || !this.endpoints.PRODUCTS) {
-        if (!this.products) {
-          this.products = []
-        }
+  setProducts(productsData: ProductsData): void {
+    if (!productsData) {
+      console.debug(`[${this.id}] set products (null)`)
+      // worker will ask for products next time the market connect
+      this.products = null
+      return
+    }
 
-        return resolve()
+    if (typeof productsData === 'object' && Object.prototype.hasOwnProperty.call(productsData, 'products')) {
+      console.debug(`[${this.id}] set products (products data)`)
+      for (const key in productsData) {
+        this[key] = productsData[key]
       }
-
-      if (forceRenew) {
-        this.products = null
-      } else if (!this.products) {
-        this.getStoredProducts()
-      }
-
-      if (this.products !== null) {
-        console.log(`[${this.id}] recovered saved products`)
-        return resolve()
-      }
-
-      let urls = this.endpoints.PRODUCTS as string[]
-
-      if (!Array.isArray(urls)) {
-        urls = [urls]
-      }
-
-      console.log(`[${this.id}] fetching new products...`, urls)
-
-      Promise.all(
-        urls.map((action: any) => {
-          action = action.split('|')
-
-          const method = action.length > 1 ? action.shift() : 'GET'
-          let url = action[0]
-
-          if (store.state.app.proxyUrl) {
-            url = store.state.app.proxyUrl + url
-          }
-
-          return new Promise(resolve => {
-            setTimeout(() => {
-              resolve(
-                fetch(url, {
-                  method: method
-                })
-                  .then(response => response.json())
-                  .catch(err => {
-                    console.error(`[${this.id}] couldn't parse non-json products`, err)
-
-                    return null
-                  })
-              )
-            }, 500)
-          })
-        })
-      ).then((data: any[]) => {
-        console.log(`[${this.id}] received API products response => format products`)
-
-        if (data.indexOf(null) !== -1) {
-          data = null
-        } else if (data.length === 1) {
-          data = data[0]
-        }
-
-        if (data) {
-          const formatedProducts = this.formatProducts(data) || []
-
-          if (typeof formatedProducts === 'object' && Object.prototype.hasOwnProperty.call(formatedProducts, 'products')) {
-            for (const key in formatedProducts) {
-              this[key] = formatedProducts[key]
-            }
-          } else {
-            this.products = formatedProducts
-          }
-
-          console.debug(`[${this.id}] saving products`)
-
-          localStorage.setItem(
-            this.id,
-            JSON.stringify({
-              timestamp: +new Date(),
-              data: formatedProducts
-            })
-          )
-        } else {
-          this.products = null
-        }
-
-        resolve()
-      })
-    }).then(() => {
-      this.indexProducts()
-    })
-  }
-
-  getStoredProducts() {
-    try {
-      const storage = JSON.parse(localStorage.getItem(this.id))
-
-      if (storage && +new Date() - storage.timestamp < 1000 * 60 * 60 * 24 * 7 && (this.id !== 'okex' || storage.timestamp > 1560235687982)) {
-        if (storage.data && typeof storage.data === 'object' && Object.prototype.hasOwnProperty.call(storage.data, 'products')) {
-          for (const key in storage.data) {
-            this[key] = storage.data[key]
-          }
-        } else {
-          this.products = storage.data
-        }
-
-        if (
-          !this.products ||
-          (Array.isArray(this.products) && !this.products.length) ||
-          (typeof this.products === 'object' && !Object.keys(this.products).length)
-        ) {
-          this.products = null
-        }
-      } else {
-        console.info(`[${this.id}] products data expired`)
-      }
-    } catch (error) {
-      console.error(`[${this.id}] unable to retrieve stored products`, error)
+    } else if (Array.isArray(productsData)) {
+      console.debug(`[${this.id}] set products (array of markets)`)
+      this.products = productsData
     }
   }
 
-  indexProducts() {
-    let products = []
+  async getProducts(): Promise<void> {
+    console.debug(`[${this.id}] request product`)
 
-    if (this.products) {
-      if (Array.isArray(this.products)) {
-        products = this.products.slice(0, this.products.length)
-      } else if (typeof this.products === 'object') {
-        products = Object.keys(this.products)
+    const storage = (await dispatchAsync({
+      op: 'products',
+      data: {
+        exchange: this.id,
+        endpoints: this.endpoints.PRODUCTS
       }
-    }
+    })) as ProductsStorage
 
-    store.commit('app/INDEX_EXCHANGE_PRODUCTS', {
-      exchange: this.id,
-      products
-    })
+    this.setProducts(storage.data)
   }
 
   /**
@@ -574,7 +468,7 @@ abstract class Exchange extends EventEmitter {
 
     console.debug(`[${this.id}] setup keepalive for ws ${api._id}`)
 
-    this._keepAliveIntervals[api._id] = setInterval(() => {
+    this._keepAliveIntervals[api._id] = self.setInterval(() => {
       if (api.readyState === WebSocket.OPEN) {
         api.send(JSON.stringify(payload))
       }
@@ -590,13 +484,6 @@ abstract class Exchange extends EventEmitter {
 
     clearInterval(this._keepAliveIntervals[api._id])
     delete this._keepAliveIntervals[api._id]
-  }
-
-  refreshProducts() {
-    localStorage.removeItem(this.id)
-    this.products = null
-
-    return this.fetchProducts()
   }
 
   markLoadingAsCompleted(type: { [url: string]: { promise?: Promise<any>; resolver?: (success: boolean) => void } }, url: string, success: boolean) {

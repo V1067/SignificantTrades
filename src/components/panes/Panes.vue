@@ -6,7 +6,7 @@
     :margin="[0, 0]"
     :is-draggable="draggable"
     :is-resizable="resizable"
-    :vertical-compact="false"
+    :vertical-compact="true"
     :use-css-transforms="true"
     :responsive="false"
     @layout-updated="onLayoutUpdated"
@@ -79,8 +79,6 @@ export default class extends Vue {
   }
 
   calculateRowHeight(event?: Event) {
-    console.log('calculateRowHeight', event, this)
-
     if (this._resizeTimeout) {
       clearTimeout(this._resizeTimeout)
     }
@@ -94,8 +92,6 @@ export default class extends Vue {
       const rowNum = 12
 
       this.rowHeight = (window.innerHeight - headerHeight) / rowNum
-
-      console.log('recalc row height', this.rowHeight)
     }
   }
 

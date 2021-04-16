@@ -1,5 +1,5 @@
 import { MAX_BARS_PER_CHUNKS } from '../../utils/constants'
-import { formatAmount, formatTime, getHms, setValueByDotNotation } from '../../utils/helpers'
+import { formatAmount, formatTime, getHms, parseMarket, setValueByDotNotation } from '../../utils/helpers'
 import { defaultChartOptions, defaultPlotsOptions, defaultSerieOptions, getChartOptions } from './chartOptions'
 import store from '../../store'
 import * as seriesUtils from './serieUtils'
@@ -8,8 +8,8 @@ import ChartCache, { Chunk } from './chartCache'
 import SerieTranspiler from './serieTranspiler'
 import dialogService from '../../services/dialogService'
 import SerieDialog from './SerieDialog.vue'
-import { defaultChartSeries } from './chartSeries'
-import { Trade } from '@/services/aggregatorService'
+import { defaultChartSeries } from './defaultSeries'
+import { Trade } from '@/types/test'
 
 export interface Bar {
   vbuy?: number
@@ -79,6 +79,7 @@ export interface SerieInstruction {
 
 export interface Renderer {
   timestamp: number
+  length: number
   bar: Bar
   sources: { [name: string]: Bar }
   series: { [id: string]: RendererSerieData }
@@ -94,6 +95,7 @@ interface RendererSerieData {
 
 export default class ChartController {
   paneId: string
+  watermark: string
 
   chartInstance: TV.IChartApi
   chartElement: HTMLElement
@@ -122,6 +124,14 @@ export default class ChartController {
   }
 
   setMarkets(markets: string[]) {
+    this.watermark = markets
+      .filter(market => {
+        const [exchange] = parseMarket(market)
+
+        return !store.state.exchanges[exchange].disabled
+      })
+      .join(' + ')
+
     this.markets = markets.reduce((output, identifier) => {
       output[identifier.replace(/:/g, '')] = true
 
@@ -132,7 +142,7 @@ export default class ChartController {
   }
 
   createChart(containerElement) {
-    console.log(`[chart/controller] create chart`)
+    console.log(`[chart/${this.paneId}/controller] create chart`)
 
     const chartOptions = getChartOptions(defaultChartOptions)
 
@@ -147,7 +157,7 @@ export default class ChartController {
    * remove series, destroy this.chartInstance and cancel related events1
    */
   removeChart() {
-    console.log(`[chart/controller] remove chart`)
+    console.log(`[chart/${this.paneId}/controller] remove chart`)
 
     if (!this.chartInstance) {
       return
@@ -288,7 +298,7 @@ export default class ChartController {
 
     this.chartInstance.applyOptions({
       watermark: {
-        text: `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0${Object.keys(this.markets).join(' + ')}\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`,
+        text: `\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0${this.watermark}\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0`,
         visible: true
       }
     })
@@ -367,8 +377,8 @@ export default class ChartController {
       serieOptions.title = serieSettings.name = store.state.app.pairs.join('+')
     } */
 
-    console.info(`[chart/addSerie] adding ${id}`)
-    console.info(`\t-> TYPE: ${serieType}`)
+    console.debug(`[chart/${this.paneId}/addSerie] adding ${id}`)
+    console.debug(`\t-> TYPE: ${serieType}`)
 
     const serie: ActiveSerie = {
       id,
@@ -404,23 +414,19 @@ export default class ChartController {
   }
 
   prepareSerie(serie) {
-    console.info(`[chart/prepareSerie] preparing serie "${serie.id}"\n\t-> ${serie.input}\n...`)
+    // console.info(`[chart/${this.paneId}/prepareSerie] preparing serie "${serie.id}"\n\t-> ${serie.input}\n...`)
 
     try {
       const transpilationResult = this.serieTranspiler.transpile(serie)
       const { functions, variables, references } = this.serieTranspiler.transpile(serie)
       let { output, type } = transpilationResult
 
-      console.info(`[chart/prepareSerie] success!`)
-      console.log(`\t-> ${output}`)
-      console.log(`\t ${variables.length} variable(s)`)
-      console.log(`\t ${functions.length} function(s)`)
-      console.log(`\t ${references.length} references(s)`)
-
-      store.commit(this.paneId + '/SET_SERIE_ERROR', {
-        id: serie.id,
-        error: null
-      })
+      if (store.state[this.paneId].activeSeriesErrors[serie.id]) {
+        store.commit(this.paneId + '/SET_SERIE_ERROR', {
+          id: serie.id,
+          error: null
+        })
+      }
 
       if (type === 'ohlc' && serie.type !== 'candlestick' && serie.type !== 'bar') {
         output += '.close'
@@ -439,7 +445,7 @@ export default class ChartController {
 
       return true
     } catch (error) {
-      console.error(`[chart/prepareSerie] transpilation failed`)
+      console.error(`[chart/${this.paneId}/prepareSerie] transpilation failed`)
       console.error(`\t->`, error)
 
       store.commit(this.paneId + '/SET_SERIE_ERROR', {
@@ -476,7 +482,7 @@ export default class ChartController {
 
     this.serieTranspiler.updateInstructionsArgument(functions, serie.options)
 
-    console.log(`[chart/bindSerie] binding ${serie.id} ...`)
+    console.log(`[chart/${this.paneId}/bindSerie] binding ${serie.id} ...`)
 
     renderer.series[serie.id] = {
       value: null,
@@ -487,12 +493,6 @@ export default class ChartController {
 
     serie.adapter = this.serieTranspiler.getAdapter(serie.model.output)
     serie.outputType = serie.model.type
-
-    /*let priority = 0
-
-    for (const reference of serie.model.references) {
-      
-    }*/
 
     return serie
   }
@@ -565,7 +565,7 @@ export default class ChartController {
    * clear rendered stuff
    */
   clearChart() {
-    console.log(`[chart/controller] clear chart (all series emptyed)`)
+    console.log(`[chart/${this.paneId}/controller] clear chart (all series emptyed)`)
 
     this.preventPan()
 
@@ -580,7 +580,7 @@ export default class ChartController {
    * clear active data
    */
   clearData() {
-    console.log(`[chart/controller] clear data (activeRenderer+activeChunk+queuedTrades1)`)
+    console.log(`[chart/${this.paneId}/controller] clear data (activeRenderer+activeChunk+queuedTrades1)`)
 
     this.activeRenderer = null
     this.activeChunk = null
@@ -591,7 +591,7 @@ export default class ChartController {
    * clear data and rendered stuff
    */
   clear() {
-    console.log(`[chart/controller] clear all (cache+activedata+chart)`)
+    console.log(`[chart/${this.paneId}/controller] clear all (cache+activedata+chart)`)
 
     this.chartCache.clear()
     this.clearData()
@@ -602,7 +602,7 @@ export default class ChartController {
    * clear everything
    */
   destroy() {
-    console.log(`[chart/controller] destroy`)
+    console.log(`[chart/${this.paneId}/controller] destroy`)
 
     this.chartCache.clear()
     this.clearData()
@@ -626,7 +626,7 @@ export default class ChartController {
       return
     }
 
-    console.log(`[chart/controller] setup queue (${getHms(store.state[this.paneId].refreshRate)})`)
+    console.debug(`[chart/${this.paneId}/controller] setup queue (${getHms(store.state[this.paneId].refreshRate)})`)
 
     this._releaseQueueInterval = setInterval(() => {
       if (!this._preventImmediateRender) {
@@ -643,7 +643,7 @@ export default class ChartController {
       return
     }
 
-    console.log(`[chart/controller] clear queue`)
+    console.log(`[chart/${this.paneId}/controller] clear queue`)
 
     clearInterval(this._releaseQueueInterval)
     delete this._releaseQueueInterval
@@ -710,24 +710,12 @@ export default class ChartController {
       if (!this.activeRenderer || this.activeRenderer.timestamp < timestamp) {
         if (this.activeRenderer) {
           if (!this.activeChunk || (this.activeChunk.to < this.activeRenderer.timestamp && this.activeChunk.bars.length >= MAX_BARS_PER_CHUNKS)) {
-            if (!this.activeChunk) {
-              console.log(`[chart/renderRealtimeTrades] formatbar require require active chunk`)
-            } else {
-              console.log(`[chart/renderRealtimeTrades] current active chunk is too large (${this.activeChunk.bars.length} bars)`)
-            }
-
             if (!this.activeChunk && this.chartCache.cacheRange.to === this.activeRenderer.timestamp) {
               this.chartCache.chunks[this.chartCache.chunks.length - 1].active = true
               this.activeChunk = this.chartCache.chunks[this.chartCache.chunks.length - 1]
               this.activeChunk.active = true
-              console.log(`\t-> set last chunk as activeChunk (same timestamp, ${this.activeChunk.bars.length} bars)`)
             } else {
               if (this.activeChunk) {
-                console.log(
-                  `\t-> mark current active chunk as inactive (#${this.chartCache.chunks.indexOf(this.activeChunk)} | FROM: ${formatTime(
-                    this.activeChunk.from
-                  )} | TO: ${formatTime(this.activeChunk.to)})\n\t-> then create new chunk as activeChunk`
-                )
                 this.activeChunk.active = false
               }
 
@@ -738,12 +726,6 @@ export default class ChartController {
                 rendered: true,
                 bars: []
               })
-
-              console.log(
-                `[chart/renderRealtimeTrades] create new active chunk (#${this.chartCache.chunks.indexOf(this.activeChunk)} | FROM: ${formatTime(
-                  this.activeChunk.from
-                )} | TO: ${formatTime(this.activeChunk.to)})`
-              )
             }
           }
 
@@ -776,6 +758,7 @@ export default class ChartController {
 
       if (!this.activeRenderer.sources[identifier]) {
         this.activeRenderer.sources[identifier] = {
+          pair: trade.pair,
           exchange: trade.exchange,
           close: +trade.price
         }
@@ -810,6 +793,10 @@ export default class ChartController {
         this.activeRenderer.bar['c' + trade.side] += trade.count
         this.activeRenderer.bar.empty = false
       }
+    }
+
+    if (!this.activeRenderer) {
+      return
     }
 
     if (!this.activeRenderer.bar.empty) {
@@ -856,7 +843,14 @@ export default class ChartController {
    * @param {string[]} [series] render only theses series
    */
   renderBars(bars, series) {
-    console.log(`[chart/controller] render bars`, '(', series ? 'specific serie(s): ' + series.join(',') : 'all series', ')', bars.length, 'bar(s)')
+    console.log(
+      `[chart/${this.paneId}/controller] render bars`,
+      '(',
+      series ? 'specific serie(s): ' + series.join(',') : 'all series',
+      ')',
+      bars.length,
+      'bar(s)'
+    )
 
     if (!bars.length) {
       return
@@ -952,15 +946,18 @@ export default class ChartController {
     let from = null
 
     if (visibleRange) {
-      console.log('[chart/renderVisibleChunks] VisibleRange: ', `from: ${formatTime(visibleRange.from)} -> to: ${formatTime(visibleRange.to)}`)
+      console.debug(
+        '[chart/${this.paneId}/renderVisibleChunks] VisibleRange: ',
+        `from: ${formatTime(visibleRange.from)} -> to: ${formatTime(visibleRange.to)}`
+      )
 
       from = visibleRange.from
 
       if (visibleLogicalRange.from < 0) {
         from += store.state[this.paneId].timeframe * visibleLogicalRange.from
 
-        console.log(
-          '[chart/renderVisibleChunks] Ajusted visibleRange using visibleLogicalRange: ',
+        console.debug(
+          '[chart/${this.paneId}/renderVisibleChunks] Ajusted visibleRange using visibleLogicalRange: ',
           `bars offset: ${visibleLogicalRange.from} === from: ${formatTime(from)}`
         )
       }
@@ -980,7 +977,7 @@ export default class ChartController {
       })
       .reduce((bars, chunk) => bars.concat(chunk.bars), [])
     selection.push('------------------------')
-    console.log(selection.join('\n') + '\n')
+    console.debug(selection.join('\n') + '\n')
     this.renderBars(bars, null)
   }
 
@@ -1017,7 +1014,7 @@ export default class ChartController {
 
     const delay = 1000
 
-    // console.info(`[chart/controller] prevent pan for next ${getHms(delay)}`)
+    // console.info(`[chart/${this.paneId}/controller] prevent pan for next ${getHms(delay)}`)
 
     if (typeof this._releasePanTimeout !== 'undefined') {
       clearTimeout(this._releasePanTimeout)
@@ -1027,9 +1024,9 @@ export default class ChartController {
 
     this._releasePanTimeout = window.setTimeout(() => {
       if (!this.panPrevented) {
-        // console.warn(`[chart/controller] pan already released (before timeout fired)`)
+        // console.warn(`[chart/${this.paneId}/controller] pan already released (before timeout fired)`)
       } else {
-        // console.info(`[chart/controller] pan released (by timeout)`)
+        // console.info(`[chart/${this.paneId}/controller] pan released (by timeout)`)
 
         this.panPrevented = false
       }
@@ -1081,6 +1078,11 @@ export default class ChartController {
 
       serieData.point = serie.adapter(renderer, serieData.functions, serieData.variables, serie.options, seriesUtils)
 
+      if (renderer.length < serie.options.minLength) {
+        delete points[serie.id]
+        continue
+      }
+
       if (serie.model.type === 'value') {
         serieData.value = serieData.point
         points[serie.id] = { time, value: serieData.point }
@@ -1127,6 +1129,7 @@ export default class ChartController {
   createRenderer(firstBarTimestamp, series?: string[]) {
     const renderer: Renderer = {
       timestamp: firstBarTimestamp,
+      length: 1,
       series: {},
       sources: {},
 
@@ -1136,7 +1139,8 @@ export default class ChartController {
         cbuy: 0,
         csell: 0,
         lbuy: 0,
-        lsell: 0
+        lsell: 0,
+        empty: true
       }
     }
 
@@ -1157,6 +1161,8 @@ export default class ChartController {
    * @param {Renderer?} renderer bar to use as reference
    */
   nextBar(timestamp, renderer?: Renderer) {
+    renderer.length++
+
     if (!renderer.bar.empty) {
       for (let i = 0; i < this.activeSeries.length; i++) {
         const rendererSerieData = renderer.series[this.activeSeries[i].id]

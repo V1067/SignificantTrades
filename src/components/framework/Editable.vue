@@ -80,9 +80,8 @@ export default class extends Vue {
 
   onKeyDown(event) {
     if (this.disabled || event.which === 13) {
-      event
-        .preventDefault()(this.$el as HTMLInputElement)
-        .blur()
+      event.preventDefault()
+      ;(this.$el as HTMLInputElement).blur()
 
       event.target.innerText = this.content
 

@@ -1,4 +1,4 @@
-import Exchange from './exchangeAbstract'
+import Exchange from '../exchange'
 
 export default class extends Exchange {
   id = 'POLONIEX'

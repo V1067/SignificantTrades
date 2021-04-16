@@ -1,7 +1,7 @@
 <template>
   <Dialog :open="open" @clickOutside="close" class="-picker">
     <template v-slot:header>
-      <div class="title">&nbsp;</div>
+      <div class="title">{{ currentColor }}</div>
     </template>
     <Picker :mode="picker" :alpha="alpha" v-model="currentColor"></Picker>
     <div class="verte__controller">
@@ -22,17 +22,17 @@
         <Slider :gradient="[`rgb(${rgb.red},0,${rgb.blue})`, `rgb(${rgb.red},255,${rgb.blue})`]" v-model="rgb.green"> </Slider>
         <Slider :gradient="[`rgb(${rgb.red},${rgb.green},0)`, `rgb(${rgb.red},${rgb.green},255)`]" v-model="rgb.blue"> </Slider>
       </template>
-      <div class="verte__inputs">
+      <div class="verte__inputs mt8">
         <button class="verte__model" @click="switchModel" type="button">{{ currentModel }}</button>
         <template v-if="currentModel === 'hsl'">
-          <input class="form-control" @change="inputChanged($event, 'hue')" :value="hsl.hue" type="number" max="360" min="0" />
-          <input class="form-control" @change="inputChanged($event, 'sat')" :value="hsl.sat" type="number" min="0" max="100" />
-          <input class="form-control" @change="inputChanged($event, 'lum')" :value="hsl.lum" type="number" min="0" max="100" />
+          <input class="form-control" @change="inputChanged($event, 'hue')" :value="hsl.hue" />
+          <input class="form-control" @change="inputChanged($event, 'sat')" :value="hsl.sat" />
+          <input class="form-control" @change="inputChanged($event, 'lum')" :value="hsl.lum" />
         </template>
         <template v-if="currentModel === 'rgb'">
-          <input class="form-control" @change="inputChanged($event, 'red')" :value="rgb.red" type="number" min="0" max="255" />
-          <input class="form-control" @change="inputChanged($event, 'green')" :value="rgb.green" type="number" min="0" max="255" />
-          <input class="form-control" @change="inputChanged($event, 'blue')" :value="rgb.blue" type="number" min="0" max="255" />
+          <input class="form-control" @change="inputChanged($event, 'red')" :value="rgb.red" />
+          <input class="form-control" @change="inputChanged($event, 'green')" :value="rgb.green" />
+          <input class="form-control" @change="inputChanged($event, 'blue')" :value="rgb.blue" />
         </template>
         <template v-if="currentModel === 'hex'">
           <input class="form-control" @change="inputChanged($event, 'hex')" :value="'' + hex.red + hex.green + hex.blue" type="text" />

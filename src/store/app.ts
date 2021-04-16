@@ -1,8 +1,9 @@
-import { Market } from '@/services/aggregatorService'
+import aggregatorService from '@/services/aggregatorService'
+import { Market } from '@/types/test'
 import { randomString } from '@/utils/helpers'
 import Vue from 'vue'
 import { ActionTree, GetterTree, MutationTree } from 'vuex'
-import { AppModule } from '.'
+import { AppModule, ModulesState } from '.'
 
 export interface Notice {
   id?: string
@@ -50,6 +51,7 @@ export interface AppState {
   baseCurrencySymbol: string
   quoteCurrency: string
   quoteCurrencySymbol: string
+  paneClipboard: string
 }
 
 const state = {
@@ -73,7 +75,8 @@ const state = {
   baseCurrency: 'coin',
   baseCurrencySymbol: '฿',
   quoteCurrency: 'dollar',
-  quoteCurrencySymbol: '$'
+  quoteCurrencySymbol: '$',
+  paneClipboard: null
 } as AppState
 
 const actions = {
@@ -224,7 +227,7 @@ const actions = {
     commit('TOGGLE_SEARCH', false)
     commit('SET_SEARCH_TARGET', null)
   }
-} as ActionTree<AppState, AppState>
+} as ActionTree<AppState, ModulesState>
 
 const mutations = {
   SET_BOOTED: state => {
@@ -322,6 +325,9 @@ const mutations = {
     state.baseCurrencySymbol = currencies.baseSymbol
     state.quoteCurrency = currencies.quote
     state.quoteCurrencySymbol = currencies.quoteSymbol
+  },
+  SET_PANE_CLIPBOARD(state, settings: string) {
+    state.paneClipboard = settings
   }
 } as MutationTree<AppState>
 
@@ -333,7 +339,7 @@ const getters = {
       }
     }
   }
-} as GetterTree<AppState, AppState>
+} as GetterTree<AppState, ModulesState>
 
 export default {
   namespaced: true,
@@ -343,5 +349,19 @@ export default {
   mutations,
   boot: store => {
     store.dispatch('app/refreshCurrencies')
+
+    aggregatorService.on('connection', ({ exchange, pair }: { exchange: string; pair: string }) => {
+      store.commit('app/ADD_ACTIVE_MARKET', {
+        exchange,
+        pair
+      })
+    })
+
+    aggregatorService.on('disconnection', ({ exchange, pair }: { exchange: string; pair: string }) => {
+      store.commit('app/REMOVE_ACTIVE_MARKET', {
+        exchange,
+        pair
+      })
+    })
   }
-} as AppModule<AppState>
+} as AppModule<AppState, ModulesState>

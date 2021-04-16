@@ -1,5 +1,5 @@
-import { Trade } from '@/services/aggregatorService'
-import Exchange from './exchangeAbstract'
+import { Trade } from '@/types/test'
+import Exchange from '../exchange'
 
 export default class extends Exchange {
   id = 'FTX'

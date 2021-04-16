@@ -44,6 +44,7 @@ import downFavicon from './assets/down.png'
 
 import { boot } from './store'
 import { formatPrice } from './utils/helpers'
+import { Notice } from './store/app'
 
 @Component({
   name: 'App',
@@ -59,7 +60,6 @@ import { formatPrice } from './utils/helpers'
 export default class extends Vue {
   price: string = null
 
-  private _priceUpdateInterval: number
   private _faviconElement: HTMLLinkElement
 
   get pair() {
@@ -142,36 +142,31 @@ export default class extends Vue {
 
   async created() {
     await boot()
-
-    await aggregatorService.initialize()
-
-    await aggregatorService.fetchProducts()
-
-    await aggregatorService.connect(this.markets)
   }
 
   mounted() {
-    this.updatePrice()
+    aggregatorService.on('prices', this.updatePrice)
+    aggregatorService.on('notice', (notice: Notice) => {
+      this.$store.dispatch('app/showNotice', notice)
+    })
   }
 
   beforeDestroy() {
     this.stopUpdatingPrice()
   }
 
-  updatePrice() {
-    const marketPrices = aggregatorService.getMarketsPrices()
-
+  updatePrice(marketsPrices) {
     let price = 0
     let count = 0
 
-    for (const market in marketPrices) {
+    for (const market in marketsPrices) {
       const [exchangeId] = market.split(':')
 
       if (!this.activeExchanges[exchangeId]) {
         continue
       }
 
-      price += marketPrices[market]
+      price += marketsPrices[market]
       count++
     }
 
@@ -195,18 +190,10 @@ export default class extends Vue {
 
       window.document.title = this.pair
     }
-
-    if (!this._priceUpdateInterval) {
-      this._priceUpdateInterval = window.setInterval(this.updatePrice.bind(this), 1000)
-    }
   }
 
   stopUpdatingPrice() {
-    if (this._priceUpdateInterval) {
-      clearInterval(this._priceUpdateInterval)
-      this._priceUpdateInterval = null
-    }
-
+    aggregatorService.off('prices', this.updatePrice)
     this.price = null
   }
 

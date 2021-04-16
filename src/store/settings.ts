@@ -2,9 +2,9 @@ import { ActionTree, MutationTree } from 'vuex'
 
 import DEFAULTS_STATE from './defaultSettings.json'
 import { getColorLuminance, splitRgba } from '@/utils/colors'
-import { AppModule } from '.'
-
-export type SlippageMode = false | 'price' | 'bps'
+import { AppModule, ModulesState } from '.'
+import { SlippageMode } from '@/types/test'
+import aggregatorService from '@/services/aggregatorService'
 
 export interface SettingsState {
   preferQuoteCurrencySize?: boolean
@@ -75,11 +75,16 @@ const actions = {
       commit('TOGGLE_AUDIO', false)
     }
   }
-} as ActionTree<SettingsState, SettingsState>
+} as ActionTree<SettingsState, ModulesState>
 
 const mutations = {
   SET_QUOTE_AS_PREFERED_CURRENCY(state, value) {
     state.preferQuoteCurrencySize = value ? true : false
+
+    aggregatorService.dispatch({
+      op: 'settings.preferQuoteCurrencySize',
+      data: state.preferQuoteCurrencySize
+    })
   },
   TOGGLE_SLIPPAGE(state) {
     const values: SlippageMode[] = [false, 'bps', 'price']
@@ -87,9 +92,19 @@ const mutations = {
     const index = Math.max(0, values.indexOf(state.calculateSlippage))
 
     state.calculateSlippage = values[(index + 1) % values.length]
+
+    aggregatorService.dispatch({
+      op: 'settings.calculateSlippage',
+      data: state.calculateSlippage
+    })
   },
   TOGGLE_AGGREGATION(state, value) {
     state.aggregateTrades = value ? true : false
+
+    aggregatorService.dispatch({
+      op: 'settings.aggregateTrades',
+      data: state.aggregateTrades
+    })
   },
   TOGGLE_ANIMATIONS(state) {
     state.disableAnimations = !state.disableAnimations
@@ -146,7 +161,23 @@ const mutations = {
 
 export default {
   namespaced: true,
+  boot: store => {
+    aggregatorService.dispatch({
+      op: 'settings.calculateSlippage',
+      data: store.state.settings.calculateSlippage
+    })
+
+    aggregatorService.dispatch({
+      op: 'settings.aggregateTrades',
+      data: store.state.settings.aggregateTrades
+    })
+
+    aggregatorService.dispatch({
+      op: 'settings.preferQuoteCurrencySize',
+      data: store.state.settings.preferQuoteCurrencySize
+    })
+  },
   state,
   actions,
   mutations
-} as AppModule<SettingsState>
+} as AppModule<SettingsState, ModulesState>

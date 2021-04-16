@@ -1,4 +1,4 @@
-import { defaultChartSeries } from '../components/chart/chartSeries'
+import { defaultChartSeries } from '../components/chart/defaultSeries'
 import store from '../store'
 
 export function parseQueryString() {
@@ -31,7 +31,7 @@ export function parseQueryString() {
 export function formatAmount(amount, decimals?: number) {
   const negative = amount < 0
 
-  amount = Math.ceil(Math.abs(amount) * 1000000000) / 1000000000
+  amount = Math.ceil(amount)
 
   if (amount >= 1000000) {
     amount = +(amount / 1000000).toFixed(isNaN(decimals) ? 1 : decimals) + 'M'
@@ -264,4 +264,17 @@ export function getErrorMessage(error: Error | string) {
   }
 
   return errorMessage
+}
+
+export function getBucketId(markets: string[]) {
+  return markets
+    .map(m => m.replace(/[^a-zA-Z]+/gi, ''))
+    .sort(function(mA, mB) {
+      return mA.localeCompare(mB)
+    })
+    .join('')
+}
+
+export function parseMarket(market: string) {
+  return market.match(/([^:]*):(.*)/).slice(1, 3)
 }

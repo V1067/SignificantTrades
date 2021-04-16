@@ -16,7 +16,7 @@ export interface AppModuleTree<R> {
   [key: string]: Module<any, R>
 }
 
-export interface AppModule<R> extends Module<any, R> {
+export interface AppModule<R, M> extends Module<R, M> {
   boot?: (store: any, state: any) => void
 }
 
@@ -64,6 +64,8 @@ export async function boot() {
       await module.boot(store, module.state)
     }
   }
+
+  store.dispatch('app/setBooted')
 }
 
 export default store

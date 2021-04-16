@@ -12,7 +12,7 @@ $ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
 $ease-elastic: cubic-bezier(0, 1.4, 1, 1);
 
 $shadow: rgba(0, 0, 0, 0.2) 0px 18px 50px -10px;
-$border-radius-base: 8px;
+$border-radius-base: 6px;
 $accent: rgba(#708090, 0.5);
 $checkerboard: linear-gradient(45deg, $accent 25%, transparent 25%), linear-gradient(45deg, transparent 75%, $accent 75%),
   linear-gradient(-45deg, $accent 25%, transparent 25%), linear-gradient(-45deg, transparent 75%, $accent 75%);
@@ -38,7 +38,7 @@ $icon-plus: '\e920';
 $icon-power-on: '\e91d';
 $icon-power-off: '\e924';
 $icon-cog: '\e90d';
-$icon-expand: '\e909';
+$icon-sound-wave: '\e909';
 $icon-volume-off: '\e906';
 $icon-volume-low: '\e910';
 $icon-volume-medium: '\e911';
@@ -49,7 +49,7 @@ $icon-edit: '\e91f';
 $icon-trash: '\e93d';
 $icon-dropper: '\e93a';
 $icon-copy: '\e93e';
-$icon-coins: '\e90f';
+$icon-coin: '\e90f';
 $icon-external-link-square-alt: '\e915';
 $icon-balance: '\e919';
 $icon-magic: '\e91a';
@@ -67,6 +67,30 @@ $icon-search: '\e939';
 $icon-bottom-right: '\e913';
 $icon-settings-lines: '\e914';
 $icon-close-thin: '\e916';
+$icon-bucket: '\e917';
+
+$icon-KRAKEN: '\e91b';
+$icon-OKEX: '\e91c';
+$icon-POLONIEX: '\e921';
+$icon-COINEX: '\e926';
+$icon-BINANCE: '\e927';
+$icon-BINANCE_FUTURES: '\e928';
+$icon-BITFINEX: '\e929';
+$icon-BITMEX: '\e92a';
+$icon-HUOBI: '\e92b';
+$icon-HITBTC: '\e938';
+$icon-COINBASE: '\e93b';
+$icon-DERIBIT: '\e93c';
+$icon-BYBIT: '\e93f';
+$icon-BITSTAMP: '\e940';
+
+$icon-expand: '\e941';
+$icon-paint-brush: '\e942';
+$icon-menu: '\e943';
+$icon-color-palette: '\e944';
+$icon-stamp: '\e945';
+$icon-upload-setup: '\e946';
+$icon-copy-paste: '\e947';
 
 $exchanges: BITMEX BINANCE BINANCE_FUTURES BITFINEX OKEX HUOBI BITSTAMP COINBASE HITBTC POLONIEX LIQUID COINEX KRAKEN DERIBIT BYBIT FTX;
 

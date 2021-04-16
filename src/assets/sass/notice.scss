@@ -65,6 +65,11 @@
     background-color: $red;
   }
 
+  &.-warning .notice__wrapper {
+    background-color: $orange;
+    color: black;
+  }
+
   &.-success .notice__wrapper {
     background-color: $green;
   }

@@ -1,4 +1,4 @@
-import { defaultChartSeries } from '@/components/chart/chartSeries'
+import { defaultChartSeries } from '@/components/chart/defaultSeries'
 import { getSerieSettings, slugify, uniqueName } from '@/utils/helpers'
 import { scheduleSync } from '@/utils/store'
 import { SeriesOptions, SeriesType } from 'lightweight-charts'

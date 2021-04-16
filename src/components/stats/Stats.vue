@@ -1,11 +1,11 @@
 <template>
   <div class="pane-stats">
-    <pane-header :paneId="paneId" :markets="false" />
-    <div v-if="statsChart" class="stats-chart" ref="chart"></div>
-    <ul class="stats-counters">
-      <li v-for="(counter, id) in data" :key="id" class="stat-counter" @click="editStat(id)">
-        <div class="stat-counter__name" :style="{ color: counter.color }">{{ counter.name }}</div>
-        <div class="stat-counter__value">{{ counter.value }}</div>
+    <pane-header :paneId="paneId" />
+    <div v-if="enableChart" class="stats-chart" ref="chart"></div>
+    <ul class="stats-buckets">
+      <li v-for="(bucket, id) in data" :key="id" class="stat-bucket" @click="editStat(id)">
+        <div class="stat-bucket__name" :style="{ color: bucket.color }">{{ bucket.name }}</div>
+        <div class="stat-bucket__value">{{ bucket.value }}</div>
       </li>
     </ul>
   </div>
@@ -15,18 +15,15 @@
 import { Component, Mixins } from 'vue-property-decorator'
 import * as TV from 'lightweight-charts'
 import aggregatorService from '@/services/aggregatorService'
-import Counter from '../../utils/counter'
+import Bucket from '../../utils/bucket'
 import { defaultStatsChartOptions, getChartOptions, getCustomColorsOptions } from '../chart/chartOptions'
 
 import StatDialog from './StatDialog.vue'
 import dialogService from '@/services/dialogService'
 
-import { formatAmount } from '@/utils/helpers'
+import { formatAmount, getBucketId } from '@/utils/helpers'
 import PaneMixin from '@/mixins/paneMixin'
 import PaneHeader from '../panes/PaneHeader.vue'
-
-let chart: TV.IChartApi
-const counters: { [id: string]: Counter } = {}
 
 @Component({
   components: { PaneHeader },
@@ -41,32 +38,30 @@ export default class extends Mixins(PaneMixin) {
 
   private _refreshChartDimensionsTimeout: number
   // private _chartUpdateInterval: number
+  private _onStoreMutation: () => void
+  private _chart: TV.IChartApi
+  private _buckets: { [id: string]: Bucket } = {}
+  private _feed: string = null
 
-  private onStoreMutation: () => void
-
-  get statsWindow() {
-    return this.$store.state[this.paneId].window
+  get enableChart() {
+    return this.$store.state[this.paneId].enableChart
   }
 
-  get statsChart() {
-    return this.$store.state[this.paneId].chart
-  }
-
-  get statsCounters() {
+  get buckets() {
     return this.$store.state[this.paneId].buckets
   }
 
   created() {
-    this.onStoreMutation = this.$store.subscribe(mutation => {
+    this._onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
         case 'settings/SET_CHART_COLOR':
-          if (chart && mutation.payload) {
-            chart.applyOptions(getCustomColorsOptions(mutation.payload))
+          if (this._chart && mutation.payload) {
+            this._chart.applyOptions(getCustomColorsOptions(mutation.payload))
           }
           break
         case 'settings/SET_CHART_THEME':
-          if (chart) {
-            chart.applyOptions(getCustomColorsOptions())
+          if (this._chart) {
+            this._chart.applyOptions(getCustomColorsOptions())
           }
           break
         case 'panes/SET_PANE_MARKETS':
@@ -74,10 +69,10 @@ export default class extends Mixins(PaneMixin) {
           if (mutation.payload.id && mutation.payload.id !== this.paneId) {
             break
           }
-          this.prepareCounters()
+          this.prepareBuckets()
           break
-        case this.paneId + '/SET_STAT_COLOR':
-          this.recolorCounter(mutation.payload.id, mutation.payload.value)
+        case this.paneId + '/SET_BUCKET_COLOR':
+          this.recolorBucket(mutation.payload.id, mutation.payload.value)
           break
         case this.paneId + '/TOGGLE_CHART':
           if (mutation.payload) {
@@ -86,42 +81,46 @@ export default class extends Mixins(PaneMixin) {
             this.removeChart()
           }
           break
-        case this.paneId + '/TOGGLE_STAT':
+        case this.paneId + '/TOGGLE_BUCKET':
           if (mutation.payload.value) {
-            this.createCounter(this.statsCounters[mutation.payload.id])
+            this.createBucket(this.buckets[mutation.payload.id])
           } else {
-            this.removeCounter(mutation.payload.id)
+            this.removeBucket(mutation.payload.id)
           }
           break
-        case this.paneId + '/SET_STAT_WINDOW':
-        case this.paneId + '/SET_STAT_OUTPUT':
-        case this.paneId + '/SET_STAT_PRECISION':
-          this.refreshCounter(mutation.payload.id)
+        case this.paneId + '/REMOVE_BUCKET':
+          this.removeBucket(mutation.payload)
           break
-        case this.paneId + '/RENAME_STAT':
-          this.refreshCounterName(mutation.payload)
+        case this.paneId + '/SET_BUCKET_WINDOW':
+        case this.paneId + '/SET_BUCKET_INPUT':
+        case this.paneId + '/SET_BUCKET_PRECISION':
+          this.refreshBucket(mutation.payload.id)
+          break
+        case this.paneId + '/RENAME_BUCKET':
+          this.refreshBucketName(mutation.payload)
           break
       }
     })
 
-    this.prepareCounters()
+    this.prepareBuckets()
   }
 
   mounted() {
-    if (this.statsChart) {
+    if (this.enableChart) {
       this.createChart()
     }
-
-    aggregatorService.on('sums', this.onSums)
   }
 
   beforeDestroy() {
-    aggregatorService.off('sums', this.onSums)
-    this.clearCounters()
-    this.removeChart()
-    this.onStoreMutation()
+    if (this._feed) {
+      aggregatorService.off(this._feed, this.onVolume)
+    }
 
-    chart = null
+    this.clearBuckets()
+    this.removeChart()
+    this._onStoreMutation()
+
+    this._chart = null
   }
 
   async createChart() {
@@ -129,10 +128,10 @@ export default class extends Mixins(PaneMixin) {
 
     const chartOptions = getChartOptions(defaultStatsChartOptions)
 
-    chart = TV.createChart(this.$refs.chart, chartOptions)
+    this._chart = TV.createChart(this.$refs.chart, chartOptions)
 
-    for (const id in counters) {
-      counters[id].createSerie(chart)
+    for (const id in this._buckets) {
+      this._buckets[id].createSerie(this._chart)
     }
 
     this.refreshChartDimensions(0)
@@ -140,19 +139,19 @@ export default class extends Mixins(PaneMixin) {
   }
 
   removeChart() {
-    if (!chart) {
+    if (!this._chart) {
       return
     }
 
     // this.stopChartUpdate()
 
-    for (const id in counters) {
-      counters[id].removeSerie(chart)
+    for (const id in this._buckets) {
+      this._buckets[id].removeSerie(this._chart)
     }
 
-    chart.remove()
+    this._chart.remove()
 
-    chart = null
+    this._chart = null
   }
 
   /* chartUpdate() {
@@ -161,8 +160,8 @@ export default class extends Mixins(PaneMixin) {
       return
     }
 
-    for (const id in counters) {
-      counters[id].updateSerie()
+    for (const id in this._buckets) {
+      this._buckets[id].updateSerie()
     }
   }
   stopChartUpdate() {
@@ -172,120 +171,129 @@ export default class extends Mixins(PaneMixin) {
     }
   } */
   async refreshChartDimensions(debounceTime = 500) {
-    if (!this.statsChart) {
+    if (!this.enableChart) {
       return
     }
 
     clearTimeout(this._refreshChartDimensionsTimeout)
 
     this._refreshChartDimensionsTimeout = setTimeout(() => {
-      chart && chart.resize(this.$el.clientWidth, this.$el.clientHeight)
+      this._chart && this._chart.resize(this.$el.clientWidth, this.$el.clientHeight)
     }, debounceTime)
   }
-  prepareCounters() {
-    this.clearCounters()
+  prepareBuckets() {
+    if (this._feed) {
+      console.log(`[stats/${this.paneId}] unsubscribe from feed`, this._feed)
+      aggregatorService.off(this._feed, this.onVolume)
+    }
 
-    for (const id in this.statsCounters) {
-      this.createCounter(this.statsCounters[id])
+    this.clearBuckets()
+
+    for (const id in this.buckets) {
+      this.createBucket(this.buckets[id])
+    }
+
+    this._feed = 'bucket-' + getBucketId(this.pane.markets)
+    console.log(`[stats/${this.paneId}] subscribe to feed`, this._feed)
+
+    if (this._feed.length) {
+      aggregatorService.on(this._feed, this.onVolume)
+    } else {
+      console.log(`[stats/${this.paneId}] error feed empty...`)
     }
   }
-  onSums(sums) {
+  onVolume(sums) {
     const now = +new Date()
 
-    for (const id in counters) {
-      counters[id].onStats(now, sums)
+    for (const id in this._buckets) {
+      this._buckets[id].onStats(now, sums)
 
-      if (counters[id].stacks.length) {
-        const value = counters[id].getValue()
+      if (this._buckets[id].stacks.length) {
+        const value = this._buckets[id].getValue()
 
-        this.$set(this.data[id], 'value', formatAmount(value, counters[id].precision))
+        this.$set(this.data[id], 'value', formatAmount(value, this._buckets[id].precision))
       }
 
-      if (chart) {
-        counters[id].updateSerie()
+      if (this._chart) {
+        this._buckets[id].updateSerie()
       }
     }
   }
 
-  clearCounters() {
-    for (const id in counters) {
-      this.removeCounter(id)
+  clearBuckets() {
+    for (const id in this._buckets) {
+      this.removeBucket(id)
     }
+
+    this._buckets = {}
   }
 
-  removeCounter(id) {
-    if (!counters[id]) {
+  removeBucket(id) {
+    if (!this._buckets[id]) {
       return
     }
 
-    counters[id].unbind()
+    this._buckets[id].unbind()
 
-    if (chart) {
-      counters[id].removeSerie(chart)
+    if (this._chart) {
+      this._buckets[id].removeSerie(this._chart)
     }
 
     this.$delete(this.data, id)
 
-    delete counters[id]
+    delete this._buckets[id]
   }
-  refreshCounter(id) {
-    const options = this.statsCounters[id]
+  refreshBucket(id) {
+    const options = this.buckets[id]
 
     if (!options) {
       return
     }
 
-    this.removeCounter(id)
-    this.createCounter(options)
+    this.removeBucket(id)
+    this.createBucket(options)
   }
 
-  recolorCounter(id, color) {
-    counters[id].updateColor(color)
+  recolorBucket(id, color) {
+    this._buckets[id].updateColor(color)
 
     this.$set(this.data[id], 'color', color)
   }
 
-  createCounter(statCounter) {
-    if (statCounter.enabled && typeof this.data[statCounter.id] === 'undefined') {
-      const outputFunction = this.getCounterFunction(statCounter.output)
-      const counter = new Counter(outputFunction, statCounter, this.paneId)
+  createBucket(statBucket) {
+    if (statBucket.enabled && typeof this.data[statBucket.id] === 'undefined') {
+      const bucket = new Bucket(statBucket.input, statBucket, this.paneId)
 
-      if (chart) {
-        counter.createSerie(chart)
+      if (this._chart) {
+        bucket.createSerie(this._chart)
       }
 
-      counters[statCounter.id] = counter
+      this._buckets[statBucket.id] = bucket
 
-      this.$set(this.data, counter.id, {
+      this.$set(this.data, bucket.id, {
         value: 0,
-        name: counter.name,
-        color: counter.color
+        name: bucket.name,
+        color: bucket.color
       })
     }
   }
 
-  refreshCounterName({ oldId, id }: { oldId: string; id: string }) {
-    const counter = counters[oldId]
+  refreshBucketName({ oldId, id }: { oldId: string; id: string }) {
+    const bucket = this._buckets[oldId]
 
     this.data[id] = this.data[oldId]
     delete this.data[oldId]
-    counter.id = id
+    bucket.id = id
 
-    const statCounter = this.statsCounters[id]
-    counter.name = statCounter.name
+    const statBucket = this.buckets[id]
+    bucket.name = statBucket.name
   }
 
   editStat(id) {
-    dialogService.open(StatDialog, { paneId: this.paneId, statId: id })
+    dialogService.open(StatDialog, { paneId: this.paneId, bucketId: id })
   }
 
-  getCounterFunction(str) {
-    const litteral = str.replace(/([^.]|^)(vbuy|vsell|cbuy|csell|lbuy|lsell)/g, '$1stats.$2')
-    return new Function('stats', `'use strict'; return ${litteral};`)
-  }
-
-  onResize(newWidth: number, newHeight: number) {
-    console.log('trigger resize frome parrent', newWidth, newHeight)
+  onResize() {
     this.refreshChartDimensions()
   }
 }
@@ -312,40 +320,9 @@ export default class extends Mixins(PaneMixin) {
     right: 0;
     bottom: 0;
   }
-
-  + .stats__counters {
-    position: absolute;
-    margin: 0.25em;
-
-    .stat-counter {
-      flex-direction: row;
-      padding: 0.25em;
-
-      &__value {
-        text-align: left;
-        flex-grow: 0;
-      }
-
-      &__name {
-        font-size: 12px;
-        margin-left: 1em;
-        order: 2;
-        opacity: 0;
-        transform: translateX(8px);
-        transition: transform 0.2s $ease-out-expo, opacity 0.2s $ease-out-expo;
-      }
-
-      &:hover {
-        .stat-counter__name {
-          opacity: 1;
-          transform: none;
-        }
-      }
-    }
-  }
 }
 
-.stats-counters {
+.stats-buckets {
   padding: 0;
   margin: 0;
   list-style: none;
@@ -353,13 +330,13 @@ export default class extends Mixins(PaneMixin) {
   z-index: 11;
 }
 
-.stat-counter {
+.stat-bucket {
   display: flex;
   align-items: center;
   padding: 0.75em;
   cursor: pointer;
 
-  + .stat-counter {
+  + .stat-bucket {
     padding-top: 0;
   }
 

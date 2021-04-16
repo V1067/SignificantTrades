@@ -21,12 +21,14 @@
       </dropdown>
       <hr />
     </template>
-    <div class="form-group mb15">
+    <div class="form-group mb16">
       <label>Name</label>
       <input class="form-control" :value="name" @input="getSerieId($event.target.value)" />
-      <small class="help-text"> id will be: {{ serieId }} </small>
+      <small class="help-text mt4">
+        ID will be: {{ serieId }} <span class="icon-info ml4" :title="`Use \'$${serieId}\' to reference it in other series`" v-tippy></span
+      ></small>
     </div>
-    <div class="form-group mb15" v-if="availableScales.length">
+    <div class="form-group mb16" v-if="availableScales.length">
       <label>Align serie with</label>
       <dropdown
         class="form-control -left -center"
@@ -38,7 +40,7 @@
     </div>
     <hr />
     <footer>
-      <a href="javascript:void(0);" class="-text mr15" @click="close(false)">Cancel</a>
+      <a href="javascript:void(0);" class="btn -text mr16" @click="close(false)">Cancel</a>
       <button class="btn -large" @click="create">Create</button>
     </footer>
   </Dialog>

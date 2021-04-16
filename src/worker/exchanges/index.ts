@@ -1,3 +1,5 @@
+import Exchange from '../exchange'
+
 import Bitmex from './bitmex'
 import BinanceFutures from './binance_futures'
 import Kraken from './kraken'
@@ -13,7 +15,7 @@ import Deribit from './deribit'
 import Bybit from './bybit'
 import Ftx from './ftx'
 
-const exchanges = [
+export const exchanges = [
   new Bitmex(),
   new BinanceFutures(),
   new Kraken(),
@@ -28,9 +30,7 @@ const exchanges = [
   new Deribit(),
   new Bybit(),
   new Ftx()
-]
-
-export default exchanges
+] as Exchange[]
 
 export function getExchangeById(id: string) {
   for (const exchange of exchanges) {
@@ -38,4 +38,6 @@ export function getExchangeById(id: string) {
       return exchange
     }
   }
+
+  throw new Error('[worker] failed to get exchange by id "' + id + '"')
 }

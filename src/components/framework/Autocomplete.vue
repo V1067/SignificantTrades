@@ -2,7 +2,7 @@
   <div class="autocomplete">
     <div class="autocomplete__wrapper">
       <div class="autocomplete__items">
-        <div class="autocomplete__item" v-for="(value, index) in items" :key="index" @click="removeItem(index)" v-text="value"></div>
+        <div class="autocomplete__item" v-for="(value, index) in selected" :key="index" @click="removeItem(index)" v-text="value"></div>
         <div
           ref="input"
           class="autocomplete__input"
@@ -14,7 +14,7 @@
           @keydown="handleKeydown"
         ></div>
       </div>
-      <button class="btn -blue autocomplete__submit" :class="{ active: items.length > 0 }" @click="submit"><i class="icon-check"></i></button>
+      <button class="btn -blue autocomplete__submit" :class="{ active: selected.length > 0 }" @click="submit"><i class="icon-check"></i></button>
     </div>
     <div class="autocomplete__dropdown" v-show="isOpen">
       <div class="autocomplete__scroller custom-scrollbar">
@@ -45,7 +45,7 @@ import { Component, Vue } from 'vue-property-decorator'
     load: {
       type: Function
     },
-    selected: {
+    items: {
       type: Array,
       default: []
     },
@@ -56,25 +56,25 @@ import { Component, Vue } from 'vue-property-decorator'
   }
 })
 export default class extends Vue {
-  private placeholder: string
-  private load: (query: string) => any[]
-  private selected: any[]
-  private _clickOutsideHandler: () => void
+  items: any[]
   isOpen = false
   activeOptionIndex: number = null
   options = []
-  items = []
+  selected = []
+
+  private load: (query: string) => any[]
+  private _clickOutsideHandler: () => void
 
   $refs!: {
     input: HTMLElement
   }
 
   get availableOptions() {
-    return this.options.filter(a => this.items.indexOf(a && typeof a === 'object' ? a.value : a) === -1)
+    return this.options.filter(a => this.selected.indexOf(a && typeof a === 'object' ? a.value : a) === -1)
   }
 
   created() {
-    this.items = this.selected.slice(0, this.selected.length)
+    this.selected = this.items.slice(0, this.items.length)
   }
 
   mounted() {
@@ -83,7 +83,6 @@ export default class extends Vue {
 
   search(query) {
     this.activeOptionIndex = null
-    console.log('set activeOptionIndex to 0-null')
     if (!this.load) {
       return
     }
@@ -99,7 +98,6 @@ export default class extends Vue {
     if (!this.options.length) {
       this.close()
     } else {
-      console.log('set activeOptionIndex to 0')
       this.activeOptionIndex = 0
       this.open()
     }
@@ -128,14 +126,14 @@ export default class extends Vue {
     const item = this.availableOptions[index]
     const value = item && typeof item === 'object' ? item.value : item
 
-    if (!value || this.items.indexOf(value) !== -1) {
+    if (!value || this.selected.indexOf(value) !== -1) {
       return
     }
 
     this.items.push(value)
+    this.selected.push(value)
     this.$refs.input.innerText = ''
     this.activeOptionIndex = null
-    console.log('set activeOptionIndex to null')
 
     if (!this.availableOptions.length) {
       this.isOpen = false
@@ -144,6 +142,7 @@ export default class extends Vue {
 
   removeItem(index) {
     this.items.splice(index, 1)
+    this.selected.splice(index, 1)
   }
 
   handleKeydown($event) {
@@ -152,13 +151,13 @@ export default class extends Vue {
         event.preventDefault()
         if (this.activeOptionIndex !== null) {
           this.addItem(this.activeOptionIndex)
-        } else if (this.items.length && !this.$refs.input.innerText.length) {
+        } else if (this.selected.length && !this.$refs.input.innerText.length) {
           this.submit()
         }
         break
       case 8:
-        if (this.items.length && !this.$refs.input.innerText.length) {
-          this.removeItem(this.items.length - 1)
+        if (this.selected.length && !this.$refs.input.innerText.length) {
+          this.removeItem(this.selected.length - 1)
           event.preventDefault()
         }
         break
@@ -176,16 +175,15 @@ export default class extends Vue {
           }
         }
 
-        console.log(this.activeOptionIndex)
         break
     }
   }
 
   submit() {
-    if (!this.items.length) {
+    if (!this.selected.length) {
       return
     }
-    this.$emit('submit', this.items)
+    this.$emit('submit', this.selected)
   }
 
   focus() {

@@ -1,4 +1,4 @@
-import Exchange from './exchangeAbstract'
+import Exchange from '../exchange'
 import pako from 'pako'
 
 export default class extends Exchange {

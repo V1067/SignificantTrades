@@ -1,9 +1,10 @@
 import aggregatorService from '@/services/aggregatorService'
-import { capitalizeFirstLetter, slugify, uniqueName } from '@/utils/helpers'
+import { getProducts, showIndexedProductsCount } from '@/services/productsService'
+import { capitalizeFirstLetter, getBucketId, slugify, uniqueName } from '@/utils/helpers'
 import { preparePaneSettings } from '@/utils/store'
 import Vue from 'vue'
 import { MutationTree, ActionTree, GetterTree } from 'vuex'
-import { AppModule } from '.'
+import { AppModule, ModulesState } from '.'
 import panesSettings from './panesSettings'
 
 export type PaneType = 'trades' | 'chart' | 'stats' | 'counters'
@@ -52,7 +53,7 @@ const getters = {
 
     return { x, y }
   }
-} as GetterTree<PanesState, PanesState>
+} as GetterTree<PanesState, ModulesState>
 
 const state = {
   _id: 'panes',
@@ -71,7 +72,8 @@ const state = {
     'pane-stats-1': {
       id: 'pane-stats-1',
       name: 'Pane stats 1',
-      type: 'stats'
+      type: 'stats',
+      markets: ['COINBASE:BTC-USD']
     },
     'pane-trades-1': {
       id: 'pane-trades-1',
@@ -102,30 +104,42 @@ const state = {
 } as PanesState
 
 const actions = {
-  async addPane({ commit, dispatch, state }, type: PaneType) {
-    if (!panesSettings[type]) {
+  async addPane({ commit, dispatch, state }, options: Pane & { settings?: any }) {
+    if (!options || !options.type) {
       this.dispatch('app/showNotice', {
-        title: 'Unrecognized pane type "' + type + '"',
+        title: 'Invalid addPane options',
         type: 'error'
       })
+      return
     }
 
-    const name = `${capitalizeFirstLetter(type)}'s pane`
+    if (!panesSettings[options.type]) {
+      this.dispatch('app/showNotice', {
+        title: 'Unrecognized pane type "' + options.type + '"',
+        type: 'error'
+      })
+      return
+    }
 
+    const name = options.name || `${capitalizeFirstLetter(options.type)}'s pane`
     const id = uniqueName(slugify(name), Object.keys(state.panes))
 
     const pane: Pane = {
       id,
       name,
-      type,
-      markets: []
+      type: options.type,
+      markets: options.markets || []
     }
 
-    if (type === 'chart' || type === 'trades') {
+    if (!pane.markets.length) {
       pane.markets = Object.keys(state.marketsListeners)
     }
 
-    const module = preparePaneSettings(id, panesSettings[type]) as AppModule<any>
+    const module = preparePaneSettings(id, panesSettings[pane.type]) as AppModule<any, any>
+
+    if (options.settings) {
+      module.state = { ...module.state, ...options.settings }
+    }
 
     this.registerModule(id, module)
 
@@ -160,8 +174,8 @@ const actions = {
       i: id,
       x,
       y,
-      w: 1,
-      h: 1,
+      w: 4,
+      h: 4,
       type
     }
 
@@ -175,14 +189,23 @@ const actions = {
       commit('REMOVE_GRID_ITEM', index)
     }
   },
-  refreshMarketsListeners({ commit, state }, submitChanges = true) {
+  async refreshMarketsListeners({ commit, state }) {
     const marketsListeners = {}
+    const buckets = {}
 
     for (const id in state.panes) {
       const markets = state.panes[id].markets
 
       if (!markets) {
         continue
+      }
+
+      if (state.panes[id].type === 'counters' || state.panes[id].type === 'stats') {
+        const bucketId = getBucketId(markets)
+
+        if (!buckets[bucketId]) {
+          buckets[bucketId] = markets.map(market => market.replace(':', ''))
+        }
       }
 
       for (const market of markets) {
@@ -194,19 +217,22 @@ const actions = {
       }
     }
 
-    if (submitChanges) {
-      const allUniqueMarkets = Object.keys(marketsListeners)
-        .concat(Object.keys(state.marketsListeners))
-        .filter((v, i, a) => a.indexOf(v) === i)
+    const allUniqueMarkets = Object.keys(marketsListeners)
+      .concat(Object.keys(state.marketsListeners))
+      .filter((v, i, a) => a.indexOf(v) === i)
 
-      for (const market of allUniqueMarkets) {
-        if (!state.marketsListeners[market] && marketsListeners[market]) {
-          aggregatorService.connect([market])
-        } else if (state.marketsListeners[market] && !marketsListeners[market]) {
-          aggregatorService.disconnect([market])
-        }
+    for (const market of allUniqueMarkets) {
+      if (!state.marketsListeners[market] && marketsListeners[market]) {
+        await aggregatorService.connect([market])
+      } else if (state.marketsListeners[market] && !marketsListeners[market]) {
+        await aggregatorService.disconnect([market])
       }
     }
+
+    aggregatorService.dispatch({
+      op: 'buckets',
+      data: buckets
+    })
 
     commit('SET_MARKETS_LISTENERS', marketsListeners)
   },
@@ -221,8 +247,84 @@ const actions = {
     commit('SET_PANE_MARKETS', { id, markets })
 
     dispatch('refreshMarketsListeners')
+  },
+  attachMarket({ state, commit, dispatch }, { id, market }: { id: string; market: string }) {
+    const markets = state.panes[id].markets
+
+    if (markets.indexOf(market) === -1) {
+      commit('ADD_PANE_MARKET', { id, market })
+
+      dispatch('refreshMarketsListeners')
+    }
+  },
+  detachMarket({ state, commit, dispatch }, { id, market }: { id: string; market: string }) {
+    const markets = state.panes[id].markets
+    const index = markets.indexOf(market)
+
+    if (index !== -1) {
+      commit('REMOVE_PAIR_MARKET', { id, index })
+
+      dispatch('refreshMarketsListeners')
+    }
+  },
+  copySettings({ rootState }, id) {
+    if (!rootState[id]) {
+      this.dispatch('app/showNotice', {
+        title: `Pane ${id} doesn't exists`,
+        type: 'error'
+      })
+
+      return
+    }
+
+    const settings = JSON.stringify(rootState[id])
+
+    this.commit('app/SET_PANE_CLIPBOARD', settings)
+
+    this.dispatch('app/showNotice', {
+      title: `Settings added to clipboard ✅`
+    })
+  },
+  applySettings({ rootState }, { id, settings }: { id: string; settings: any }) {
+    if (!rootState[id]) {
+      this.dispatch('app/showNotice', {
+        title: `Pane ${id} doesn't exists`,
+        type: 'error'
+      })
+
+      return
+    }
+
+    for (const prop in settings) {
+      rootState[id][prop] = settings[prop]
+    }
+
+    this.dispatch('app/showNotice', {
+      title: `Settings have been applied to pane ${id}`
+    })
+  },
+  duplicatePane({ state, rootState, dispatch }, id: string) {
+    if (!state.panes[id] || !rootState[id]) {
+      this.dispatch('app/showNotice', {
+        title: `Pane ${id} doesn't exists`,
+        type: 'error'
+      })
+
+      return
+    }
+
+    const options = JSON.parse(JSON.stringify(state.panes[id]))
+    options.settings = JSON.parse(JSON.stringify(rootState[id]))
+
+    options.name += ' copy'
+
+    dispatch('addPane', options)
+
+    this.dispatch('app/showNotice', {
+      title: `Duplicated pane ${id}`
+    })
   }
-} as ActionTree<PanesState, PanesState>
+} as ActionTree<PanesState, ModulesState>
 
 const mutations = {
   ADD_PANE: (state, pane: Pane) => {
@@ -246,6 +348,12 @@ const mutations = {
   SET_PANE_MARKETS: (state, { id, markets }: { id: string; markets: string[] }) => {
     state.panes[id].markets = markets
   },
+  REMOVE_PAIR_MARKET: (state, { id, index }: { id: string; index: number }) => {
+    state.panes[id].markets.splice(index, 1)
+  },
+  ADD_PAIR_MARKET: (state, { id, market }: { id: string; market: string }) => {
+    state.panes[id].markets.push(market)
+  },
   SET_PANE_NAME: (state, { id, name }: { id: string; name: string }) => {
     state.panes[id].name = name
   }
@@ -257,7 +365,12 @@ export default {
   getters,
   actions,
   mutations,
-  async boot(store) {
-    store.dispatch('panes/refreshMarketsListeners', false)
+  async boot(store, state: PanesState) {
+    state.marketsListeners = {}
+
+    await Promise.all(store.getters['exchanges/getExchanges'].map(id => getProducts(id)))
+    await store.dispatch('panes/refreshMarketsListeners')
+
+    showIndexedProductsCount()
   }
-} as AppModule<PanesState>
+} as AppModule<PanesState, ModulesState>

@@ -8,7 +8,7 @@ import { slugify, uniqueName } from '@/utils/helpers'
 export interface StatBucket {
   id: string
   name: string
-  output: string
+  input: string
   enabled: boolean
   window?: number
   precision?: number
@@ -20,7 +20,7 @@ export interface StatsPaneState {
   _id?: string
   granularity?: number
   window?: number
-  chart?: boolean
+  enableChart?: boolean
   buckets?: { [id: string]: StatBucket }
 }
 
@@ -31,14 +31,14 @@ const state = {
   window: 60000,
   chart: false,
   buckets: {
-    trades: { id: 'trades', name: 'TRADES', output: 'cbuy + csell', enabled: true, color: 'rgba(255, 255, 255, .25)', precision: 2 },
-    vold: { id: 'vold', name: 'VOLUME Δ', output: 'vbuy - vsell', enabled: true, color: '#40d745', type: 'area' },
-    tradesd: { id: 'tradesd', name: 'TRADES Δ', output: 'cbuy - csell', enabled: true, color: '#2196f3', precision: 2 },
+    trades: { id: 'trades', name: 'TRADES', input: 'cbuy + csell', enabled: true, color: 'rgba(255, 255, 255, .25)', precision: 2 },
+    vold: { id: 'vold', name: 'VOLUME Δ', input: 'vbuy - vsell', enabled: true, color: '#40d745', type: 'area' },
+    tradesd: { id: 'tradesd', name: 'TRADES Δ', input: 'cbuy - csell', enabled: true, color: '#2196f3', precision: 2 },
     '1hliq': {
       id: '1hliq',
       name: '1H LIQUIDATIONS Δ',
       window: 3600000,
-      output: 'lbuy-lsell',
+      input: 'lbuy-lsell',
       enabled: false,
       color: '#e91e63',
       type: 'histogram'
@@ -54,7 +54,7 @@ const actions = {
     const name = uniqueName('COUNTER', otherNames)
     const id = uniqueName(slugify(name), otherIds)
 
-    commit('CREATE_STAT', { id, name })
+    commit('CREATE_BUCKET', { id, name })
 
     dialogService.open(StatDialog, { id })
   },
@@ -66,9 +66,9 @@ const actions = {
     let mutation = ''
 
     if (typeof value === 'boolean') {
-      mutation += 'TOGGLE_STAT'
+      mutation += 'TOGGLE_BUCKET'
     } else {
-      mutation += 'SET_STAT_' + prop.toUpperCase()
+      mutation += 'SET_BUCKET_' + prop.toUpperCase()
     }
 
     commit(mutation, {
@@ -85,7 +85,7 @@ const actions = {
     name = uniqueName(name, otherNames)
     id = uniqueName(slugify(name), otherIds)
 
-    commit('RENAME_STAT', {
+    commit('RENAME_BUCKET', {
       oldId,
       id,
       name
@@ -94,21 +94,21 @@ const actions = {
 } as ActionTree<StatsPaneState, StatsPaneState>
 
 const mutations = {
-  TOGGLE_STAT(state, { id, value }) {
+  TOGGLE_BUCKET(state, { id, value }) {
     const stat = state.buckets[id]
 
     stat.enabled = value ? true : false
 
     Vue.set(state.buckets, id, stat)
   },
-  SET_STAT_OUTPUT(state, { id, value }) {
+  SET_BUCKET_INPUT(state, { id, value }) {
     const stat = state.buckets[id]
 
-    stat.output = value
+    stat.input = value
 
     Vue.set(state.buckets, id, stat)
   },
-  RENAME_STAT(state, { oldId, id, name }) {
+  RENAME_BUCKET(state, { oldId, id, name }) {
     const stat = state.buckets[oldId]
 
     stat.name = name
@@ -117,14 +117,14 @@ const mutations = {
     Vue.delete(state.buckets, oldId)
     Vue.set(state.buckets, id, stat)
   },
-  SET_STAT_COLOR(state, { id, value }) {
+  SET_BUCKET_COLOR(state, { id, value }) {
     const stat = state.buckets[id]
 
     stat.color = value
 
     Vue.set(state.buckets, id, stat)
   },
-  SET_STAT_PRECISION(state, { id, value }) {
+  SET_BUCKET_PRECISION(state, { id, value }) {
     const stat = state.buckets[id]
 
     value = parseInt(value)
@@ -133,7 +133,7 @@ const mutations = {
 
     Vue.set(state.buckets, id, stat)
   },
-  SET_STAT_WINDOW(state, { id, value }) {
+  SET_BUCKET_WINDOW(state, { id, value }) {
     const stat = state.buckets[id]
     let milliseconds = parseInt(value)
 
@@ -153,15 +153,15 @@ const mutations = {
 
     Vue.set(state.buckets, id, stat)
   },
-  CREATE_STAT(state, { id, name }) {
+  CREATE_BUCKET(state, { id, name }) {
     state.buckets[id] = {
       id,
       name,
-      output: 'vbuy + vsell',
+      input: 'vbuy + vsell',
       enabled: true
     }
   },
-  REMOVE_STAT(state, id) {
+  REMOVE_BUCKET(state, id) {
     Vue.delete(state.buckets, id)
   },
   SET_WINDOW(state, value) {
@@ -178,7 +178,7 @@ const mutations = {
     state.window = milliseconds
   },
   TOGGLE_CHART(state, value) {
-    state.chart = value ? true : false
+    state.enableChart = value ? true : false
   }
 } as MutationTree<StatsPaneState>
 

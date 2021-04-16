@@ -1,11 +1,33 @@
 <template>
-  <div v-if="showSearch" class="app__search">
-    <Autocomplete :load="search" :query="query" :selected="pairs" @submit="setPairs($event)"></Autocomplete>
+  <div v-if="showSearch" class="app-search" :class="{ '-loading': loading }">
+    <div class="app-search__wrapper">
+      <div v-if="searchTarget && activeMarkets.length" class="mb8 form-group">
+        <label>All connected markets :</label>
+        <button
+          v-for="market of activeMarkets"
+          :key="market"
+          class="btn -small mr4 mb4 -green"
+          :class="{ '-outline': pairs.indexOf(market) === -1 }"
+          :title="pairs.indexOf(market) !== -1 ? 'Remove from pane' : 'Add to pane'"
+          @click="togglePaneMarket(market)"
+          v-tippy
+        >
+          {{ market }}
+        </button>
+      </div>
+      <div class="form-group">
+        <label v-if="paneName">{{ paneName }}'s markets :</label>
+        <Autocomplete :load="search" :query="query" :items="pairs" @submit="setPairs($event)"></Autocomplete>
+      </div>
+    </div>
   </div>
 </template>
 <script lang="ts">
 import { Component, Vue, Watch } from 'vue-property-decorator'
 import Autocomplete from '@/components/framework/Autocomplete.vue'
+import dialogService from '@/services/dialogService'
+import { getBucketId } from '@/utils/helpers'
+import { getAllProducts } from '@/services/productsService'
 
 @Component({
   name: 'SearchProducts',
@@ -14,6 +36,7 @@ import Autocomplete from '@/components/framework/Autocomplete.vue'
   }
 })
 export default class extends Vue {
+  loading = false
   query = ''
 
   get showSearch() {
@@ -22,6 +45,14 @@ export default class extends Vue {
 
   get searchTarget() {
     return this.$store.state.app.searchTarget
+  }
+
+  get paneName() {
+    if (this.searchTarget) {
+      return this.$store.state.panes.panes[this.searchTarget].name
+    } else {
+      return null
+    }
   }
 
   get pairs() {
@@ -37,10 +68,20 @@ export default class extends Vue {
     return this.$store.state.app.indexedProducts
   }
 
+  get activeMarkets() {
+    return this.$store.state.app.activeMarkets.map(market => market.id)
+  }
+
   @Watch('showSearch')
-  onShowSearch(shown) {
+  async onShowSearch(shown) {
     if (shown) {
       this.bindSearchClickOutside()
+
+      if (!Object.keys(this.indexedProducts).length && !this.loading) {
+        this.loading = true
+        getAllProducts()
+        this.loading = false
+      }
     } else {
       this.unbindSearchClickOutside()
     }
@@ -61,8 +102,12 @@ export default class extends Vue {
     return Array.prototype.concat(...Object.values(this.indexedProducts)).filter(a => reg.test(a))
   }
 
-  setPairs(pairs: string[]) {
-    if (this.searchTarget) {
+  async setPairs(pairs: string[]) {
+    if (!this.searchTarget) {
+      if (this.multipleMarketsSettings() && !(await dialogService.confirm('Are you sure ?'))) {
+        return
+      }
+
       this.$store.dispatch('panes/setMarketsForAll', pairs)
     } else {
       this.$store.dispatch('panes/setMarketsForPane', {
@@ -72,6 +117,14 @@ export default class extends Vue {
     }
 
     this.$store.dispatch('app/hideSearch')
+  }
+
+  multipleMarketsSettings() {
+    return (
+      Object.keys(this.$store.state.panes.panes)
+        .map(id => getBucketId(this.$store.state.panes.panes[id].markets))
+        .filter((v, i, a) => a.indexOf(v) === i).length > 1
+    )
   }
 
   bindSearchOpenByKey() {
@@ -116,9 +169,99 @@ export default class extends Vue {
   onDocumentClick(event) {
     const element = this.$el.children[0]
 
-    if (element !== event.target && !element.contains(event.target)) {
+    const dialog = document.querySelector('.dialog')
+
+    if (element !== event.target && !element.contains(event.target) && (!dialog || !dialog.contains(event.target))) {
       this.$store.dispatch('app/hideSearch')
+    }
+  }
+
+  togglePaneMarket(market: string) {
+    const index = this.pairs.indexOf(market)
+
+    if (index === -1) {
+      this.pairs.push(market)
+    } else {
+      this.pairs.splice(index, 1)
     }
   }
 }
 </script>
+<style lang="scss">
+#app.-light .app-search:before {
+  background: radial-gradient(ellipse at 35% 0%, white 0%, rgba(white, 0) 40%);
+}
+
+.app-search {
+  position: absolute;
+  max-height: 100vh;
+  transform: translateX(-50%);
+  left: 50%;
+  padding: 1em;
+  z-index: 3;
+  min-width: 320px;
+  max-width: 80%;
+
+  &.-loading {
+    pointer-events: none;
+
+    .app-search__wrapper {
+      opacity: 0.5;
+    }
+  }
+
+  &__wrapper {
+    position: relative;
+  }
+
+  &:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    right: -100%;
+    bottom: -100%;
+    background: radial-gradient(ellipse at 35% 0%, black 0%, rgba(black, 0) 40%);
+    background-size: 150%;
+  }
+
+  .autocomplete {
+    &__wrapper {
+      border-radius: 4px;
+      z-index: 2;
+
+      box-shadow: rgba(0, 0, 0, 0.2) 0px 18px 50px -10px;
+    }
+
+    &__items {
+      border: 1px solid lighten($dark, 25%);
+      border-radius: 4px 0 0 4px;
+    }
+
+    &__dropdown {
+      margin-top: -17px;
+
+      box-shadow: rgba(0, 0, 0, 0.2) 0px 18px 50px -10px;
+
+      &:before {
+        content: '';
+        position: fixed;
+        left: 0;
+        right: 0;
+        height: 1em;
+        box-shadow: 0 0.2em 1em rgba(darken($dark, 5%), 0.5);
+        z-index: 1;
+        border-radius: 4px;
+      }
+    }
+
+    &__option:first-child {
+      margin-top: 1.5rem;
+    }
+
+    &__option:last-child {
+      margin-bottom: 0.5rem;
+    }
+  }
+}
+</style>

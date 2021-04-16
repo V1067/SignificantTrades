@@ -1,52 +1,81 @@
+import aggregatorService from '@/services/aggregatorService'
+import { getProducts } from '@/services/productsService'
 import Vue from 'vue'
-import exchanges, { getExchangeById } from '@/exchanges'
-import { ActionTree, MutationTree } from 'vuex'
+import { ActionTree, GetterTree, MutationTree } from 'vuex'
 import { AppModule, ModulesState } from '.'
 
 export interface ExchangeSettings {
-  threshold?: number
   disabled?: boolean
   hidden?: boolean
 }
 
 export type ExchangesState = { [exchangeId: string]: ExchangeSettings } & { _id: string }
 
-const state = exchanges.reduce((exchangesState: ExchangesState, exchange: any) => {
-  exchangesState[exchange.id] = {}
+const state = [
+  'BITMEX',
+  'BINANCE_FUTURES',
+  'KRAKEN',
+  'HUOBI',
+  'BINANCE',
+  'BITFINEX',
+  'BITSTAMP',
+  'COINBASE',
+  'HITBTC',
+  'OKEX',
+  'POLONIEX',
+  'DERIBIT',
+  'BYBIT',
+  'FTX'
+].reduce((exchangesState: ExchangesState, id: string) => {
+  exchangesState[id] = {}
+
+  if (id === 'HITBTC') {
+    exchangesState[id].disabled = true
+  }
 
   return exchangesState
 }, {} as any) as ExchangesState
 
 state._id = 'exchanges'
 
+const getters = {
+  getExchanges: state => Object.keys(state).filter(id => !/^_/.test(id))
+} as GetterTree<ExchangesState, ModulesState>
+
 const actions = {
-  async toggleExchange({ commit, state }, id: string) {
+  async toggleExchange({ commit, state, dispatch }, id: string) {
     commit('TOGGLE_EXCHANGE', id)
 
-    const exchange = getExchangeById(id)
-
     if (state[id].disabled) {
-      await exchange.unlinkAll()
+      dispatch('disconnect', id)
     } else {
-      const exchangeRegex = new RegExp(`^${id}:`, 'i')
-      const state = (this.state as unknown) as ModulesState
-
-      await exchange.linkAll(Object.keys(state.panes.marketsListeners).filter(p => exchangeRegex.test(p)))
+      dispatch('connect', id)
     }
 
     this.commit('app/EXCHANGE_UPDATED', id)
+  },
+  async disconnect({ rootState }, id: string) {
+    const exchangeRegex = new RegExp(`^${id}:`, 'i')
+    const markets = Object.keys(rootState.panes.marketsListeners).filter(p => exchangeRegex.test(p))
+
+    console.log(`[exchanges.${id}] manually disconnecting ${markets.join(', ')}`)
+
+    aggregatorService.disconnect(markets)
+  },
+  async connect({ rootState }, id: string) {
+    const exchangeRegex = new RegExp(`^${id}:`, 'i')
+    const markets = Object.keys(rootState.panes.marketsListeners).filter(p => exchangeRegex.test(p))
+
+    console.log(`[exchanges.${id}] manually connecting ${markets.join(', ')}`)
+
+    aggregatorService.connect(markets)
   },
   toggleExchangeVisibility({ commit }, id: string) {
     commit('TOGGLE_EXCHANGE_VISIBILITY', id)
 
     this.commit('app/EXCHANGE_UPDATED', id)
-  },
-  setExchangeThreshold({ commit }, payload: { id: string; threshold: number }) {
-    commit('SET_EXCHANGE_THRESHOLD', payload)
-
-    this.commit('app/EXCHANGE_UPDATED', payload.id)
   }
-} as ActionTree<ExchangesState, ExchangesState>
+} as ActionTree<ExchangesState, ModulesState>
 
 const mutations = {
   TOGGLE_EXCHANGE: (state, id: string) => {
@@ -56,15 +85,31 @@ const mutations = {
   TOGGLE_EXCHANGE_VISIBILITY: (state, id: string) => {
     const visible = state[id].hidden === false
     Vue.set(state[id], 'hidden', visible)
-  },
-  SET_EXCHANGE_THRESHOLD: (state, { id, threshold }: { id: string; threshold: number }) => {
-    Vue.set(state[id], 'threshold', +threshold)
   }
 } as MutationTree<ExchangesState>
 
 export default {
   namespaced: true,
+  getters,
+  boot: store => {
+    for (const id of store.getters['exchanges/getExchanges']) {
+      store.commit('app/EXCHANGE_UPDATED', id)
+    }
+
+    aggregatorService.on('products', async ({ exchange, endpoints }: { exchange: string; endpoints: string[] }, trackingId: string) => {
+      const productsData = await getProducts(exchange, endpoints)
+
+      aggregatorService.dispatch({
+        op: 'products',
+        data: {
+          exchange,
+          data: productsData
+        },
+        trackingId
+      })
+    })
+  },
   state,
   actions,
   mutations
-} as AppModule<ExchangesState>
+} as AppModule<ExchangesState, ModulesState>

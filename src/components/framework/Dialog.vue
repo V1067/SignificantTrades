@@ -1,12 +1,7 @@
 <template>
   <transition name="scale">
-    <div
-      v-if="open"
-      class="dialog dialog-mask"
-      @click="$emit('clickOutside')"
-      :class="{ '-open': open, '-medium': medium, '-large': large, '-small': small }"
-    >
-      <div class="dialog-content" @click.stop :style="`transform: translate(${delta.x}px, ${delta.y}px)`">
+    <div v-if="open" class="dialog dialog-mask" @click="clickOutside" :class="{ '-open': open, '-medium': medium, '-large': large, '-small': small }">
+      <div ref="dialogContent" class="dialog-content" @click.stop :style="`transform: translate(${delta.x}px, ${delta.y}px)`">
         <header @mousedown="handleDrag" @touchstart="handleDrag">
           <slot name="header"></slot>
           <div class="dialog-controls">
@@ -35,6 +30,23 @@ import { getEventCords } from '../../utils/picker'
 })
 export default class extends Vue {
   delta = { x: 0, y: 0 }
+  private clickOutsideClose: boolean
+  private _handleRelease: () => void
+  private _handleDragging: (evnt: any) => void
+
+  $refs!: {
+    dialogContent: HTMLElement
+  }
+
+  created() {
+    this.clickOutsideClose = true
+  }
+
+  beforeDestroy() {
+    if (this._handleRelease) {
+      this._handleRelease()
+    }
+  }
 
   handleDrag(event) {
     if (event.button === 2) {
@@ -46,23 +58,35 @@ export default class extends Vue {
     event.preventDefault()
     const lastMove = Object.assign({}, this.delta)
     const startPosition = getEventCords(event)
-    const handleDragging = evnt => {
+
+    const startOffset = this.$refs.dialogContent.offsetTop
+    this._handleDragging = evnt => {
       window.requestAnimationFrame(() => {
         const endPosition = getEventCords(evnt)
         this.delta.x = lastMove.x + endPosition.x - startPosition.x
-        this.delta.y = lastMove.y + endPosition.y - startPosition.y
+        this.delta.y = Math.max(startOffset * -1, lastMove.y + endPosition.y - startPosition.y)
       })
     }
-    const handleRelase = () => {
-      document.removeEventListener('mousemove', handleDragging)
-      document.removeEventListener('mouseup', handleRelase)
-      document.removeEventListener('touchmove', handleDragging)
-      document.removeEventListener('touchup', handleRelase)
+    this._handleRelease = () => {
+      document.removeEventListener('mousemove', this._handleDragging)
+      document.removeEventListener('mouseup', this._handleRelease)
+      document.removeEventListener('touchmove', this._handleDragging)
+      document.removeEventListener('touchup', this._handleRelease)
+
+      delete this._handleRelease
     }
-    document.addEventListener('mousemove', handleDragging)
-    document.addEventListener('mouseup', handleRelase)
-    document.addEventListener('touchmove', handleDragging)
-    document.addEventListener('touchup', handleRelase)
+    document.addEventListener('mousemove', this._handleDragging)
+    document.addEventListener('mouseup', this._handleRelease)
+    document.addEventListener('touchmove', this._handleDragging)
+    document.addEventListener('touchup', this._handleRelease)
+  }
+
+  clickOutside() {
+    if (!this.clickOutsideClose) {
+      return false
+    }
+
+    this.$emit('clickOutside')
   }
 }
 </script>

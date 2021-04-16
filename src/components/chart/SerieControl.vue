@@ -23,7 +23,7 @@
 <script>
 import SerieDialog from './SerieDialog.vue'
 import dialogService from '../../services/dialogService'
-import { defaultChartSeries } from './chartSeries'
+import { defaultChartSeries } from './defaultSeries'
 
 export default {
   props: ['paneId', 'serieId', 'legend'],
@@ -97,7 +97,7 @@ export default {
   &__legend {
     color: lighten($blue, 20%);
     margin-left: 0.4em;
-    font-family: monospace;
+    font-family: 'Barlow Semi Condensed';
     pointer-events: none;
     line-height: 1.6;
     letter-spacing: 0px;
@@ -122,22 +122,22 @@ export default {
     }
 
     > .btn {
-      background-color: rgba($blue, 0.5);
+      background-color: rgba(lighten($dark, 4%), 0.8);
       color: white;
       border-radius: 0;
 
       &:hover {
-        background-color: $blue;
+        background-color: $dark;
       }
 
       &:first-child {
-        border-top-left-radius: 2px;
-        border-bottom-left-radius: 2px;
+        border-top-left-radius: 3px;
+        border-bottom-left-radius: 3px;
       }
 
       &:last-child {
-        border-top-right-radius: 2px;
-        border-bottom-right-radius: 2px;
+        border-top-right-radius: 3px;
+        border-bottom-right-radius: 3px;
       }
     }
   }

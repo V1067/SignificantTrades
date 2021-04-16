@@ -20,7 +20,8 @@
 </template>
 
 <script lang="ts">
-import aggregatorService, { Market } from '@/services/aggregatorService'
+import aggregatorService from '@/services/aggregatorService'
+import { Market } from '@/types/test'
 import { formatPrice } from '@/utils/helpers'
 import { Component, Vue } from 'vue-property-decorator'
 
@@ -34,8 +35,7 @@ export default class extends Vue {
   list: string[] = []
   markets: (Market & { price: number; status: ExchangeBarMarketStatus })[] = []
 
-  private onStoreMutation: () => void
-  private _updateExchangesPricesTimeout: number
+  private _onStoreMutation: () => void
 
   get activeExchanges() {
     return this.$store.state.app.activeExchanges
@@ -66,7 +66,7 @@ export default class extends Vue {
   }
 
   created() {
-    this.onStoreMutation = this.$store.subscribe(mutation => {
+    this._onStoreMutation = this.$store.subscribe(mutation => {
       if (mutation.type === 'app/EXCHANGE_UPDATED' && mutation.payload) {
         const active = mutation.payload.active
         const listed = this.list.indexOf(mutation.payload.exchange) !== -1
@@ -77,15 +77,18 @@ export default class extends Vue {
         }
       }
     })
-    this.updateExchangesPrices()
   }
-  beforeDestroy() {
-    this.onStoreMutation()
-    clearTimeout(this._updateExchangesPricesTimeout)
-  }
-  updateExchangesPrices() {
-    const marketsPrices = aggregatorService.getMarketsPrices()
 
+  mounted() {
+    aggregatorService.on('prices', this.updateExchangesPrices)
+  }
+
+  beforeDestroy() {
+    this._onStoreMutation()
+    aggregatorService.off('prices', this.updateExchangesPrices)
+  }
+
+  updateExchangesPrices(marketsPrices) {
     if (!this.markets) {
       this.markets = this.activeMarkets.map(m => ({
         id: m.id.toString(),
@@ -121,8 +124,6 @@ export default class extends Vue {
     }
 
     this.markets = this.markets.sort((a, b) => a.price - b.price)
-
-    this._updateExchangesPricesTimeout = setTimeout(this.updateExchangesPrices.bind(this), 1000 + Math.random() * 2000)
   }
 
   formatPrice() {

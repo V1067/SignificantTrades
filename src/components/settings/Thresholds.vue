@@ -32,8 +32,8 @@
           </td>
           <td class="thresholds-table__color" :style="{ backgroundColor: thresholds[index].buyColor }" @click="openPicker('buyColor', index)"></td>
           <td class="thresholds-table__color" :style="{ backgroundColor: thresholds[index].sellColor }" @click="openPicker('sellColor', index)"></td>
-          <td class="thresholds-table__delete" @click="deleteThreshold(index)">
-            <i class="icon-cross"></i>
+          <td v-if="thresholds.length > 2" class="thresholds-table__delete" @click="deleteThreshold(index)" title="Remove" v-tippy>
+            <i class="icon-cross" v-if="index > 0"></i>
           </td>
         </tr>
       </transition-group>
@@ -70,9 +70,8 @@
             transform: 'translateX(' + this.panelCaretPosition + 'px)'
           }"
         ></div>
-        <a href="#" class="threshold-panel__close icon-cross" @click=";(selectedIndex = null), (editing = false)"></a>
-        <h3>
-          if amount >
+        <small class="help-text mb16 d-block">
+          {{ selectedIndex ? 'for trades >' : 'show trades above' }}
           <editable
             :content="thresholds[selectedIndex].amount"
             @output="
@@ -82,12 +81,14 @@
               })
             "
           ></editable>
-        </h3>
+        </small>
+        <a href="#" class="threshold-panel__close icon-cross" @click=";(selectedIndex = null), (editing = false)"></a>
+
         <div class="form-group mb8 threshold-panel__gif">
-          <label>Show themed gif</label>
+          <label>Show gif</label>
           <small class="help-text">
-            Random gif based on
-            <a href="https://gfycat.com" target="_blank">Gifycat</a>
+            Le
+            <a href="https://giphy.com" target="_blank">Giphy</a>
             keyword
           </small>
           <input
@@ -104,41 +105,42 @@
         </div>
         <div class="form-group mb8 threshold-panel__colors">
           <label>Custom colors</label>
-          <small class="help-text">Will show colored line</small>
           <div class="column">
-            <div class="form-group" title="When buy" v-tippy="{ placement: 'bottom' }">
-              <input
-                type="text"
-                class="form-control"
+            <div class="form-group column flex-center" title="When buy" v-tippy="{ placement: 'bottom' }">
+              <small class="help-text -center mr16">
+                Buy
+              </small>
+              <verte
+                picker="square"
+                menuPosition="left"
+                model="rgb"
                 :value="thresholds[selectedIndex].buyColor"
-                :style="{ backgroundColor: thresholds[selectedIndex].buyColor }"
-                @change="
+                @input="
                   $store.commit(paneId + '/SET_THRESHOLD_COLOR', {
                     index: selectedIndex,
                     side: 'buyColor',
-                    value: $event.target.value
+                    value: $event
                   })
                 "
-                @click="openPicker('buyColor', selectedIndex, $event)"
-              />
+              ></verte>
             </div>
-            <div class="form-group" title="When sell" v-tippy="{ placement: 'bottom' }">
-              <input
-                type="text"
-                class="form-control"
+            <div class="form-group column flex-center" title="When sell" v-tippy="{ placement: 'bottom' }">
+              <small class="help-text -center mr16">
+                Sell
+              </small>
+              <verte
+                picker="square"
+                menuPosition="left"
+                model="rgb"
                 :value="thresholds[selectedIndex].sellColor"
-                :style="{
-                  backgroundColor: thresholds[selectedIndex].sellColor
-                }"
-                @change="
+                @input="
                   $store.commit(paneId + '/SET_THRESHOLD_COLOR', {
                     index: selectedIndex,
                     side: 'sellColor',
-                    value: $event.target.value
+                    value: $event
                   })
                 "
-                @click="openPicker('sellColor', selectedIndex, $event)"
-              />
+              ></verte>
             </div>
           </div>
         </div>
@@ -184,7 +186,7 @@ export default class extends Vue {
   private _maximum = null
   private _offsetLeft = null
 
-  private onStoreMutation: () => void
+  private _onStoreMutation: () => void
   private _startDrag: () => void
   private _endDrag: () => void
   private _doDrag: () => void
@@ -215,7 +217,7 @@ export default class extends Vue {
   }
 
   created() {
-    this.onStoreMutation = this.$store.subscribe(mutation => {
+    this._onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
         case this.paneId + '/TOGGLE_SETTINGS_PANEL':
         case this.paneId + '/TOGGLE_THRESHOLDS_TABLE':
@@ -276,7 +278,7 @@ export default class extends Vue {
     window.removeEventListener('mouseup', this._endDrag)
     window.removeEventListener('resize', this._doResize)
 
-    this.onStoreMutation()
+    this._onStoreMutation()
   }
 
   startDrag(event) {
@@ -349,7 +351,7 @@ export default class extends Vue {
   endDrag() {
     if (this.selectedElement) {
       if (this.dragging) {
-        this.$store.commit('settings/SET_THRESHOLD_AMOUNT', {
+        this.$store.commit(this.paneId + '/SET_THRESHOLD_AMOUNT', {
           index: this.selectedIndex,
           value: this.thresholds[this.selectedIndex].amount
         })
@@ -481,8 +483,8 @@ export default class extends Vue {
     })
   }
 
-  formatAmount() {
-    return formatAmount
+  formatAmount(amount) {
+    return formatAmount(amount)
   }
 }
 </script>
@@ -756,6 +758,7 @@ export default class extends Vue {
     right: 0;
     top: 0;
     padding: 1em;
+    font-size: 1.125em;
 
     &:hover {
       opacity: 1;
@@ -790,7 +793,7 @@ export default class extends Vue {
     &:before {
       content: 'Minimum for a trade to show up';
       display: block;
-      margin-bottom: 1em;
+      margin-bottom: 0.25rem;
       text-decoration: underline;
     }
 

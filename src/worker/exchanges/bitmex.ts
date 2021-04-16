@@ -1,6 +1,6 @@
-import Exchange from './exchangeAbstract'
+import Exchange from '../exchange'
 
-export default class extends Exchange {
+class Bitmex extends Exchange {
   id = 'BITMEX'
   private currencies: { [pair: string]: string }
   protected endpoints = { PRODUCTS: 'https://www.bitmex.com/api/v1/instrument/active' }
@@ -93,3 +93,5 @@ export default class extends Exchange {
     }
   }
 }
+
+export default Bitmex

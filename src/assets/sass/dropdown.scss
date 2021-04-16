@@ -34,17 +34,22 @@
     }
   }
 
+  &.-left,
+  &.-text-left {
+    .dropdown__options {
+      .dropdown__option {
+        > div {
+          justify-content: flex-start;
+          padding: 0.6em 1.4em 0.6em 1em;
+        }
+      }
+    }
+  }
+
   &.-left {
     .dropdown__options {
       right: auto;
       left: 0.6em;
-
-      .dropdown__option {
-        > div {
-          justify-content: flex-start;
-          padding: 0.6em 2em 0.6em 1.4em;
-        }
-      }
     }
   }
 
@@ -147,7 +152,7 @@
 
 .dropdown-option {
   &__description {
-    opacity: .5;
+    opacity: 0.5;
     font-size: 80%;
   }
 }

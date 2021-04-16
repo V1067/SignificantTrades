@@ -10,6 +10,7 @@
         v-if="showTimeframe"
         :options="timeframes"
         :selected="timeframe"
+        class="-text-left"
         placeholder="tf."
         @output="$store.commit(paneId + '/SET_TIMEFRAME', +$event)"
       ></dropdown>
@@ -17,9 +18,19 @@
       <button type="button" @click="openSettings">
         <span class="icon-cog"></span>
       </button>
-      <button type="button" @click="remove">
-        <span class="icon-close-thin"></span>
-      </button>
+
+      <dropdown :options="menu" @output="menu[$event].click()" class="-text-left">
+        <template v-slot:option="{ value }">
+          <div>
+            <i :class="'icon-' + value.icon"></i>
+
+            <span>{{ value.label }}</span>
+          </div>
+        </template>
+        <template v-slot:selection>
+          <i class="icon-menu"></i>
+        </template>
+      </dropdown>
     </div>
   </div>
 </template>
@@ -65,6 +76,28 @@ export default class extends Vue {
     [60 * 5]: '5m',
     [60 * 15]: '15m'
   }
+  menu = [
+    {
+      icon: 'copy',
+      label: 'Duplicate pane',
+      click: this.duplicatePane
+    },
+    {
+      icon: 'copy-paste',
+      label: 'Copy pane settings',
+      click: this.copySettings
+    },
+    {
+      icon: 'stamp',
+      label: 'Paste settings',
+      click: this.pasteSettings
+    },
+    {
+      icon: 'trash',
+      label: 'Remove pane',
+      click: this.removePane
+    }
+  ]
 
   get name() {
     return this.$store.state.panes.panes[this.paneId].name || this.paneId
@@ -99,8 +132,35 @@ export default class extends Vue {
     this.$store.dispatch('app/showSearch', this.paneId)
   }
 
-  remove() {
+  removePane() {
     this.$store.dispatch('panes/removePane', this.paneId)
+  }
+
+  duplicatePane() {
+    this.$store.dispatch('panes/duplicatePane', this.paneId)
+  }
+
+  copySettings() {
+    this.$store.dispatch('panes/copySettings', this.paneId)
+  }
+
+  pasteSettings() {
+    let settings: any
+
+    try {
+      settings = JSON.parse(this.$store.state.app.paneClipboard)
+    } catch (error) {
+      this.$store.dispatch('app/showNotice', {
+        title: 'No pane settings to paste',
+        type: 'error'
+      })
+      return
+    }
+
+    this.$store.dispatch('panes/applySettings', {
+      id: this.paneId,
+      settings: settings
+    })
   }
 }
 </script>

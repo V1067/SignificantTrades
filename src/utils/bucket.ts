@@ -1,11 +1,11 @@
 import { defaultPlotsOptions } from '@/components/chart/chartOptions'
-import { Volumes } from '@/services/aggregatorService'
+import { Volumes } from '@/types/test'
 import { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts'
 import store from '../store'
 import { hexToRgb, splitRgba } from './colors'
 import { getHms } from './helpers'
 
-export interface CounterOptions {
+export interface BucketOptions {
   id: string
   name: string
   window?: number
@@ -14,7 +14,7 @@ export interface CounterOptions {
   type?: string
 }
 
-export default class Counter {
+export default class Bucket {
   id: string
   name: string
   window: number
@@ -22,21 +22,23 @@ export default class Counter {
   color: string
   granularity: number
   type: string
-  timestamp: number
 
-  live: number
   stacks: any[] = []
-  filled = false
-  remaining = 0
 
-  private outputFunction: (stats: Volumes) => number
+  private timestamp: number
+  private live: number
+  private filled = false
+  private remaining = 0
+
+  private adapter: (stats: Volumes) => number
   private serie: ISeriesApi<'Line'>
   private timeouts: number[] = []
 
-  constructor(outputFunction, options: CounterOptions, paneId: string) {
+  constructor(input, options: BucketOptions, paneId: string) {
     this.id = options.id
     this.name = options.name
-    this.outputFunction = outputFunction
+
+    this.adapter = this.getAdapter(input)
 
     this.window = (!isNaN(options.window) ? +options.window : store.state[paneId].window) || 60000
     this.precision = options.precision
@@ -48,12 +50,6 @@ export default class Counter {
 
     this.name += '/' + windowLabel
 
-    console.log('[counter.js] create', {
-      outputFunction: this.outputFunction,
-      window: this.window,
-      granularity: this.granularity
-    })
-
     this.clear()
 
     if (module.hot) {
@@ -61,6 +57,11 @@ export default class Counter {
         this.unbind()
       })
     }
+  }
+
+  getAdapter(str: string) {
+    const litteral = str.replace(/([^.]|^)(vbuy|vsell|cbuy|csell|lbuy|lsell)/g, '$1stats.$2')
+    return new Function('stats', `'use strict'; return ${litteral};`) as (stats: Volumes) => number
   }
 
   clear() {
@@ -77,13 +78,11 @@ export default class Counter {
   }
 
   unbind() {
-    console.log('[counter.js] unbind')
-
     this.clear()
   }
 
   onStats(timestamp, stats) {
-    const value = this.outputFunction(stats)
+    const value = this.adapter(stats)
 
     if (!this.stacks.length || timestamp > this.timestamp + this.granularity) {
       this.appendStack(timestamp)

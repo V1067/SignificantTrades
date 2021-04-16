@@ -7,8 +7,8 @@
       </div>
       <div class="column -center"></div>
     </template>
-    <p v-if="description" style="opacity: .5" class="mb15 mt0"><i class="icon-info mr8"></i> {{ description }}</p>
-    <div class="mb15">
+    <p v-if="description" style="opacity: .5" class="mb16 mt0"><i class="icon-info mr8"></i> {{ description }}</p>
+    <div class="mb16">
       <dropdown
         class="form-control -left -center"
         :selected="type"
@@ -18,7 +18,7 @@
         @output="setType($event)"
       ></dropdown>
     </div>
-    <div class="form-group mb15">
+    <div class="form-group mb16">
       <label for
         >Value
         <span
@@ -28,13 +28,13 @@
         ></span
       ></label>
       <textarea ref="behaveInput" class="form-control" rows="5" :value="input" @blur="setInput($event.target.value)"></textarea>
-      <p v-if="error" class="form-feedback"><i class="icon-warning mr15"></i> {{ error }}</p>
+      <p v-if="error" class="form-feedback"><i class="icon-warning mr16"></i> {{ error }}</p>
     </div>
     <hr />
     <div class="column w-100">
       <div v-if="colorOptions.length">
-        <div v-for="(option, index) in colorOptions" :key="index" class="column form-group -fill mr15 mb8">
-          <label v-if="option.label !== false" class="-center -fill -nowrap mr15">{{ option.label }}</label>
+        <div v-for="(option, index) in colorOptions" :key="index" class="column form-group -fill mr16 mb8">
+          <label v-if="option.label !== false" class="-center -fill -nowrap mr16">{{ option.label }}</label>
           <verte
             picker="square"
             menuPosition="left"
@@ -45,7 +45,7 @@
         </div>
       </div>
       <div v-if="otherOptions.length" class=" -fill">
-        <div v-for="option in otherOptions" :key="option.key" class="form-group mb15">
+        <div v-for="option in otherOptions" :key="option.key" class="form-group mb16">
           <label v-if="option.label !== false">{{ option.label }}</label>
 
           <dropdown
@@ -76,9 +76,9 @@
         </div>
       </div>
     </div>
-    <div v-if="positionOption" class="column mt15">
-      <div class="-fill form-group mr15">
-        <div class="form-group mb15">
+    <div v-if="positionOption" class="column mt16">
+      <div class="-fill form-group mr16">
+        <div class="form-group mb16">
           <label>top</label>
           <editable class="form-control" :content="positionOption.value.top" :step="0.01" @output="setScale('top', $event)"></editable>
         </div>
@@ -87,7 +87,7 @@
           <editable class="form-control" :content="positionOption.value.bottom" :step="0.01" @output="setScale('bottom', $event)"></editable>
         </div>
       </div>
-      <div class="-fill column mr15 serie__scale-margins">
+      <div class="-fill column mr16 serie__scale-margins">
         <input class="w-100" type="range" min="0" max="1" step=".1" :value="positionOption.value.top" @input="setScale('top', $event.target.value)" />
         <input
           class="w-100"
@@ -100,7 +100,7 @@
         />
       </div>
     </div>
-    <div v-if="formatOption" class="column mt15">
+    <div v-if="formatOption" class="column mt16">
       <div class="form-group">
         <label>price format</label>
         <dropdown
@@ -112,7 +112,7 @@
         ></dropdown>
       </div>
       <div>
-        <div class="form-group mb15">
+        <div class="form-group mb16">
           <label>precision</label>
           <editable
             class="form-control"
@@ -144,7 +144,7 @@
           {{ enabled ? 'Active' : 'Disabled' }}
         </span>
       </label>
-      <button class="btn -blue mr15" v-tippy title="Duplicate" @click="duplicateSerie">
+      <button class="btn -blue mr16" v-tippy title="Duplicate" @click="duplicateSerie">
         <i class="icon-copy"></i>
       </button>
       <button class="btn -red" v-tippy title="Serie will be lost forever" @click="removeSerie">
@@ -161,7 +161,7 @@ import { defaultPlotsOptions, defaultSerieOptions } from './chartOptions'
 import Behave from 'behave-js'
 import SerieDialog from './SerieDialog.vue'
 import dialogService from '../../services/dialogService'
-import { defaultChartSeries } from './chartSeries'
+import { defaultChartSeries } from './defaultSeries'
 
 const ignoredOptionsKeys = ['crosshairMarkerVisible']
 

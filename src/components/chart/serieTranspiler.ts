@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import * as seriesUtils from './serieUtils'
 
-import exchanges from '@/exchanges'
+import { exchanges } from '@/worker/exchanges'
 import { Renderer, SerieAdapter, SerieInstruction, SerieTranspilationResult } from './chartController'
 const AVERAGE_FUNCTIONS_NAMES = ['sma', 'ema', 'cma']
 const VARIABLE_REGEX = /([a-zA-Z0_9_]+)\s*=\s*(.*)/
@@ -40,14 +40,10 @@ export default class SerieTranspiler {
   }
 
   normalizeInput(input) {
-    console.log(`[transpiler/normalizeInput] preparing serie input`)
-
     input = '(' + input + ')'
     input = input.replace(/([^.])?\b(bar)\b/gi, '$1renderer')
     input = input.replace(/([^.])?\b(vbuy|vsell|cbuy|csell|lbuy|lsell)\b/gi, '$1renderer.bar.$2')
     input = input.replace(/\s/g, '')
-
-    console.log(`\t-> ${input}`)
 
     return input
   }
@@ -283,8 +279,6 @@ export default class SerieTranspiler {
       renderer = this.getRenderer(renderer, exchanges, references)
     }
 
-    console.info(output)
-
     const valueSample = values[values.length - 1]
 
     if (typeof valueSample === 'number') {
@@ -317,6 +311,7 @@ export default class SerieTranspiler {
 
     const renderer: Renderer = {
       timestamp: null,
+      length: 1,
       bar: {
         vbuy: 0,
         vsell: 0,
@@ -420,6 +415,8 @@ export default class SerieTranspiler {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   updateInstructionsArgument(functions, options) {
+    let minLength = 0
+
     for (const instruction of functions) {
       if (typeof instruction.arg === 'undefined') {
         continue
@@ -427,9 +424,15 @@ export default class SerieTranspiler {
 
       try {
         instruction.arg = eval(instruction.arg)
+
+        if (typeof instruction.arg === 'number') {
+          minLength = Math.max(minLength, instruction.arg)
+        }
       } catch (error) {
         // nothing to see here
       }
     }
+
+    options.minLength = minLength
   }
 }

@@ -1,5 +1,6 @@
 <template>
-  <header id="header" class="header" v-background="20">
+  <header id="header" class="header">
+    <span class="title">Aggr.</span>
     <button type="button" @click="$store.dispatch('app/showSearch')" title="Search" v-tippy="{ placement: 'bottom' }">
       <span class="icon-search"></span>
     </button>
@@ -99,7 +100,7 @@ export default class extends Vue {
   }
 
   addPane(type: PaneType) {
-    this.$store.dispatch('panes/addPane', type)
+    this.$store.dispatch('panes/addPane', { type })
   }
 }
 </script>
@@ -120,6 +121,14 @@ header#header {
   transform: translate(-50%);
   border-radius: 0 0 8px 8px;
 
+  .title {
+    font-size: 80%;
+    opacity: 0.5;
+    font-family: 'Barlow Semi Condensed';
+    align-self: flex-start;
+    margin-right: 0.25rem;
+  }
+
   button,
   .dropdown__selected {
     padding: 2px;
@@ -131,6 +140,25 @@ header#header {
     align-self: stretch;
     .options {
       position: absolute;
+    }
+  }
+
+  button,
+  .dropdown {
+    min-width: 20px;
+    text-align: center;
+    justify-content: center;
+
+    &:hover {
+      background-color: rgba(white, 0.2);
+
+      &:last-child {
+        border-bottom-right-radius: 2px;
+      }
+
+      &:first-child {
+        border-bottom-left-radius: 2px;
+      }
     }
   }
 

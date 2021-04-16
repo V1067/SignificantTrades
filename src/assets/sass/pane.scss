@@ -43,11 +43,17 @@
 
 #app.-light .pane {
   background-color: rgba(white, 0.2);
+
+  .pane-name,
+  .pane-controls {
+    background-color: rgba(white, 0.5);
+    height: 20px;
+  }
 }
 
 .pane-header {
   display: none;
-  height: 20px;
+  height: 0;
   position: absolute;
   z-index: 3;
   top: 0;
@@ -114,4 +120,6 @@
   background-color: rgba(black, 0.5);
   backdrop-filter: blur(5px);
   padding: 0 4px;
+
+  height: 20px;
 }

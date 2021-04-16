@@ -396,6 +396,7 @@ export default {
   background: lighten($dark, 20%);
   will-change: transfom;
   border-radius: 10px;
+  cursor: pointer;
 }
 
 .slider__handle {

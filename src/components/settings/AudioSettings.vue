@@ -14,7 +14,7 @@
           :checked="audioIncludeInsignificants"
           @change="$store.commit('settings/TOGGLE_AUDIO_TEN_PERCENT', $event.target.checked)"
         />
-        <div class="icon-expand"></div>
+        <div class="icon-sound-wave"></div>
       </label>
     </div>
     <div class="form-group -fill">

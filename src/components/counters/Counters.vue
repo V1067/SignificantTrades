@@ -1,6 +1,6 @@
 <template>
   <div class="pane-counters">
-    <pane-header :paneId="paneId" :markets="false" />
+    <pane-header :paneId="paneId" />
     <ul class="counters">
       <li v-for="(step, index) in activeSteps" :key="index" v-bind:duration="step.duration" class="counter">
         <div class="counter__side -buy" v-bind:style="{ width: (step.buy / (step.buy + step.sell)) * 100 + '%' }">
@@ -25,23 +25,34 @@ import aggregatorService from '@/services/aggregatorService'
 import PaneMixin from '@/mixins/paneMixin'
 import PaneHeader from '../panes/PaneHeader.vue'
 
-const CHUNK = {
-  timestamp: null,
-  buy: 0,
-  sell: 0
+interface Counter {
+  duration: number
+  chunks: CounterChunk[]
 }
 
-const COUNTERS = []
+interface CounterChunk {
+  timestamp: number
+  buy: number
+  sell: number
+}
+
+interface CounterStep {
+  duration: string
+  buy: number
+  sell: number
+  hasData: boolean
+}
 
 @Component({
   components: { PaneHeader },
   name: 'Counters'
 })
 export default class extends Mixins(PaneMixin) {
-  steps = []
-
-  private onStoreMutation: () => void
+  private _onStoreMutation: () => void
   private _populateCountersInterval: number
+  private _activeChunk: CounterChunk
+  private _counters: Counter[]
+  private _steps: CounterStep[]
 
   get preferQuoteCurrencySize() {
     return this.$store.state.settings.preferQuoteCurrencySize
@@ -52,7 +63,7 @@ export default class extends Mixins(PaneMixin) {
   }
 
   get countersSteps() {
-    return this.$store.state[this.paneId].dteps
+    return this.$store.state[this.paneId].steps
   }
 
   get countersCount() {
@@ -64,13 +75,13 @@ export default class extends Mixins(PaneMixin) {
   }
 
   get activeSteps() {
-    return this.steps.filter(a => a.hasData)
+    return this._steps.filter(a => a.hasData)
   }
 
   created() {
     aggregatorService.on('sums', this.onSums)
 
-    this.onStoreMutation = this.$store.subscribe(mutation => {
+    this._onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
         case 'panes/SET_PANE_MARKETS':
           if (mutation.payload.id === this.paneId) {
@@ -94,7 +105,7 @@ export default class extends Mixins(PaneMixin) {
   beforeDestroy() {
     aggregatorService.off('sums', this.onSums)
 
-    this.onStoreMutation()
+    this._onStoreMutation()
 
     clearInterval(this._populateCountersInterval)
   }
@@ -114,40 +125,49 @@ export default class extends Mixins(PaneMixin) {
     }
 
     if (volume.buy || volume.sell) {
-      if (!CHUNK.timestamp) {
-        CHUNK.timestamp = sums.timestamp
+      if (!this._activeChunk.timestamp) {
+        this._activeChunk.timestamp = sums.timestamp
       }
 
-      CHUNK.buy += volume.buy
-      CHUNK.sell += volume.sell
+      this._activeChunk.buy += volume.buy
+      this._activeChunk.sell += volume.sell
 
-      for (let i = 0; i < this.steps.length; i++) {
-        this.steps[i].buy += volume.buy
-        this.steps[i].sell += volume.sell
+      for (let i = 0; i < this._steps.length; i++) {
+        this._steps[i].buy += volume.buy
+        this._steps[i].sell += volume.sell
       }
     }
   }
   clearCounters() {
-    COUNTERS.splice(0, COUNTERS.length)
-    CHUNK.timestamp = null
-    CHUNK.buy = CHUNK.sell = 0
-
-    this.steps.splice(0, this.steps.length)
+    if (this._counters) {
+      this._counters.splice(0, this._counters.length)
+      this._activeChunk.timestamp = null
+      this._activeChunk.buy = this._activeChunk.sell = 0
+      this._steps.splice(0, this._steps.length)
+    } else {
+      this._counters = []
+      this._activeChunk = {
+        timestamp: null,
+        buy: 0,
+        sell: 0
+      }
+      this._steps = []
+    }
   }
   createCounters() {
     this.clearCounters()
 
     for (const step of this.countersSteps) {
-      COUNTERS.push({
+      this._counters.push({
         duration: step,
         chunks: []
       })
     }
 
-    for (const counter of COUNTERS) {
-      const first = COUNTERS.indexOf(counter) === 0
+    for (const counter of this._counters) {
+      const first = this._counters.indexOf(counter) === 0
 
-      this.steps.push({
+      this._steps.push({
         duration: getHms(counter.duration),
         buy: 0,
         sell: 0,
@@ -158,60 +178,60 @@ export default class extends Mixins(PaneMixin) {
   populateCounters() {
     const now = +new Date()
 
-    if (CHUNK.timestamp) {
-      COUNTERS[0].chunks.push({
-        timestamp: CHUNK.timestamp,
-        buy: CHUNK.buy,
-        sell: CHUNK.sell
+    if (this._activeChunk.timestamp) {
+      this._counters[0].chunks.push({
+        timestamp: this._activeChunk.timestamp,
+        buy: this._activeChunk.buy,
+        sell: this._activeChunk.sell
       })
 
-      CHUNK.timestamp = null
-      CHUNK.buy = 0
-      CHUNK.sell = 0
+      this._activeChunk.timestamp = null
+      this._activeChunk.buy = 0
+      this._activeChunk.sell = 0
     }
 
     let chunksToDecrease = []
-    let downgradeBuy
-    let downgradeSell
+    let decreaseBuy
+    let decreaseSell
 
-    for (let i = 0; i < COUNTERS.length; i++) {
+    for (let i = 0; i < this._counters.length; i++) {
       if (chunksToDecrease.length) {
-        Array.prototype.push.apply(COUNTERS[i].chunks, chunksToDecrease.splice(0, chunksToDecrease.length))
+        Array.prototype.push.apply(this._counters[i].chunks, chunksToDecrease.splice(0, chunksToDecrease.length))
 
-        if (!this.steps[i].hasData) {
-          this.steps[i].hasData = true
+        if (!this._steps[i].hasData) {
+          this._steps[i].hasData = true
         }
       }
 
-      downgradeBuy = 0
-      downgradeSell = 0
+      decreaseBuy = 0
+      decreaseSell = 0
 
       let to = 0
 
-      for (let j = 0; j < COUNTERS[i].chunks.length; j++) {
-        downgradeBuy += COUNTERS[i].chunks[j].buy
-        downgradeSell += COUNTERS[i].chunks[j].sell
-        if (COUNTERS[i].chunks[j].timestamp >= now - COUNTERS[i].duration) {
+      for (let j = 0; j < this._counters[i].chunks.length; j++) {
+        decreaseBuy += this._counters[i].chunks[j].buy
+        decreaseSell += this._counters[i].chunks[j].sell
+        if (this._counters[i].chunks[j].timestamp >= now - this._counters[i].duration) {
           to = j
           break
         }
       }
 
       if (to) {
-        chunksToDecrease = COUNTERS[i].chunks.splice(0, to + 1)
-        if (isNaN(this.steps[i].buy - downgradeBuy) || isNaN(this.steps[i].sell - downgradeSell)) debugger
-        this.steps[i].buy -= downgradeBuy
-        this.steps[i].sell -= downgradeSell
+        chunksToDecrease = this._counters[i].chunks.splice(0, to + 1)
+        if (isNaN(this._steps[i].buy - decreaseBuy) || isNaN(this._steps[i].sell - decreaseSell)) debugger
+        this._steps[i].buy -= decreaseBuy
+        this._steps[i].sell -= decreaseSell
       }
     }
   }
 
-  formatAmount() {
-    return formatAmount
+  formatAmount(amount) {
+    return formatAmount(amount)
   }
 
-  formatPrice() {
-    return formatPrice
+  formatPrice(price) {
+    return formatPrice(price)
   }
 }
 </script>
@@ -237,7 +257,7 @@ export default class extends Mixins(PaneMixin) {
     transform: translateX(-50%);
     margin-top: 0.55em;
     background-color: rgba(black, 0.1);
-    border-radius: 2px;
+    border-radius: 3px;
     padding: 0.34em 0.4em;
     font-size: 0.85em;
     text-align: center;

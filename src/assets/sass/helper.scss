@@ -16,65 +16,35 @@ a {
   text-decoration: none;
 }
 
-.mt0 {
-  margin-top: 0 !important;
+$max: 16;
+$offset: 4;
+$unit: 'px'; // Feel free to change the unit.
+@mixin list-loop($className, $styleName) {
+  $i: 0;
+  @while $i <= $max {
+    #{$className + $i} {
+      @if ($i == 0) {
+        #{$styleName}: #{$i + $unit} !important;
+      } @else {
+        #{$styleName}: #{$i + $unit};
+      }
+    }
+    $i: $i + $offset;
+  }
 }
+@include list-loop('.pl', 'padding-left');
 
-.mb0 {
-  margin-bottom: 0 !important;
-}
-
-.mtauto {
-  margin-top: auto;
-}
-
-.mt15 {
-  margin-top: 15px;
-}
-
-.mb15 {
-  margin-bottom: 15px;
-}
-
-.mt8 {
-  margin-top: 8px;
-}
-
-.mb8 {
-  margin-bottom: 8px;
-}
-
-.mr8 {
-  margin-right: 8px;
-}
-
-.mr15 {
-  margin-right: 15px;
-}
-
-.ml8 {
-  margin-left: 8px;
-}
-
-.ml15 {
-  margin-left: 15px;
-}
-
-.mr4 {
-  margin-right: 4px;
-}
-
-.ml4 {
-  margin-left: 4px;
-}
-
-.mt4 {
-  margin-top: 4px;
-}
-
-.mb4 {
-  margin-bottom: 4px;
-}
+@include list-loop('.mt', 'margin-top');
+@include list-loop('.mr', 'margin-right');
+@include list-loop('.mb', 'margin-bottom');
+@include list-loop('.ml', 'margin-left');
+@include list-loop('.mx', 'margin');
+// Paddings
+@include list-loop('.pt', 'padding-top');
+@include list-loop('.pr', 'padding-right');
+@include list-loop('.pb', 'padding-bottom');
+@include list-loop('.pl', 'padding-left');
+@include list-loop('.px', 'padding');
 
 .flex-right {
   justify-content: flex-end;
@@ -132,8 +102,45 @@ a {
   text-transform: lowercase;
 }
 
+.text-middle {
+  vertical-align: middle;
+}
+
+.text-bottom {
+  vertical-align: bottom;
+}
+
+.text-top {
+  vertical-align: top;
+}
+
 .min-768 {
   display: none;
+}
+
+.d-block {
+  display: block;
+}
+
+.d-flex {
+  display: flex;
+
+  > .-fill {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+
+  > .-center {
+    align-self: center;
+  }
+
+  > .-end {
+    align-self: end;
+  }
+
+  > .-nowrap {
+    white-space: nowrap;
+  }
 }
 
 @media screen and (min-width: 768px) {

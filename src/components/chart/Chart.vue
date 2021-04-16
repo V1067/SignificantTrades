@@ -48,8 +48,6 @@ import PaneMixin from '@/mixins/paneMixin'
 import { getCustomColorsOptions } from './chartOptions'
 import PaneHeader from '../panes/PaneHeader.vue'
 
-let chart: ChartController = null
-
 @Component({
   name: 'Chart',
   components: {
@@ -63,10 +61,10 @@ export default class extends Mixins(PaneMixin) {
   reachedEnd = false
   legend = {}
 
-  private onStoreMutation: () => void
-  private _refreshChartDimensionsTimeout: number
+  private _onStoreMutation: () => void
   private _keepAliveTimeout: number
   private _onPanTimeout: number
+  private _chartController: ChartController
 
   get activeSeries() {
     return this.$store.state[this.paneId].activeSeries
@@ -105,28 +103,28 @@ export default class extends Mixins(PaneMixin) {
   }
 
   created() {
-    chart = new ChartController(this.paneId)
+    this._chartController = new ChartController(this.paneId)
 
-    this.onStoreMutation = this.$store.subscribe(mutation => {
+    this._onStoreMutation = this.$store.subscribe(mutation => {
       switch (mutation.type) {
         case 'settings/SET_CHART_COLOR':
           if (mutation.payload) {
-            chart.chartInstance.applyOptions(getCustomColorsOptions(mutation.payload))
+            this._chartController.chartInstance.applyOptions(getCustomColorsOptions(mutation.payload))
           }
           break
         case 'settings/SET_CHART_THEME':
-          chart.chartInstance.applyOptions(getCustomColorsOptions())
+          this._chartController.chartInstance.applyOptions(getCustomColorsOptions())
           break
         case 'settings/SET_TIMEZONE_OFFSET':
-          chart.clearChart()
-          chart.renderVisibleChunks()
+          this._chartController.clearChart()
+          this._chartController.renderVisibleChunks()
           break
         case 'app/EXCHANGE_UPDATED':
-          chart.renderVisibleChunks()
+          this._chartController.renderVisibleChunks()
           break
         case 'panes/SET_PANE_MARKETS':
           if (mutation.payload.id === this.paneId) {
-            chart.setMarkets(mutation.payload.markets)
+            this._chartController.setMarkets(mutation.payload.markets)
 
             this.clear()
             this.fetch()
@@ -137,18 +135,18 @@ export default class extends Mixins(PaneMixin) {
           this.fetch()
           break
         case this.paneId + '/SET_REFRESH_RATE':
-          chart.clearQueue()
-          chart.setupQueue()
+          this._chartController.clearQueue()
+          this._chartController.setupQueue()
           break
         case this.paneId + '/SET_SERIE_OPTION':
-          chart.setSerieOption(mutation.payload)
+          this._chartController.setSerieOption(mutation.payload)
           break
         case this.paneId + '/SET_SERIE_TYPE':
         case this.paneId + '/SET_SERIE_INPUT':
-          chart.rebuildSerie(mutation.payload.id)
+          this._chartController.rebuildSerie(mutation.payload.id)
           break
         case this.paneId + '/TOGGLE_SERIE':
-          chart.toggleSerie(mutation.payload)
+          this._chartController.toggleSerie(mutation.payload)
           break
         case 'app/SET_OPTIMAL_DECIMAL':
         case this.paneId + '/SET_DECIMAL_PRECISION':
@@ -164,13 +162,13 @@ export default class extends Mixins(PaneMixin) {
             }
 
             if (serie.options.priceFormat && serie.options.priceFormat.type === 'price') {
-              chart.setSerieOption({
+              this._chartController.setSerieOption({
                 id: serie.id,
                 key: 'priceFormat.precision',
                 value: mutation.payload
               })
 
-              chart.setSerieOption({
+              this._chartController.setSerieOption({
                 id: serie.id,
                 key: 'priceFormat.minMove',
                 value: 1 / Math.pow(10, mutation.payload)
@@ -184,8 +182,7 @@ export default class extends Mixins(PaneMixin) {
   }
 
   mounted() {
-    console.log(`[chart.mounted]`)
-    chart.setupQueue()
+    this._chartController.setupQueue()
 
     this.createChart()
 
@@ -195,7 +192,7 @@ export default class extends Mixins(PaneMixin) {
   async createChart() {
     await this.$nextTick()
 
-    chart.createChart(this.$refs.chartContainer)
+    this._chartController.createChart(this.$refs.chartContainer)
 
     this.bindChartEvents()
 
@@ -205,14 +202,14 @@ export default class extends Mixins(PaneMixin) {
   destroyChart() {
     this.unbindChartEvents()
 
-    chart.destroy()
+    this._chartController.destroy()
 
     clearTimeout(this._keepAliveTimeout)
   }
 
   beforeDestroy() {
     this.destroyChart()
-    this.onStoreMutation()
+    this._onStoreMutation()
   }
 
   /**
@@ -222,11 +219,11 @@ export default class extends Mixins(PaneMixin) {
   fetch(rangeToFetch?: TimeRange) {
     const historicalMarkets = historicalService.getHistoricalMarktets(this.markets)
 
-    if (!historicalMarkets) {
-      return Promise.reject('Fetch is disabled')
+    if (!historicalMarkets.length) {
+      return Promise.reject('unsupported-markets')
     }
 
-    const visibleRange = chart.chartInstance.timeScale().getVisibleRange() as TimeRange
+    const visibleRange = this._chartController.chartInstance.timeScale().getVisibleRange() as TimeRange
     const timeframe = +this.$store.state[this.paneId].timeframe
 
     if (!rangeToFetch) {
@@ -234,8 +231,8 @@ export default class extends Mixins(PaneMixin) {
 
       let leftTime
 
-      if (chart.chartCache.cacheRange && chart.chartCache.cacheRange.from) {
-        leftTime = chart.chartCache.cacheRange.from
+      if (this._chartController.chartCache.cacheRange && this._chartController.chartCache.cacheRange.from) {
+        leftTime = this._chartController.chartCache.cacheRange.from
       } else if (visibleRange && visibleRange.from) {
         leftTime = visibleRange.from + this.timezoneOffset / 1000
       } else {
@@ -251,9 +248,9 @@ export default class extends Mixins(PaneMixin) {
     rangeToFetch.from = Math.floor(Math.round(rangeToFetch.from) / timeframe) * timeframe
     rangeToFetch.to = Math.ceil(Math.round(rangeToFetch.to) / timeframe) * timeframe - 1
 
-    console.log(`[chart/fetch] final rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
+    console.debug(`[chart/fetch] fetch rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
 
-    chart.lockRender()
+    this._chartController.lockRender()
 
     return historicalService
       .fetch(Math.round(rangeToFetch.from * 1000), Math.round(rangeToFetch.to * 1000 - 1), timeframe, historicalMarkets)
@@ -290,7 +287,7 @@ export default class extends Mixins(PaneMixin) {
           console.log(`[chart/fetch] success (${data.length} new ${format}s)`)
 
           if (chunk.bars.length > MAX_BARS_PER_CHUNKS) {
-            console.log(`[chart/fetch] response chunk is too large (> ${MAX_BARS_PER_CHUNKS} bars) -> start splitting`)
+            console.debug(`[chart/fetch] response chunk is too large (> ${MAX_BARS_PER_CHUNKS} bars) -> start splitting`)
           }
 
           while (chunk.bars.length) {
@@ -309,26 +306,28 @@ export default class extends Mixins(PaneMixin) {
           }
 
           if (chunks.length > 1) {
-            console.log(`[chart/fetch] splitted result into ${chunks.length} chunks`)
+            console.debug(`[chart/fetch] splitted result into ${chunks.length} chunks`)
           }
 
-          console.log(`[chart/fetch] save ${chunks.length} new chunks`)
-          console.log(
+          console.debug(`[chart/fetch] save ${chunks.length} new chunks`)
+          console.debug(
             `\t-> [first] FROM: ${formatTime(chunks[0].from)} | TO: ${formatTime(chunks[0].to)} (${formatAmount(chunks[0].bars.length)} bars)`
           )
-          console.log(
+          console.debug(
             `\t-> [last] FROM: ${formatTime(chunks[chunks.length - 1].from)} | TO: ${formatTime(chunks[chunks.length - 1].to)} (${formatAmount(
               chunks[chunks.length - 1].bars.length
             )} bars)`
           )
-          console.log(
-            `\t-> [current cacheRange] FROM: ${formatTime(chart.chartCache.cacheRange.from)} | TO: ${formatTime(chart.chartCache.cacheRange.to)}`
+          console.debug(
+            `\t-> [current cacheRange] FROM: ${formatTime(this._chartController.chartCache.cacheRange.from)} | TO: ${formatTime(
+              this._chartController.chartCache.cacheRange.to
+            )}`
           )
           for (const chunk of chunks) {
-            chart.chartCache.saveChunk(chunk)
+            this._chartController.chartCache.saveChunk(chunk)
           }
 
-          chart.renderVisibleChunks()
+          this._chartController.renderVisibleChunks()
         }
       })
       .catch(err => {
@@ -339,7 +338,7 @@ export default class extends Mixins(PaneMixin) {
         console.error(err)
       })
       .then(() => {
-        chart.unlockRender()
+        this._chartController.unlockRender()
       })
   }
 
@@ -358,7 +357,7 @@ export default class extends Mixins(PaneMixin) {
     ) {
       this.legend = {}
     } else {
-      for (const serie of chart.activeSeries) {
+      for (const serie of this._chartController.activeSeries) {
         const data = param.seriesPrices.get(serie.api)
 
         if (!data) {
@@ -385,37 +384,26 @@ export default class extends Mixins(PaneMixin) {
    * @param{Trade[]} trades trades to process
    */
   onTrades(trades) {
-    if (chart.preventRender || this.refreshRate) {
-      chart.queueTrades(trades)
+    if (this._chartController.preventRender || this.refreshRate) {
+      this._chartController.queueTrades(trades)
       return
     }
 
-    chart.renderRealtimeTrades(trades)
+    this._chartController.renderRealtimeTrades(trades)
   }
 
-  refreshChartDimensions(debounceTime = 500) {
-    if (!chart || !chart.chartInstance) {
+  refreshChartDimensions() {
+    if (!this._chartController || !this._chartController.chartInstance) {
       return
     }
 
-    clearTimeout(this._refreshChartDimensionsTimeout)
-
-    this._refreshChartDimensionsTimeout = setTimeout(() => {
-      if (!chart || !chart.chartInstance) {
-        return
-      }
-
-      chart.chartInstance.resize(this.$el.clientWidth, this.$el.clientHeight)
-    }, debounceTime)
+    this._chartController.chartInstance.resize(this.$el.clientWidth, this.$el.clientHeight)
   }
 
-  /**
-   * on chart pan
-   */
   onPan(visibleLogicalRange) {
     // this.debugPosition()
 
-    if (!visibleLogicalRange || chart.panPrevented) {
+    if (!visibleLogicalRange || this._chartController.panPrevented) {
       return
     }
 
@@ -425,7 +413,7 @@ export default class extends Mixins(PaneMixin) {
     }
 
     this._onPanTimeout = setTimeout(() => {
-      if (chart.chartCache.cacheRange.from === null) {
+      if (this._chartController.chartCache.cacheRange.from === null) {
         return
       }
 
@@ -436,31 +424,31 @@ export default class extends Mixins(PaneMixin) {
   bindChartEvents() {
     aggregatorService.on('trades', this.onTrades)
 
-    chart.chartInstance.subscribeCrosshairMove(this.onCrosshair)
-    chart.chartInstance.timeScale().subscribeVisibleLogicalRangeChange(this.onPan)
+    this._chartController.chartInstance.subscribeCrosshairMove(this.onCrosshair)
+    this._chartController.chartInstance.timeScale().subscribeVisibleLogicalRangeChange(this.onPan)
   }
 
   unbindChartEvents() {
     aggregatorService.off('trades', this.onTrades)
 
-    chart.chartInstance.unsubscribeCrosshairMove(this.onCrosshair)
-    chart.chartInstance.timeScale().unsubscribeVisibleLogicalRangeChange(this.onPan)
+    this._chartController.chartInstance.unsubscribeCrosshairMove(this.onCrosshair)
+    this._chartController.chartInstance.timeScale().unsubscribeVisibleLogicalRangeChange(this.onPan)
   }
 
   keepAlive() {
     if (this._keepAliveTimeout) {
-      chart.chartCache.trim()
+      this._chartController.chartCache.trim()
 
-      chart.redraw()
+      this._chartController.redraw()
     }
 
     this._keepAliveTimeout = setTimeout(this.keepAlive.bind(this), 1000 * 60 * 30)
   }
 
   refreshChart() {
-    chart.chartCache.trim()
+    this._chartController.chartCache.trim()
 
-    chart.redraw()
+    this._chartController.redraw()
   }
 
   async addSerie() {
@@ -479,37 +467,45 @@ export default class extends Mixins(PaneMixin) {
 
     const barsToLoad = Math.abs(visibleLogicalRange.from)
     const rangeToFetch = {
-      from: chart.chartCache.cacheRange.from - barsToLoad * this.timeframe,
-      to: chart.chartCache.cacheRange.from
+      from: this._chartController.chartCache.cacheRange.from - barsToLoad * this.timeframe,
+      to: this._chartController.chartCache.cacheRange.from
     }
 
-    console.log(`[chart/pan] timeout fired`)
-    console.log(`\t-> barsToLoad: ${barsToLoad}`)
-    console.log(`\t-> rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
-    console.log(`\t-> current cacheRange: FROM: ${formatTime(chart.chartCache.cacheRange.from)} | TO: ${formatTime(chart.chartCache.cacheRange.to)}`)
+    console.debug(`[chart/pan] timeout fired`)
+    console.debug(`\t-> barsToLoad: ${barsToLoad}`)
+    console.debug(`\t-> rangeToFetch: FROM: ${formatTime(rangeToFetch.from)} | TO: ${formatTime(rangeToFetch.to)}`)
+    console.debug(
+      `\t-> current cacheRange: FROM: ${formatTime(this._chartController.chartCache.cacheRange.from)} | TO: ${formatTime(
+        this._chartController.chartCache.cacheRange.to
+      )}`
+    )
     // this.debugPosition()
 
-    if (!this.reachedEnd && (!chart.chartCache.cacheRange.from || rangeToFetch.to <= chart.chartCache.cacheRange.from)) {
+    if (
+      !this.reachedEnd &&
+      (!this._chartController.chartCache.cacheRange.from || rangeToFetch.to <= this._chartController.chartCache.cacheRange.from)
+    ) {
       this.fetch(rangeToFetch)
     } else {
       console.warn(
         `[chart/pan] wont fetch this range\n\t-> rangeToFetch.to (${formatTime(rangeToFetch.to)}) > chart.chartCache.cacheRange.from (${formatTime(
-          chart.chartCache.cacheRange.from
+          this._chartController.chartCache.cacheRange.from
         )})`
       )
       console.warn('(might trigger redraw with more cached chunks here...)')
 
-      chart.renderVisibleChunks()
+      this._chartController.renderVisibleChunks()
     }
   }
 
-  onResize(newWidth: number, newHeight: number) {
-    console.log('trigger resize frome parrent', newWidth, newHeight)
-    this.refreshChartDimensions()
+  onResize() {
+    this.$nextTick(() => {
+      this.refreshChartDimensions()
+    })
   }
 
   clear() {
-    chart.clear()
+    this._chartController.clear()
 
     this.reachedEnd = false
   }
