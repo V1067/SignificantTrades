@@ -47,8 +47,6 @@ module.exports = {
       'https://www.okex.com',
       'https://api.huobi.pro',
       'https://www.bitmex.com',
-      'https://api.coinex.com',
-      'https://api.liquid.com',
       'https://www.deribit.com',
       'https://fapi.binance.com',
       'https://dapi.binance.com',
