@@ -5,7 +5,7 @@ class Bitstamp extends Exchange {
   constructor(options) {
     super(options)
 
-    this.id = 'BISTAMP'
+    this.id = 'BITSTAMP'
 
     this.endpoints = {
       PRODUCTS: 'https://www.bitstamp.net/api/v2/trading-pairs-info',
