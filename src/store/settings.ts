@@ -16,9 +16,6 @@ export interface SettingsState {
   backgroundColor?: string
   textColor?: string
   timezoneOffset?: number
-  showMarketsBar?: boolean
-  animateMarketsBar?: boolean
-  marketsBarPairs?: boolean
   useAudio?: boolean
   audioIncludeInsignificants?: boolean
   audioVolume?: number
@@ -142,15 +139,6 @@ const mutations = {
   },
   SET_TIMEZONE_OFFSET(state, value) {
     state.timezoneOffset = +value || 0
-  },
-  TOGGLE_MARKETS_BAR(state, value) {
-    state.showMarketsBar = value ? true : false
-  },
-  TOGGLE_MARKETS_BAR_ANIMATION(state, value) {
-    state.animateMarketsBar = value ? true : false
-  },
-  TOGGLE_MARKETS_BAR_PAIRS(state, value) {
-    state.marketsBarPairs = value ? true : false
   },
   ADD_RECENT_COLOR(state, value) {
     state.recentColors.push(value)

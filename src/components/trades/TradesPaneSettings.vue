@@ -68,7 +68,7 @@
       <a href="javascript:void(0);" @click="$store.commit('settings/TOGGLE_ANIMATIONS')">Enable animations</a>
     </small>
 
-    <div class="-fill mb8">THRESHOLD MULTIPLIER ({{ mutipliersCount }})</div>
+    <div class="-fill mt16 mb8">THRESHOLD MULTIPLIER ({{ mutipliersCount }})</div>
 
     <div class="multipliers" v-if="mutipliersCount">
       <div v-for="market in multipliers" :key="market.identifier" class="d-flex multipliers-market" :class="{ '-disabled': market.multiplier === 1 }">
@@ -231,7 +231,7 @@ export default class extends Vue {
       .market-pair {
         position: relative;
 
-        &:before {
+        /*&:before {
           content: '';
           position: absolute;
           height: 2px;
@@ -240,7 +240,7 @@ export default class extends Vue {
           right: -0.2rem;
 
           background-color: white;
-        }
+        }*/
       }
     }
 

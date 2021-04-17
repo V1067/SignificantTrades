@@ -259,6 +259,12 @@
         }
       }
     }
+
+    &:disabled ~ div {
+      opacity: 0.5;
+      pointer-events: none;
+      cursor: not-allowed;
+    }
   }
 
   &.-small {

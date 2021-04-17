@@ -499,9 +499,7 @@ export default class extends Mixins(PaneMixin) {
   }
 
   onResize() {
-    this.$nextTick(() => {
-      this.refreshChartDimensions()
-    })
+    this.refreshChartDimensions()
   }
 
   clear() {

@@ -1,11 +1,11 @@
 <template>
-  <div class="pane-stats" :class="{ '-large': large }">
+  <div class="pane-stats" :class="{ [scale]: true }">
     <pane-header :paneId="paneId" />
     <div v-if="enableChart" class="stats-chart" ref="chart"></div>
     <ul class="stats-buckets">
       <li v-for="(bucket, id) in data" :key="id" class="stat-bucket" @click="editStat(id)">
         <div class="stat-bucket__name">{{ bucket.name }}</div>
-        <div class="stat-bucket__value">{{ bucket.value }}</div>
+        <div class="stat-bucket__value" :style="{ color: bucket.color }">{{ bucket.value }}</div>
       </li>
     </ul>
   </div>
@@ -31,7 +31,6 @@ import PaneHeader from '../panes/PaneHeader.vue'
 })
 export default class extends Mixins(PaneMixin) {
   data = {}
-  large = false
 
   $refs!: {
     chart: HTMLElement
@@ -110,8 +109,6 @@ export default class extends Mixins(PaneMixin) {
     if (this.enableChart) {
       this.createChart()
     }
-
-    this.refreshScale()
   }
 
   beforeDestroy() {
@@ -126,11 +123,8 @@ export default class extends Mixins(PaneMixin) {
     this._chart = null
   }
 
-  refreshScale() {
-    this.large = this.$el.clientWidth > 320
-  }
-
   async createChart() {
+    await this.$nextTick()
     await this.$nextTick()
 
     const chartOptions = getChartOptions(defaultStatsChartOptions)
@@ -142,7 +136,6 @@ export default class extends Mixins(PaneMixin) {
     }
 
     this.refreshChartDimensions(0)
-    // this.chartUpdate()
   }
 
   removeChart() {
@@ -218,6 +211,7 @@ export default class extends Mixins(PaneMixin) {
       if (this._buckets[id].stacks.length) {
         const value = this._buckets[id].getValue()
 
+        console.log(value, this._buckets[id].precision, formatAmount(value, this._buckets[id].precision))
         this.$set(this.data[id], 'value', formatAmount(value, this._buckets[id].precision))
       }
 
@@ -302,7 +296,6 @@ export default class extends Mixins(PaneMixin) {
 
   onResize() {
     this.refreshChartDimensions()
-    this.refreshScale()
   }
 }
 </script>
@@ -311,7 +304,7 @@ export default class extends Mixins(PaneMixin) {
 .pane-stats {
   position: relative;
 
-  font-size: 12px;
+  font-size: 14px;
 
   &.-large {
     font-size: 1rem;
@@ -357,6 +350,7 @@ export default class extends Mixins(PaneMixin) {
   &__name {
     letter-spacing: 0.4px;
     transition: opacity 0.2s $ease-out-expo;
+    font-size: 80%;
   }
 
   &__value {
@@ -365,6 +359,8 @@ export default class extends Mixins(PaneMixin) {
     font-family: 'Barlow Semi Condensed';
     z-index: 1;
     flex-grow: 1;
+    font-weight: 600;
+    letter-spacing: 0.5px;
   }
 }
 </style>

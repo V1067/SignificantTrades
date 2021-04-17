@@ -22,8 +22,6 @@
       <div class="app__layout">
         <Panes />
       </div>
-
-      <markets-bar v-if="showMarketsBar"></markets-bar>
     </div>
   </div>
 </template>
@@ -38,7 +36,6 @@ import Header from './components/Header.vue'
 import Settings from './components/settings/Settings.vue'
 import SearchProducts from './components/SearchProducts.vue'
 
-import MarketsBar from '@/components/MarketsBar.vue'
 import Panes from '@/components/panes/Panes.vue'
 
 import upFavicon from './assets/up.png'
@@ -55,8 +52,7 @@ import { Notice } from './store/app'
     SearchProducts,
     Settings,
     Notices,
-    Panes,
-    MarketsBar
+    Panes
   }
 })
 export default class extends Vue {
@@ -74,18 +70,6 @@ export default class extends Vue {
     return pairs[0].pair
   }
 
-  get activeMarketsIds() {
-    const enabledActiveMarketsIds = this.$store.state.app.activeMarkets.filter(m => this.activeExchanges[m.exchange]).map(m => m.id)
-
-    if (enabledActiveMarketsIds.length > 1) {
-      return 'Avg. of ' + enabledActiveMarketsIds.join(', ')
-    } else if (enabledActiveMarketsIds.length === 1) {
-      return enabledActiveMarketsIds[0]
-    } else {
-      return 'Nothing to show'
-    }
-  }
-
   get showSettings() {
     return this.$store.state.app.showSettings
   }
@@ -94,20 +78,12 @@ export default class extends Vue {
     return this.$store.state.app.isLoading
   }
 
-  get activeExchanges() {
-    return this.$store.state.app.activeExchanges
-  }
-
   get backgroundColor() {
     return this.$store.state.settings.backgroundColor
   }
 
   get theme() {
     return this.$store.state.settings.theme
-  }
-
-  get showMarketsBar() {
-    return this.$store.state.settings.showMarketsBar
   }
 
   get markets() {
@@ -158,12 +134,6 @@ export default class extends Vue {
     let count = 0
 
     for (const market in marketsPrices) {
-      const [exchangeId] = market.split(':')
-
-      if (!this.activeExchanges[exchangeId]) {
-        continue
-      }
-
       price += marketsPrices[market]
       count++
     }

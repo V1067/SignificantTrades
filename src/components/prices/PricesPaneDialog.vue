@@ -12,16 +12,16 @@
       </div>
       <div class="column -center"></div>
     </template>
-    <trades-settings :paneId="paneId" />
+    <prices-pane-settings :paneId="paneId" />
   </Dialog>
 </template>
 
 <script>
 import DialogMixin from '../../mixins/dialogMixin'
-import TradesSettings from './TradesPaneSettings.vue'
+import PricesPaneSettings from './PricesPaneSettings.vue'
 
 export default {
-  components: { TradesSettings },
+  components: { PricesPaneSettings },
   props: ['paneId'],
   mixins: [DialogMixin],
   computed: {

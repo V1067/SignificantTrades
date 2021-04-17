@@ -31,7 +31,7 @@ export function parseQueryString() {
 export function formatAmount(amount, decimals?: number) {
   const negative = amount < 0
 
-  amount = Math.ceil(amount)
+  amount = Math.abs(amount)
 
   if (amount >= 1000000) {
     amount = +(amount / 1000000).toFixed(isNaN(decimals) ? 1 : decimals) + 'M'

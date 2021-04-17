@@ -3,6 +3,7 @@
     ref="grid"
     :layout="layout"
     :row-height="rowHeight"
+    :col-num="24"
     :margin="[0, 0]"
     :is-draggable="draggable"
     :is-resizable="resizable"
@@ -15,6 +16,7 @@
     <grid-item
       v-for="gridItem in layout"
       :key="gridItem.i"
+      :type="gridItem.type"
       drag-allow-from=".pane-header"
       :x="gridItem.x"
       :y="gridItem.y"
@@ -40,10 +42,11 @@ import Chart from '../chart/Chart.vue'
 import Trades from '../trades/Trades.vue'
 import Stats from '../stats/Stats.vue'
 import Counters from '../counters/Counters.vue'
+import Prices from '../prices/Prices.vue'
 import { GridItem } from '@/store/panes'
 
 @Component({
-  components: { GridLayout: VueGridLayout.GridLayout, GridItem: VueGridLayout.GridItem, Chart, Trades, Stats, Counters }
+  components: { GridLayout: VueGridLayout.GridLayout, GridItem: VueGridLayout.GridItem, Chart, Trades, Stats, Counters, Prices }
 })
 export default class extends Vue {
   draggable = true
@@ -56,10 +59,6 @@ export default class extends Vue {
   $refs!: {
     panes: PaneMixin[]
     grid: VueGridLayout.GridLayout
-  }
-
-  protected get showMarketsBar() {
-    return this.$store.state.settings.showMarketsBar
   }
 
   protected get panes() {
@@ -92,10 +91,9 @@ export default class extends Vue {
     } else {
       this._resizeTimeout = null
 
-      const headerHeightfooter = this.showMarketsBar ? 30 : 0
-      const rowNum = 12
+      const rowNum = 24
 
-      this.rowHeight = (window.innerHeight - headerHeightfooter) / rowNum
+      this.rowHeight = window.innerHeight / rowNum
     }
   }
 
@@ -103,7 +101,7 @@ export default class extends Vue {
     this.$store.commit('panes/UPDATE_LAYOUT', gridItems)
   }
 
-  resizePane(id, width, height) {
+  resizePane(id, height, width) {
     if (!this.$refs.panes) {
       return
     }
@@ -114,19 +112,23 @@ export default class extends Vue {
       return
     }
 
+    pane.refreshScale(width)
+
     if (typeof pane.onResize === 'function') {
-      pane.onResize(width, height)
+      pane.$nextTick(() => {
+        pane.onResize(width, height)
+      })
     }
   }
 
   onPaneResized(id, newHeightGrid, newWidthGrid, newHeightPx, newWidthPx) {
-    this.resizePane(id, newHeightPx, newWidthPx)
+    this.resizePane(id, +newHeightPx, +newWidthPx)
 
     this.$store.commit('panes/UPDATE_LAYOUT', this.layout)
   }
 
   onContainerResized(id, newHeightGrid, newWidthGrid, newHeightPx, newWidthPx) {
-    this.resizePane(id, newHeightPx, newWidthPx)
+    this.resizePane(id, +newHeightPx, +newWidthPx)
   }
 }
 </script>

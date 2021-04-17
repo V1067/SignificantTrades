@@ -62,7 +62,7 @@ export default class extends Exchange {
 
     this.subscriptions[pair] = ++this.lastSubscriptionId
 
-    const params = [pair + '@trade']
+    const params = [pair + '@trade', pair + '@forceOrder']
 
     api.send(
       JSON.stringify({
@@ -90,7 +90,7 @@ export default class extends Exchange {
       return
     }
 
-    const params = [pair + '@trade']
+    const params = [pair + '@trade', pair + '@forceOrder']
 
     api.send(
       JSON.stringify({

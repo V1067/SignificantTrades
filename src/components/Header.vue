@@ -76,6 +76,10 @@ export default class extends Vue {
     counters: {
       title: 'Counters',
       description: 'Rolling buy/sell counters'
+    },
+    prices: {
+      title: 'Tickers',
+      description: 'Just the last prices'
     }
   }
 

@@ -45,6 +45,7 @@ import CountersPaneDialog from '@/components/counters/CountersPaneDialog.vue'
 import TradesPaneDialog from '../trades/TradesPaneDialog.vue'
 import ChartPaneDialog from '../chart/ChartPaneDialog.vue'
 import StatsPaneDialog from '../stats/StatsPaneDialog.vue'
+import PricesPaneDialog from '../prices/PricesPaneDialog.vue'
 
 @Component({
   name: 'PaneHeader',
@@ -124,6 +125,9 @@ export default class extends Vue {
         break
       case 'trades':
         dialogService.open(TradesPaneDialog, { paneId: this.paneId })
+        break
+      case 'prices':
+        dialogService.open(PricesPaneDialog, { paneId: this.paneId })
         break
     }
   }

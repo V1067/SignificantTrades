@@ -1,8 +1,5 @@
 {
   "preferQuoteCurrencySize": true,
-  "exchanges": {
-    "hitbtc": { "disabled": true }
-  },
   "aggregateTrades": true,
   "disableAnimations": true,
   "calculateSlippage": false,
@@ -11,8 +8,6 @@
   "backgroundColor": "rgb(23,27,41)",
   "textColor": "",
   "timezoneOffset": 0,
-  "showExchangesBar": false,
-  "animateMarketsBar": true,
   "useAudio": false,
   "audioIncludeInsignificants": true,
   "audioVolume": 1.5,

@@ -7,6 +7,7 @@ import settings, { SettingsState } from './settings'
 import exchanges, { ExchangesState } from './exchanges'
 import panes, { PanesState } from './panes'
 import panesSettings from './panesSettings'
+import merge from 'lodash.merge'
 
 Vue.use(Vuex)
 
@@ -35,10 +36,20 @@ const modules = prepareModules({
 })
 
 for (const paneId in modules.panes.state.panes) {
-  const type = modules.panes.state.panes[paneId].type
+  const pane = modules.panes.state.panes[paneId]
+  const type = pane.type
 
   if (panesSettings[type]) {
     modules[paneId] = preparePaneSettings(paneId, panesSettings[type])
+  }
+
+  if (pane.settings) {
+    if (typeof pane.settings === 'object') {
+      debugger
+      merge(modules[paneId].state, pane.settings)
+    }
+
+    delete modules.panes.state.panes[paneId].settings
   }
 }
 

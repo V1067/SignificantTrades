@@ -16,6 +16,7 @@
     "core-js": "^3.6.5",
     "eventemitter3": "^4.0.7",
     "lightweight-charts": "^3.3.0",
+    "lodash.merge": "^4.6.2",
     "pako": "^1.0.6",
     "tunajs": "^1.0.13",
     "vue": "^2.6.11",

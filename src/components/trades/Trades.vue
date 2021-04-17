@@ -1,5 +1,5 @@
 <template>
-  <div class="pane-trades custom-scrollbar" :class="{ '-large': !this.abbr, '-logos': this.showLogos, '-slippage': this.calculateSlippage }">
+  <div class="pane-trades custom-scrollbar" :class="{ [scale]: true, '-logos': this.showLogos, '-slippage': this.calculateSlippage }">
     <pane-header :paneId="paneId" />
     <ul ref="tradesContainer"></ul>
     <div v-if="!tradesCount" class="trade -empty">Nothing to show, yet.</div>
@@ -26,7 +26,7 @@ const GIFS = {} // gifs from storages, by threshold gif keyword
 })
 export default class extends Mixins(PaneMixin) {
   tradesCount = 0
-  abbr = false
+  scale = '-normal'
 
   private _onStoreMutation: () => void
 
@@ -186,8 +186,6 @@ export default class extends Mixins(PaneMixin) {
         ref = txt
       }
     }, 2500)
-
-    this.abbr = this.$el.clientWidth < 200
   }
 
   beforeDestroy() {
@@ -222,7 +220,7 @@ export default class extends Mixins(PaneMixin) {
 
           liquidationMessage += `&nbsp;liq<span class="-large">uidate</span>d <strong>${
             trade.side === 'buy' ? 'SHORT' : 'LONG'
-          }</strong> @ <i class="icon-quote"></i> ${formatPrice(trade.price)}`
+          }</strong> @<i class="icon-quote ml4"></i> ${formatPrice(trade.price)}`
 
           this.appendRow(trade, amount, multiplier, '-liquidation', liquidationMessage)
         }
@@ -493,14 +491,31 @@ export default class extends Mixins(PaneMixin) {
       return output
     }, {})
   }
-
-  onResize() {
-    this.abbr = this.$el.clientWidth < 200
-  }
 }
 </script>
 
 <style lang="scss">
+@mixin tradesVariant($base: 20) {
+  font-size: $base * 0.7px;
+  .trade {
+    height: round($base * 1px);
+
+    &.-level-1 {
+      height: round($base * 1.1px);
+    }
+
+    &.-level-2 {
+      height: round($base * 1.33px);
+      font-weight: 600;
+    }
+
+    &.-level-3 {
+      font-size: round($base * 0.8px);
+      height: round($base * 1.5px);
+    }
+  }
+}
+
 @keyframes highlight {
   0% {
     opacity: 0.75;
@@ -518,44 +533,26 @@ export default class extends Mixins(PaneMixin) {
   ul {
     margin: 0;
     padding: 0;
-    font-size: 70%;
+  }
 
-    .trade {
-      height: 19px;
+  &.-normal ul {
+    @include tradesVariant(22);
+  }
 
-      &.-level-1 {
-        height: 21px;
-      }
+  &.-small ul {
+    @include tradesVariant(18);
 
-      &.-level-2 {
-        height: 24px;
-        font-weight: 600;
-      }
-
-      &.-level-3 {
-        height: 29px;
-      }
+    .-large {
+      display: none;
     }
   }
 
   &.-large ul {
-    font-size: 80%;
+    @include tradesVariant(24);
+  }
 
-    .trade {
-      height: 23px;
-
-      &.-level-1 {
-        height: 24px;
-      }
-
-      &.-level-2 {
-        height: 28px;
-      }
-
-      &.-level-3 {
-        height: 32px;
-      }
-    }
+  &.-wide ul {
+    @include tradesVariant(26);
   }
 
   &.-slippage {
@@ -730,7 +727,7 @@ export default class extends Mixins(PaneMixin) {
       max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
-      transition: all 0.1s ease-in-out;
+      transition: transform 0.1s ease-in-out;
       display: block;
 
       &.trade__amount__quote {

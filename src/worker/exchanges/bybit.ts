@@ -63,7 +63,7 @@ export default class extends Exchange {
         return {
           exchange: this.id,
           pair: trade.symbol,
-          timestamp: +new Date(trade.timestamp),
+          timestamp: trade.trade_time_ms,
           price: +trade.price,
           size: size,
           side: trade.side === 'Buy' ? 'buy' : 'sell'

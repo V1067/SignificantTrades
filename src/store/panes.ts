@@ -7,7 +7,7 @@ import { MutationTree, ActionTree, GetterTree } from 'vuex'
 import { AppModule, ModulesState } from '.'
 import panesSettings from './panesSettings'
 
-export type PaneType = 'trades' | 'chart' | 'stats' | 'counters'
+export type PaneType = 'trades' | 'chart' | 'stats' | 'counters' | 'prices'
 export type MarketsListeners = { [market: string]: number }
 
 export interface GridItem {
@@ -84,11 +84,12 @@ const defaultMarkets = {
 const state = {
   _id: 'panes',
   layout: [
-    { x: 0, y: 0, w: 8, h: 12, i: 'pane-chart-1', type: 'chart' },
-    { x: 8, y: 0, w: 2, h: 2, i: 'spot-stats', type: 'stats' },
-    { x: 10, y: 0, w: 2, h: 2, i: 'perp-stats', type: 'stats' },
-    { x: 8, y: 4, w: 2, h: 10, i: 'spot-trades', type: 'trades' },
-    { x: 10, y: 4, w: 2, h: 10, i: 'perp-trades', type: 'trades' }
+    { x: 0, y: 0, w: 15, h: 24, i: 'pane-chart-1', type: 'chart' },
+    { x: 15, y: 0, w: 3, h: 4, i: 'spot-stats', type: 'stats' },
+    { x: 18, y: 0, w: 3, h: 4, i: 'perp-stats', type: 'stats' },
+    { x: 15, y: 4, w: 3, h: 20, i: 'spot-trades', type: 'trades' },
+    { x: 18, y: 4, w: 3, h: 20, i: 'perp-trades', type: 'trades' },
+    { x: 21, y: 0, w: 3, h: 24, i: 'liquidations', type: 'trades' }
   ],
   panes: {
     'pane-chart-1': {
@@ -113,13 +114,34 @@ const state = {
       id: 'spot-trades',
       name: 'BTCUSD (SPOT)',
       type: 'trades',
-      markets: defaultMarkets.spot
+      markets: defaultMarkets.spot,
+      thresholds: [
+        {
+          id: 'threshold',
+          amount: 100000
+        }
+      ]
     },
     'perp-trades': {
       id: 'perp-trades',
       name: 'BTCUSD (PERP)',
       type: 'trades',
       markets: defaultMarkets.perp
+    },
+    liquidations: {
+      id: 'liquidations',
+      name: 'REKTS',
+      type: 'trades',
+      markets: defaultMarkets.perp,
+      settings: {
+        liquidationsOnly: true,
+        thresholds: [
+          {
+            id: 'threshold',
+            amount: 1
+          }
+        ]
+      }
     }
   },
   marketsListeners: {}

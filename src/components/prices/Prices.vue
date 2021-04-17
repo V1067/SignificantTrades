@@ -1,38 +1,49 @@
 <template>
-  <transition-group
-    v-if="markets"
-    :name="transitionGroupName"
-    tag="div"
-    class="markets-bar condensed custom-scrollbar pane"
-    @mouseenter="hovering = true"
-    @mouseleave="hovering = false"
-  >
-    <div
-      v-for="market in markets"
-      :key="market.id"
-      class="market"
-      :class="{ ['-' + market.exchange]: true, ['-' + market.status]: true, '-hidden': exchanges[market.exchange].hidden }"
-      :title="market.id"
-      @click="$store.commit('settings/TOGGLE_EXCHANGE', market.exchange)"
+  <div class="pane-prices" :class="{ [scale]: true, [mode]: true }">
+    <pane-header :paneId="paneId" />
+    <transition-group
+      v-if="markets"
+      :name="transitionGroupName"
+      tag="div"
+      class="markets-bar condensed custom-scrollbar pane"
+      @mouseenter="hovering = true"
+      @mouseleave="hovering = false"
     >
-      <div v-if="showPairs" class="market__pair" v-text="market.pair"></div>
-      <div class="market__price" v-text="formatPrice(market.price)"></div>
-    </div>
-  </transition-group>
+      <div
+        v-for="market in markets"
+        :key="market.id"
+        class="market"
+        :class="{ ['-' + market.exchange]: true, ['-' + market.status]: true, '-hidden': exchanges[market.exchange].hidden }"
+        :title="market.id"
+        @click="$store.commit('settings/TOGGLE_EXCHANGE', market.exchange)"
+      >
+        <div v-if="showPairs" class="market__pair" v-text="market.pair"></div>
+        <div class="market__price" v-text="formatPrice(market.price)"></div>
+      </div>
+    </transition-group>
+  </div>
 </template>
 
 <script lang="ts">
+import { Component, Mixins } from 'vue-property-decorator'
+
+import { formatPrice } from '../../utils/helpers'
+
 import aggregatorService from '@/services/aggregatorService'
+import PaneMixin from '@/mixins/paneMixin'
+import PaneHeader from '../panes/PaneHeader.vue'
 import { Market } from '@/types/test'
-import { formatPrice } from '@/utils/helpers'
-import { Component, Vue } from 'vue-property-decorator'
 
 type MarketsBarMarketStatus = 'pending' | 'idle' | 'up' | 'down' | 'neutral'
 
 @Component({
-  name: 'MarketsBar'
+  components: { PaneHeader },
+  name: 'Prices'
 })
-export default class extends Vue {
+export default class extends Mixins(PaneMixin) {
+  tradesCount = 0
+  mode = '-vertical'
+
   hovering = false
   list: string[] = []
   markets: (Market & { price: number; status: MarketsBarMarketStatus })[] = null
@@ -55,16 +66,16 @@ export default class extends Vue {
     return this.$store.state.settings.disableAnimations
   }
 
-  get animateMarketsBar() {
-    return !this.disableAnimations && this.$store.state.settings.animateMarketsBar
+  get showPairs() {
+    return this.$store.state[this.paneId].showPairs
   }
 
-  get showPairs() {
-    return this.$store.state.settings.marketsBarPairs
+  get animateSort() {
+    return this.$store.state[this.paneId].animateSort
   }
 
   get transitionGroupName() {
-    if (this.animateMarketsBar) {
+    if (this.animateSort) {
       return 'flip-list'
     } else {
       return null
@@ -129,11 +140,19 @@ export default class extends Vue {
       return
     }
 
-    this.markets = this.markets.sort((a, b) => a.price - b.price)
+    if (this.mode === '-horizontal') {
+      this.markets = this.markets.sort((a, b) => a.price - b.price)
+    } else {
+      this.markets = this.markets.sort((a, b) => b.price - a.price)
+    }
   }
 
   formatPrice(amount) {
     return formatPrice(amount)
+  }
+
+  onResize(width: number, height: number) {
+    this.mode = width > height ? '-horizontal' : '-vertical'
   }
 }
 </script>
@@ -147,7 +166,7 @@ export default class extends Vue {
 
   @each $exchange in $exchanges {
     .market.-#{$exchange} {
-      background-image: url('../assets/exchanges/#{$exchange}.svg');
+      background-image: url('../../assets/exchanges/#{$exchange}.svg');
     }
   }
 
@@ -190,6 +209,16 @@ export default class extends Vue {
       background-color: rgba(white, 0.2);
       opacity: 0.5;
     }
+  }
+}
+
+.pane-prices {
+  &.-vertical .markets-bar {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+    height: 100%;
   }
 }
 </style>

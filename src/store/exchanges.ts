@@ -84,12 +84,22 @@ const actions = {
 
 const mutations = {
   TOGGLE_EXCHANGE: (state, id: string) => {
-    const enabled = state[id].disabled === false
-    Vue.set(state[id], 'disabled', enabled)
+    let disabled = true
+
+    if (typeof state[id].disabled === 'boolean') {
+      disabled = !state[id].disabled
+    }
+
+    Vue.set(state[id], 'disabled', disabled)
   },
   TOGGLE_EXCHANGE_VISIBILITY: (state, id: string) => {
-    const visible = state[id].hidden === false
-    Vue.set(state[id], 'hidden', visible)
+    let hidden = true
+
+    if (typeof state[id].hidden === 'boolean') {
+      hidden = !state[id].hidden
+    }
+
+    Vue.set(state[id], 'hidden', hidden)
   }
 } as MutationTree<ExchangesState>
 
