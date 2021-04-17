@@ -211,7 +211,6 @@ export default class extends Mixins(PaneMixin) {
       if (this._buckets[id].stacks.length) {
         const value = this._buckets[id].getValue()
 
-        console.log(value, this._buckets[id].precision, formatAmount(value, this._buckets[id].precision))
         this.$set(this.data[id], 'value', formatAmount(value, this._buckets[id].precision))
       }
 

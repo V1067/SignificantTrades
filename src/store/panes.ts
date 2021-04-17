@@ -117,7 +117,6 @@ const state = {
       markets: defaultMarkets.spot,
       thresholds: [
         {
-          id: 'threshold',
           amount: 100000
         }
       ]
@@ -137,8 +136,7 @@ const state = {
         liquidationsOnly: true,
         thresholds: [
           {
-            id: 'threshold',
-            amount: 1
+            amount: 10000
           }
         ]
       }

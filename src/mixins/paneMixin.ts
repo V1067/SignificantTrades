@@ -40,8 +40,6 @@ export default class PaneMixin extends Vue {
     } else {
       this.scale = '-small'
     }
-
-    console.log(this.scale)
   }
 
   onResize?(newWidth: number, newHeight: number)
