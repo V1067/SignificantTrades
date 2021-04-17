@@ -54,7 +54,7 @@ class DialogService {
   }
 
   mountDialog(cmp) {
-    const container = document.querySelector('[data-app=true]') || document.body
+    const container = document.getElementById('app') || document.body
     container.appendChild(cmp.$mount().$el)
   }
 

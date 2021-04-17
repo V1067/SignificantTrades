@@ -23,33 +23,45 @@
         <span>Animation are {{ disableAnimations ? 'disabled' : 'enabled' }} globaly 🚀</span>
       </label>
     </div>
-    <div class="-activable column" :class="{ active: showExchangesBar }">
+    <div class="-activable column" :class="{ active: showMarketsBar }">
       <div class="form-group -tight">
         <label class="checkbox-control">
           <input
             type="checkbox"
-            id="showExchangesBar"
+            id="showMarketsBar"
             class="form-control"
-            :checked="showExchangesBar"
-            @change="$store.commit('settings/TOGGLE_EXCHANGES_BAR', $event.target.checked)"
+            :checked="showMarketsBar"
+            @change="$store.commit('settings/TOGGLE_MARKETS_BAR', $event.target.checked)"
           />
           <div></div>
         </label>
       </div>
       <div class="-fill form-group">
         <div class="form-group mb8">
-          <label for="showExchangesBar">
+          <label for="showMarketsBar">
             Show exchanges bar
           </label>
         </div>
-        <div class="form-group">
-          <label class="checkbox-control">
+        <div class="form-group mt8">
+          <label class="checkbox-control -small">
+            <input
+              type="checkbox"
+              class="form-control"
+              :checked="marketsBarPairs"
+              @change="$store.commit('settings/TOGGLE_MARKETS_BAR_PAIRS', $event.target.checked)"
+            />
+            <div></div>
+            <span>Show pair name</span>
+          </label>
+        </div>
+        <div class="form-group mt8">
+          <label class="checkbox-control -small">
             <input
               type="checkbox"
               class="form-control"
               :disabled="disableAnimations"
-              :checked="animateExchangesBar"
-              @change="$store.commit('settings/TOGGLE_EXCHANGES_BAR_ANIMATION', $event.target.checked)"
+              :checked="animateMarketsBar"
+              @change="$store.commit('settings/TOGGLE_MARKETS_BAR_ANIMATION', $event.target.checked)"
             />
             <div></div>
             <span>Animate order change</span>
@@ -75,12 +87,16 @@ export default class extends Vue {
     return this.$store.state.settings.disableAnimations
   }
 
-  get showExchangesBar() {
-    return this.$store.state.settings.showExchangesBar
+  get showMarketsBar() {
+    return this.$store.state.settings.showMarketsBar
   }
 
-  get animateExchangesBar() {
-    return this.$store.state.settings.animateExchangesBar
+  get animateMarketsBar() {
+    return this.$store.state.settings.animateMarketsBar
+  }
+
+  get marketsBarPairs() {
+    return this.$store.state.settings.marketsBarPairs
   }
 }
 </script>

@@ -10,7 +10,7 @@
   >
     <div class="settings-exchange__header" @click="toggleExchange">
       <div class="settings-exchange__identity">
-        <div class="settings-exchange__name">{{ id }}</div>
+        <div class="settings-exchange__name">{{ name }}</div>
       </div>
       <div class="settings-exchange__controls">
         <button
@@ -27,7 +27,7 @@
       </div>
     </div>
     <div class="settings-exchange__detail" v-if="expanded">
-      <div class="form-group">
+      <div class="form-group" v-if="markets.length">
         <label>Connections</label>
         <div>
           <div v-for="market in markets" :key="market.identifier" class="d-flex">
@@ -37,8 +37,10 @@
         </div>
       </div>
       <div class="form-group mt8">
-        <label>Market</label>
-        <button v-if="canRefreshProducts" class="btn -red -small" @click="refreshProducts">Refresh products ({{ indexedProducts.length }})</button>
+        <label
+          >Products : <strong>{{ indexedProducts.length }}</strong></label
+        >
+        <button v-if="canRefreshProducts" class="btn -red -small" @click="refreshProducts">Refresh</button>
       </div>
     </div>
   </div>
@@ -76,6 +78,10 @@ export default class extends Vue {
 
   updateMarketsPrices(prices) {
     this.prices = prices
+  }
+
+  get name() {
+    return this.id.replace(/[\W_]+/g, ' ')
   }
 
   get settings() {
@@ -234,6 +240,8 @@ export default class extends Vue {
   position: relative;
   margin-right: auto;
   text-transform: uppercase;
+  white-space: normal;
+  font-weight: 600;
 
   .icon-line-chart {
     position: absolute;
@@ -325,7 +333,6 @@ export default class extends Vue {
     border: 0;
     background: none;
     cursor: pointer;
-    color: white;
     font-size: 1rem;
     display: flex;
     align-items: center;
@@ -343,6 +350,12 @@ export default class extends Vue {
 
 .settings-exchange__detail {
   padding: 10px;
-  background-color: rgba(black, 0.25);
+}
+
+#app.-light .settings-exchange {
+  &.-active {
+    background-color: white;
+    color: #111;
+  }
 }
 </style>

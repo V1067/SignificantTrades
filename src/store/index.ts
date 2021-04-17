@@ -57,13 +57,17 @@ store.subscribe((mutation, state: any) => {
 })
 
 export async function boot() {
+  const promises = []
+
   for (const id in modules) {
     const module = modules[id]
 
     if (typeof module.boot === 'function') {
-      await module.boot(store, module.state)
+      promises.push(module.boot(store, module.state))
     }
   }
+
+  await Promise.all(promises)
 
   store.dispatch('app/setBooted')
 }

@@ -35,6 +35,10 @@ class AggregatorService extends EventEmitter {
   }
 
   async connect(markets: string[]): Promise<any> {
+    if (!markets.length) {
+      return
+    }
+
     for (let i = 0; i < markets.length; i++) {
       const [exchange, pair] = parseMarket(markets[i])
 
@@ -57,14 +61,18 @@ class AggregatorService extends EventEmitter {
       }
     }
 
-    this.dispatchAsync({
+    await this.dispatchAsync({
       op: 'connect',
       data: markets
     })
   }
 
   async disconnect(markets: string[]): Promise<any> {
-    this.dispatchAsync({
+    if (!markets.length) {
+      return
+    }
+    
+    await this.dispatchAsync({
       op: 'disconnect',
       data: markets
     })

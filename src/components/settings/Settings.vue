@@ -1,6 +1,6 @@
 <template>
   <div id="settings" class="settings__container stack__container" @mousedown="$event.target === $el && close()">
-    <div class="stack__scroller" v-background="33">
+    <div class="stack__scroller" v-background="1">
       <div class="stack__wrapper">
         <a href="#" class="stack__toggler icon-cross" @click="close"></a>
 
@@ -162,6 +162,7 @@ import SettingsImportConfirmation from './ImportConfirmation.vue'
 import dialogService from '../../services/dialogService'
 import AudioSettings from './AudioSettings.vue'
 import OtherSettings from './OtherSettings.vue'
+import { dumpSettings } from '@/utils/store'
 
 @Component({
   name: 'Settings',
@@ -231,9 +232,7 @@ export default class extends Vue {
   }
 
   exportSettings() {
-    const settings = JSON.parse(JSON.stringify(this.$store.state.settings))
-
-    downloadJson(settings, 'aggr')
+    downloadJson(dumpSettings(), 'aggr')
   }
 
   confirmImport(event) {
@@ -242,39 +241,41 @@ export default class extends Vue {
     reader.onload = async ({ target }) => {
       event.target.value = ''
 
-      const settings = this.validateSettings(target.result)
+      const states = this.validateImport(target.result)
 
-      if (!settings) {
+      if (!states) {
         return
       }
 
       if (
         await dialogService.openAsPromise(SettingsImportConfirmation, {
-          settings
+          states
         })
       ) {
-        this.importSettings(settings)
+        this.importSettings(states)
       }
     }
     reader.readAsText(event.target.files[0])
   }
 
-  validateSettings(content) {
-    let settings = null
+  validateImport(content) {
+    let states = null
 
     try {
-      settings = JSON.parse(content)
+      states = JSON.parse(content)
     } catch (error) {
-      alert('invalid settings')
+      alert('invalid states')
 
       return false
     }
 
-    return settings
+    return states
   }
 
-  importSettings(settings) {
-    localStorage.setItem('settings', JSON.stringify(settings))
+  importSettings(states) {
+    for (const id of states) {
+      localStorage.setItem(id, JSON.stringify(states[id]))
+    }
 
     window.location.reload(true)
   }
@@ -343,7 +344,6 @@ export default class extends Vue {
 }
 
 .settings__container {
-  background-color: rgba($dark, 0.5);
   color: white;
 
   &.-stack__container {
@@ -397,7 +397,7 @@ export default class extends Vue {
       position: relative;
 
       &:hover {
-        background-color: rgba(black, 0.2);
+        background-color: rgba(black, 0.05);
       }
 
       .settings__title {
@@ -513,6 +513,22 @@ export default class extends Vue {
         font-size: 0.5em;
         vertical-align: middle;
       }
+    }
+  }
+}
+
+#app.-light {
+  .settings__container .stack__wrapper > section:hover {
+    background-color: rgba(black, 0.025);
+  }
+
+  .settings__title {
+    opacity: 1;
+  }
+
+  .form-group {
+    .checkbox-control {
+      opacity: 1;
     }
   }
 }

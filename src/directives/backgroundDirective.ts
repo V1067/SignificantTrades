@@ -1,18 +1,21 @@
 import store from '../store'
-import { splitRgba, increaseBrightness, joinRgba, getColorLuminance } from '../utils/colors'
+import { splitRgba, getColorLuminance, getLogShade } from '../utils/colors'
 
 const applyBackgroundColor = (el, rgb, modifier: number | boolean = false) => {
   if (rgb) {
     let color = splitRgba(rgb)
     let luminance = getColorLuminance(color)
     if (typeof modifier === 'number' && modifier) {
-      modifier *= (1 - luminance / 255) // prettier-ignore
-      color = increaseBrightness(splitRgba(rgb), modifier)
-      rgb = joinRgba(color)
+      if (store.state.settings.theme === 'dark') {
+        const ajusted = modifier / Math.log(255 - luminance) / 4
+        modifier = ajusted
+      } else {
+        modifier *= 1 / 255
+      }
+      rgb = getLogShade(color, modifier)
     } else {
       color = splitRgba(rgb)
     }
-
     el.style.backgroundColor = rgb
 
     luminance = getColorLuminance(color)

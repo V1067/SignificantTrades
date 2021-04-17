@@ -64,11 +64,27 @@ export function prepareModules(modules: ModuleTree<any>): any {
 }
 
 export function preparePaneSettings(id: string, paneSettingsModule: Module<any, any>) {
-  const state = { ...paneSettingsModule.state, _id: id }
+  const state = JSON.parse(JSON.stringify(paneSettingsModule.state))
+
+  state._id = id
 
   return { ...paneSettingsModule, state: getStoredState(state) }
 }
 
 export const normalizeSymbol = (symbol: string) => {
   return symbol.replace(/(?:%7F)+/g, '_').trim()
+}
+
+export function dumpSettings(): { [id: string]: any } {
+  return JSON.parse(
+    JSON.stringify(
+      Object.keys(store.state).reduce((states, id) => {
+        if (store.state[id]._id) {
+          states[id] = store.state[id]
+        }
+
+        return states
+      }, {})
+    )
+  )
 }

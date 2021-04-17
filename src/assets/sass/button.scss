@@ -1,3 +1,7 @@
+button {
+  color: inherit;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -71,6 +75,7 @@
   }
 
   &.-blue {
+    color: white;
     background-color: $blue;
     border: 1px solid $blue;
 
@@ -163,5 +168,11 @@ a {
   &:focus {
     opacity: 1;
     color: currentColor;
+  }
+}
+
+#app.-light {
+  .btn {
+    color: white;
   }
 }

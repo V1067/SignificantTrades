@@ -126,11 +126,11 @@ class Exchange extends EventEmitter {
   unlink(pair) {
     pair = pair.replace(/.*:/, '')
 
-    const api = this.getActiveApiByPair(pair)
-
     if (this.pairs.indexOf(pair) === -1) {
       return Promise.resolve()
     }
+
+    const api = this.getActiveApiByPair(pair)
 
     if (!api) {
       return Promise.reject(new Error(`couldn't find active api for pair ${pair} in exchange ${this.id}`))

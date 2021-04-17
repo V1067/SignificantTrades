@@ -55,49 +55,71 @@ const getters = {
   }
 } as GetterTree<PanesState, ModulesState>
 
+const defaultMarkets = {
+  spot: [
+    'BITFINEX:BTCUSD',
+    'BINANCE:btcusdt',
+    'OKEX:BTC-USDT',
+    'KRAKEN:XBT/USD',
+    'COINBASE:BTC-USD',
+    'POLONIEX:USDT_BTC',
+    'HUOBI:btcusdt',
+    'BITSTAMP:btcusd'
+  ],
+  perp: [
+    'BITMEX:XBTUSD',
+    'BITFINEX:BTCF0:USTF0',
+    'OKEX:BTC-USD-SWAP',
+    'OKEX:BTC-USDT-SWAP',
+    'BINANCE_FUTURES:btcusdt',
+    'BINANCE_FUTURES:btcusd_perp',
+    'HUOBI:BTC-USD',
+    'KRAKEN:PI_XBTUSD',
+    'DERIBIT:BTC-PERPETUAL',
+    'FTX:BTC-PERP',
+    'BYBIT:BTCUSD'
+  ]
+}
+
 const state = {
   _id: 'panes',
   layout: [
-    { x: 0, y: 0, w: 9, h: 12, i: 'pane-chart-1', type: 'chart' },
-    { x: 9, y: 0, w: 3, h: 3, i: 'pane-stats-1', type: 'stats' },
-    { x: 9, y: 3, w: 3, h: 9, i: 'pane-trades-1', type: 'trades' }
+    { x: 0, y: 0, w: 8, h: 12, i: 'pane-chart-1', type: 'chart' },
+    { x: 8, y: 0, w: 2, h: 2, i: 'spot-stats', type: 'stats' },
+    { x: 10, y: 0, w: 2, h: 2, i: 'perp-stats', type: 'stats' },
+    { x: 8, y: 4, w: 2, h: 10, i: 'spot-trades', type: 'trades' },
+    { x: 10, y: 4, w: 2, h: 10, i: 'perp-trades', type: 'trades' }
   ],
   panes: {
     'pane-chart-1': {
       id: 'pane-chart-1',
       name: 'Pane chart 1',
       type: 'chart',
-      markets: ['COINBASE:BTC-USD']
+      markets: [...defaultMarkets.spot, ...defaultMarkets.perp]
     },
-    'pane-stats-1': {
-      id: 'pane-stats-1',
-      name: 'Pane stats 1',
+    'spot-stats': {
+      id: 'spot-stats',
+      name: 'STATS (SPOT)',
       type: 'stats',
-      markets: ['COINBASE:BTC-USD']
+      markets: defaultMarkets.spot
     },
-    'pane-trades-1': {
-      id: 'pane-trades-1',
-      name: 'Pane trades 1',
+    'perp-stats': {
+      id: 'perp-stats',
+      name: 'STATS (PERP)',
+      type: 'stats',
+      markets: defaultMarkets.perp
+    },
+    'spot-trades': {
+      id: 'spot-trades',
+      name: 'BTCUSD (SPOT)',
       type: 'trades',
-      markets: [
-        'BITMEX:XBTUSD',
-        'BINANCE:btcusdt',
-        'BITSTAMP:btcusd',
-        'BITFINEX:BTCUSD',
-        'BINANCE_FUTURES:btcusdt',
-        'COINBASE:BTC-USD',
-        'POLONIEX:USDT_BTC',
-        'KRAKEN:XBT/USD',
-        'OKEX:BTC-USDT',
-        'DERIBIT:BTC-PERPETUAL',
-        'HUOBI:btcusdt',
-        'HUOBI:BTC-USD',
-        'HITBTC:BTCUSD',
-        'FTX:BTC-PERP',
-        'BYBIT:BTCUSD',
-        'BITFINEX:BTCF0:USTF0',
-        'OKEX:BTC-USD-SWAP'
-      ]
+      markets: defaultMarkets.spot
+    },
+    'perp-trades': {
+      id: 'perp-trades',
+      name: 'BTCUSD (PERP)',
+      type: 'trades',
+      markets: defaultMarkets.perp
     }
   },
   marketsListeners: {}
@@ -221,13 +243,20 @@ const actions = {
       .concat(Object.keys(state.marketsListeners))
       .filter((v, i, a) => a.indexOf(v) === i)
 
+    const toConnect = []
+    const toDisconnect = []
+
     for (const market of allUniqueMarkets) {
       if (!state.marketsListeners[market] && marketsListeners[market]) {
-        await aggregatorService.connect([market])
+        toConnect.push(market)
+        //await aggregatorService.connect([market])
       } else if (state.marketsListeners[market] && !marketsListeners[market]) {
-        await aggregatorService.disconnect([market])
+        toDisconnect.push(market)
+        //await aggregatorService.disconnect([market])
       }
     }
+
+    await Promise.all([aggregatorService.connect(toConnect), aggregatorService.disconnect(toDisconnect)])
 
     aggregatorService.dispatch({
       op: 'buckets',

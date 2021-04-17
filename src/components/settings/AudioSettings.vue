@@ -1,5 +1,5 @@
 <template>
-  <div class="settings-audio mb8 -activable column" :class="{ active: useAudio }">
+  <div class="settings-audio -activable column" :class="{ active: useAudio }">
     <div class="form-group -tight">
       <label class="checkbox-control -on-off checkbox-control-input flex-right" v-tippy="{ placement: 'bottom' }" title="Enable audio">
         <input type="checkbox" class="form-control" :checked="useAudio" @change="$store.commit('settings/TOGGLE_AUDIO', $event.target.checked)" />
@@ -18,36 +18,36 @@
       </label>
     </div>
     <div class="form-group -fill">
-      <input
-        type="range"
-        min="0"
-        max="10"
-        step=".1"
-        :title="'ajust gain (' + audioVolume + ')'"
-        v-tippy="{ placement: 'top' }"
+      <slider
+        :min="0"
+        :max="10"
+        :step="0.1"
+        :editable="false"
         :value="audioVolume"
-        @change="$store.commit('settings/SET_AUDIO_VOLUME', $event.target.value)"
-      />
+        @change="$store.dispatch('settings/setAudioVolume', $event.target.value)"
+        @reset="$store.dispatch('settings/setAudioVolume', 1.5)"
+      ></slider>
     </div>
     <div class="form-group -fill">
-      <input
-        type="range"
-        min=".25"
-        max="2.5"
-        step=".05"
+      <slider
+        :min="0.25"
+        :max="2.5"
+        :step="0.05"
+        :editable="false"
         :value="audioPitch"
-        :title="'ajust pitch (' + audioPitch + ')'"
-        v-tippy="{ placement: 'top' }"
         @change="$store.commit('settings/SET_AUDIO_PITCH', $event.target.value)"
-      />
+        @reset="$store.commit('settings/SET_AUDIO_PITCH', 1)"
+      ></slider>
     </div>
   </div>
 </template>
 
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator'
+import Slider from '../framework/picker/Slider.vue'
 
 @Component({
+  components: { Slider },
   name: 'AudioSettings'
 })
 export default class extends Vue {

@@ -22,6 +22,8 @@
       <div class="app__layout">
         <Panes />
       </div>
+
+      <markets-bar v-if="showMarketsBar"></markets-bar>
     </div>
   </div>
 </template>
@@ -36,7 +38,7 @@ import Header from './components/Header.vue'
 import Settings from './components/settings/Settings.vue'
 import SearchProducts from './components/SearchProducts.vue'
 
-import ExchangesBar from '@/components/ExchangesBar.vue'
+import MarketsBar from '@/components/MarketsBar.vue'
 import Panes from '@/components/panes/Panes.vue'
 
 import upFavicon from './assets/up.png'
@@ -54,7 +56,7 @@ import { Notice } from './store/app'
     Settings,
     Notices,
     Panes,
-    ExchangesBar
+    MarketsBar
   }
 })
 export default class extends Vue {
@@ -104,12 +106,8 @@ export default class extends Vue {
     return this.$store.state.settings.theme
   }
 
-  get showExchangesBar() {
-    return this.$store.state.settings.showExchangesBar
-  }
-
-  get showChart() {
-    return this.$store.state.settings.showChart
+  get showMarketsBar() {
+    return this.$store.state.settings.showMarketsBar
   }
 
   get markets() {

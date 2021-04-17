@@ -4,7 +4,7 @@
       <div class="title">
         <editable :class="{ '-no-grab': renaming }" :content="name" :editable="renaming" @output="name = $event" placeholder="Nom"></editable>
         <i
-          class="icon-sm -no-grab"
+          class="icon-sm -no-grab ml4"
           style="cursor: pointer"
           :class="{ 'icon-check': renaming, 'icon-edit': !renaming }"
           @click="renaming = !renaming"

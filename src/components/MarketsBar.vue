@@ -1,20 +1,22 @@
 <template>
   <transition-group
+    v-if="markets"
     :name="transitionGroupName"
     tag="div"
-    id="exchanges"
-    class="exchanges condensed"
+    class="markets-bar condensed custom-scrollbar pane"
     @mouseenter="hovering = true"
     @mouseleave="hovering = false"
   >
     <div
       v-for="market in markets"
       :key="market.id"
-      :class="'-' + market.exchange + ' -' + market.status"
+      class="market"
+      :class="{ ['-' + market.exchange]: true, ['-' + market.status]: true, '-hidden': exchanges[market.exchange].hidden }"
       :title="market.id"
       @click="$store.commit('settings/TOGGLE_EXCHANGE', market.exchange)"
     >
-      <div class="exchange__price" :class="{ '-hidden': exchanges[id].hidden }"><span v-html="formatPrice(status[id].price)"></span> &nbsp;</div>
+      <div v-if="showPairs" class="market__pair" v-text="market.pair"></div>
+      <div class="market__price" v-text="formatPrice(market.price)"></div>
     </div>
   </transition-group>
 </template>
@@ -25,15 +27,15 @@ import { Market } from '@/types/test'
 import { formatPrice } from '@/utils/helpers'
 import { Component, Vue } from 'vue-property-decorator'
 
-type ExchangeBarMarketStatus = 'pending' | 'idle' | 'up' | 'down' | 'neutral'
+type MarketsBarMarketStatus = 'pending' | 'idle' | 'up' | 'down' | 'neutral'
 
 @Component({
-  name: 'ExchangesBar'
+  name: 'MarketsBar'
 })
 export default class extends Vue {
   hovering = false
   list: string[] = []
-  markets: (Market & { price: number; status: ExchangeBarMarketStatus })[] = []
+  markets: (Market & { price: number; status: MarketsBarMarketStatus })[] = null
 
   private _onStoreMutation: () => void
 
@@ -53,12 +55,16 @@ export default class extends Vue {
     return this.$store.state.settings.disableAnimations
   }
 
-  get animateExchangesBar() {
-    return !this.disableAnimations && this.$store.state.settings.animateExchangesBar
+  get animateMarketsBar() {
+    return !this.disableAnimations && this.$store.state.settings.animateMarketsBar
+  }
+
+  get showPairs() {
+    return this.$store.state.settings.marketsBarPairs
   }
 
   get transitionGroupName() {
-    if (this.animateExchangesBar) {
+    if (this.animateMarketsBar) {
       return 'flip-list'
     } else {
       return null
@@ -91,11 +97,11 @@ export default class extends Vue {
   updateExchangesPrices(marketsPrices) {
     if (!this.markets) {
       this.markets = this.activeMarkets.map(m => ({
-        id: m.id.toString(),
+        id: m.exchange + m.pair,
         exchange: m.exchange.toString(),
         pair: m.pair.toString(),
         status: 'pending',
-        price: marketsPrices[m.id]
+        price: marketsPrices[m.exchange + m.pair]
       }))
     } else {
       for (const market of this.markets) {
@@ -126,19 +132,27 @@ export default class extends Vue {
     this.markets = this.markets.sort((a, b) => a.price - b.price)
   }
 
-  formatPrice() {
-    return formatPrice
+  formatPrice(amount) {
+    return formatPrice(amount)
   }
 }
 </script>
 
 <style lang="scss">
-#exchanges {
+.markets-bar {
   display: flex;
   flex-direction: row;
-  height: 1.5em;
-  > div {
-    padding: 0.5em;
+  height: 30px;
+  overflow-x: auto;
+
+  @each $exchange in $exchanges {
+    .market.-#{$exchange} {
+      background-image: url('../assets/exchanges/#{$exchange}.svg');
+    }
+  }
+
+  .market {
+    padding: 0.5em 0.5em 0.5em 2em;
     display: flex;
     flex-direction: row;
     font-size: 0.9em;
@@ -151,13 +165,15 @@ export default class extends Vue {
     background-repeat: no-repeat;
     background-size: 1em;
     cursor: pointer;
-    .exchange__price {
-      margin-left: 1.25em;
+
+    &__pair {
       white-space: nowrap;
-      &.-hidden {
-        text-decoration: line-through;
-      }
     }
+
+    &__price {
+      margin-left: 0.5rem;
+    }
+
     &.-up {
       background-color: transparent;
       color: lighten($green, 10%);
@@ -173,11 +189,6 @@ export default class extends Vue {
     &.-pending {
       background-color: rgba(white, 0.2);
       opacity: 0.5;
-    }
-    @each $exchange in $exchanges {
-      &.-#{$exchange} {
-        background-image: url('../assets/exchanges/#{$exchange}.svg');
-      }
     }
   }
 }

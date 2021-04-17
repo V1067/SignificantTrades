@@ -3,7 +3,12 @@
     <template v-slot:header>
       <div class="title">
         <editable :class="{ '-no-grab': renaming }" :content="name" :editable="renaming" @output="name = $event" placeholder="Nom"></editable>
-        <i class="icon-sm -no-grab" style="cursor: pointer" :class="{ 'icon-check': renaming, 'icon-edit': !renaming }" @click="renaming = false"></i>
+        <i
+          class="icon-sm -no-grab ml4"
+          style="cursor: pointer"
+          :class="{ 'icon-check': renaming, 'icon-edit': !renaming }"
+          @click="renaming = false"
+        ></i>
       </div>
       <div class="column -center"></div>
     </template>

@@ -83,8 +83,7 @@
             <strong>{{ market.pair }}</strong>
           </div>
         </div>
-        <div></div>
-        <div class="-center">
+        <div class="-center market-threshold -fill">
           {{ formatAmount(thresholds[0].amount * market.multiplier) }}
         </div>
         <div class="-fill -center ml16">
@@ -182,7 +181,7 @@ export default class extends Vue {
   }
 
   formatAmount(amount) {
-    formatAmount(amount)
+    return formatAmount(amount)
   }
 }
 </script>
@@ -202,7 +201,7 @@ export default class extends Vue {
 
 .multipliers {
   margin: 0 -1rem;
-  background-color: lighten($dark, 5%);
+  background-color: lighten($dark, 9%);
   padding: 0.5rem 0;
 }
 
@@ -225,6 +224,10 @@ export default class extends Vue {
     .multipliers-market__id {
       opacity: 0.5;
 
+      .market-exchange {
+        font-family: 'Barlow Semi Condensed';
+      }
+
       .market-pair {
         position: relative;
 
@@ -238,6 +241,17 @@ export default class extends Vue {
 
           background-color: white;
         }
+      }
+    }
+
+    .market-threshold {
+      opacity: 0.5;
+
+      &:after {
+        content: '(default)';
+        opacity: 0.8;
+        padding: 2px;
+        font-size: 60%;
       }
     }
   }

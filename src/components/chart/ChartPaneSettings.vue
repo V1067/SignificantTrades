@@ -1,6 +1,6 @@
 <template>
   <div class="settings-chart">
-    <div class="form-group mb8">
+    <div class="form-group">
       <label>
         Refresh chart every
         <editable :content="refreshRate" @output="$store.commit(paneId + '/SET_REFRESH_RATE', $event)"></editable>&nbsp;ms

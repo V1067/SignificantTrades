@@ -196,9 +196,19 @@ export default {
       const trackRect = this.track.getBoundingClientRect()
       this.currentX = trackRect.left
 
-      if (!trackRect.width) {
+      /*       if (!trackRect.width) {
         this.width = parseInt(this.track.parentElement.style.width)
       } else {
+        this.width = trackRect.width
+      }
+ */
+      this.width = this.$el.clientWidth
+
+      if (!this.width) {
+        this.width = parseInt(this.track.parentElement.style.width)
+      }
+
+      if (!this.width && trackRect.width) {
         this.width = trackRect.width
       }
 
@@ -309,20 +319,12 @@ export default {
     }
   },
   created() {
-    console.info(this.value)
-
     const stepSplited = this.step.toString().split('.')[1]
     this.currentValue = this.value
     this.decimalsCount = stepSplited ? stepSplited.length : 0
   },
   mounted() {
     this.init()
-
-    this._updateWidthTimeout = window.setTimeout(() => {
-      this._updateWidthTimeout = null
-      this.updateWidth()
-      this.updateValue(undefined, true)
-    }, 200)
 
     this.$nextTick(() => {
       this.updateWidth()
@@ -393,10 +395,14 @@ export default {
   margin: 0;
   width: auto;
   height: 8px;
-  background: lighten($dark, 20%);
+  background: $blue;
   will-change: transfom;
   border-radius: 10px;
   cursor: pointer;
+}
+
+#app.-light .slider__track {
+  background: $green;
 }
 
 .slider__handle {
@@ -412,7 +418,7 @@ export default {
   border: 2px solid white;
   background-color: currentColor;
   border-radius: 50%;
-  box-shadow: 0 1px 4px -2px rgba(black, 10%);
+  box-shadow: 0 1px 4px -2px rgba(black, 10%), 0 1px 2px rgba(black, 20%);
   transition: box-shadow 0.2s $ease-out-expo;
   cursor: grab;
 

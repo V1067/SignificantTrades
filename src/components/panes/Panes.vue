@@ -58,6 +58,10 @@ export default class extends Vue {
     grid: VueGridLayout.GridLayout
   }
 
+  protected get showMarketsBar() {
+    return this.$store.state.settings.showMarketsBar
+  }
+
   protected get panes() {
     return this.$store.state.panes.panes
   }
@@ -88,10 +92,10 @@ export default class extends Vue {
     } else {
       this._resizeTimeout = null
 
-      const headerHeight = 0
+      const headerHeightfooter = this.showMarketsBar ? 30 : 0
       const rowNum = 12
 
-      this.rowHeight = (window.innerHeight - headerHeight) / rowNum
+      this.rowHeight = (window.innerHeight - headerHeightfooter) / rowNum
     }
   }
 

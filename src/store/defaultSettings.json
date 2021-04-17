@@ -12,7 +12,7 @@
   "textColor": "",
   "timezoneOffset": 0,
   "showExchangesBar": false,
-  "animateExchangesBar": true,
+  "animateMarketsBar": true,
   "useAudio": false,
   "audioIncludeInsignificants": true,
   "audioVolume": 1.5,

@@ -9,7 +9,7 @@ export interface ExchangeSettings {
   hidden?: boolean
 }
 
-export type ExchangesState = { [exchangeId: string]: ExchangeSettings } & { _id: string }
+export type ExchangesState = { [exchangeId: string]: ExchangeSettings } & { _id: string; _exchanges: string[] }
 
 const state = [
   'BITMEX',
@@ -26,15 +26,20 @@ const state = [
   'DERIBIT',
   'BYBIT',
   'FTX'
-].reduce((exchangesState: ExchangesState, id: string) => {
-  exchangesState[id] = {}
+].reduce(
+  (exchangesState: ExchangesState, id: string) => {
+    exchangesState[id] = {}
 
-  if (id === 'HITBTC') {
-    exchangesState[id].disabled = true
-  }
+    if (id === 'HITBTC') {
+      exchangesState[id].disabled = true
+    }
 
-  return exchangesState
-}, {} as any) as ExchangesState
+    return exchangesState
+  },
+  {
+    _exchanges: []
+  } as any
+) as ExchangesState
 
 state._id = 'exchanges'
 
@@ -91,8 +96,11 @@ const mutations = {
 export default {
   namespaced: true,
   getters,
-  boot: store => {
+  boot: (store, state: ExchangesState) => {
+    state._exchanges.splice(0, state._exchanges.length)
+
     for (const id of store.getters['exchanges/getExchanges']) {
+      state._exchanges.push(id)
       store.commit('app/EXCHANGE_UPDATED', id)
     }
 

@@ -161,6 +161,9 @@ class Aggregator {
     for (let i = 0; i < trades.length; i++) {
       const trade = (trades[i] as unknown) as AggregatedTrade
       const market = trade.exchange + trade.pair
+      if (!this.connections[market]) {
+        debugger
+      }
 
       if (this.onGoingAggregations[market]) {
         const aggTrade = this.onGoingAggregations[market]
@@ -191,6 +194,9 @@ class Aggregator {
 
   processTrade(trade: Trade): Trade {
     const market = trade.exchange + trade.pair
+    if (!this.connections[market]) {
+      debugger
+    }
 
     if (this.settings.calculateSlippage) {
       if (this.settings.calculateSlippage === 'price') {
@@ -358,8 +364,14 @@ class Aggregator {
   }
 
   onUnsubscribed(exchangeId, pair) {
-    if (this.connections[exchangeId + pair]) {
-      delete this.connections[exchangeId + pair]
+    const identifier = exchangeId + pair
+
+    if (this.onGoingAggregations[identifier]) {
+      delete this.onGoingAggregations[identifier]
+    }
+
+    if (this.connections[identifier]) {
+      delete this.connections[identifier]
 
       ctx.postMessage({
         op: 'disconnection',
@@ -561,7 +573,7 @@ self.addEventListener('message', (event: any) => {
       })
       break
     case 'fetch-products':
-      Promise.all(exchanges.map(exchange => exchange.getProducts())).finally(() => {
+      Promise.all(exchanges.filter(exchange => !payload.data || payload.data === exchange.id).map(exchange => exchange.getProducts())).finally(() => {
         ctx.postMessage({
           op: 'fetch-products',
           trackingId: payload.trackingId

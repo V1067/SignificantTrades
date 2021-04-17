@@ -1,14 +1,14 @@
 <template>
-  <header id="header" class="header">
+  <header id="header" class="header" v-background="2">
     <span class="title">Aggr.</span>
     <button type="button" @click="$store.dispatch('app/showSearch')" title="Search" v-tippy="{ placement: 'bottom' }">
-      <span class="icon-search"></span>
+      <i class="icon-search"></i>
     </button>
     <button type="button" v-if="!isPopupMode" @click="togglePopup" title="Open as popup" v-tippy="{ placement: 'bottom' }">
-      <span class="icon-external-link-square-alt"></span>
+      <i class="icon-external-link-square-alt"></i>
     </button>
     <tippy v-if="useAudio" to="myTrigger" arrow :interactive="true" :delay="[0, 200]">
-      <div class="mt4 mb4">
+      <div class="mt4 mb4 text-nowrap">
         <slider
           style="width: 100px"
           :min="0"
@@ -22,12 +22,13 @@
       </div>
     </tippy>
     <button type="button" class="-volume" @click="$store.commit('settings/TOGGLE_AUDIO', !useAudio)" name="myTrigger">
-      <span v-if="!useAudio" class="icon-volume-off"></span>
-      <span v-else class="icon-volume-low" :class="{ 'icon-volume-medium': audioVolume >= 1, 'icon-volume-high': audioVolume >= 5 }"></span>
+      <i v-if="!useAudio" class="icon-volume-off"></i>
+      <i v-else class="icon-volume-low" :class="{ 'icon-volume-medium': audioVolume >= 1, 'icon-volume-high': audioVolume >= 5 }"></i>
     </button>
     <dropdown :options="paneTypes" placeholder="tf." @output="addPane" title="Add pane" v-tippy>
       <template v-slot:selection>
         <i class="icon-plus"></i>
+        <span>Add pane</span>
       </template>
       <template v-slot:option="{ value }">
         <div>
@@ -40,7 +41,8 @@
       </template>
     </dropdown>
     <button type="button" @click="$store.commit('app/TOGGLE_SETTINGS')" title="General settings" v-tippy>
-      <span class="icon-settings-lines"></span>
+      <i class="icon-cog"></i>
+      <span>Settings</span>
     </button>
   </header>
 </template>
@@ -121,19 +123,14 @@ header#header {
   transform: translate(-50%);
   border-radius: 0 0 8px 8px;
 
-  .title {
-    font-size: 80%;
+  span {
+    font-size: 12px;
     opacity: 0.5;
     font-family: 'Barlow Semi Condensed';
-    align-self: flex-start;
+    align-self: stretch;
     margin-right: 0.25rem;
-  }
-
-  button,
-  .dropdown__selected {
-    padding: 2px;
-    font-size: 12px;
     line-height: 1;
+    padding: 2px;
   }
 
   .dropdown {
@@ -145,10 +142,6 @@ header#header {
 
   button,
   .dropdown {
-    min-width: 20px;
-    text-align: center;
-    justify-content: center;
-
     &:hover {
       background-color: rgba(white, 0.2);
 
@@ -167,17 +160,15 @@ header#header {
     background: none;
     color: inherit;
     position: relative;
-
-    align-self: stretch;
     cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    height: 100%;
+    align-items: center;
 
-    > span {
-      display: inline-block;
-      transition: all 0.5s $ease-elastic;
-    }
-
-    &.-volume {
-      font-size: 14px;
+    &.-volume i {
+      font-size: 16px;
+      line-height: 0.8;
     }
   }
 
@@ -192,6 +183,19 @@ header#header {
     background-clip: padding-box;
     transition: background-color 0.4s $ease-out-expo;
   }
+}
+
+header#header .dropdown__selected {
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+}
+
+header#header .dropdown__selected > i,
+header#header button > i {
+  font-size: 12px;
+  padding: 0 0.25rem;
+  height: 14px;
 }
 
 #app.-loading header#header {
@@ -239,5 +243,10 @@ header#header {
     left: 107%;
     right: -8%;
   }
+}
+
+#app.-light header#header button:hover > span,
+#app.-light header#header .dropdown__selected:hover > span {
+  opacity: 1;
 }
 </style>

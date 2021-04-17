@@ -189,7 +189,7 @@ export default class extends Vue {
 </script>
 <style lang="scss">
 #app.-light .app-search:before {
-  background: radial-gradient(ellipse at 35% 0%, white 0%, rgba(white, 0) 40%);
+  background: radial-gradient(ellipse at 50% 25%, rgba(white, 0.2) 0%, rgba(white, 0) 60%);
 }
 
 .app-search {
@@ -221,7 +221,7 @@ export default class extends Vue {
     left: -100%;
     right: -100%;
     bottom: -100%;
-    background: radial-gradient(ellipse at 35% 0%, black 0%, rgba(black, 0) 40%);
+    background: radial-gradient(ellipse at 35% 0%, rgba(black, 0.5) 0%, rgba(black, 0) 40%);
     background-size: 150%;
   }
 
@@ -234,7 +234,6 @@ export default class extends Vue {
     }
 
     &__items {
-      border: 1px solid lighten($dark, 25%);
       border-radius: 4px 0 0 4px;
     }
 
@@ -246,8 +245,8 @@ export default class extends Vue {
       &:before {
         content: '';
         position: fixed;
-        left: 0;
-        right: 0;
+        right: 1rem;
+        height: 1em;
         height: 1em;
         box-shadow: 0 0.2em 1em rgba(darken($dark, 5%), 0.5);
         z-index: 1;

@@ -22,7 +22,7 @@ export async function indexProducts(exchangeId: string, productsData: ProductsDa
 
   store.commit('app/INDEX_EXCHANGE_PRODUCTS', {
     exchange: exchangeId,
-    products
+    products: products || []
   })
 }
 

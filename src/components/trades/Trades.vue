@@ -145,6 +145,7 @@ export default class extends Mixins(PaneMixin) {
         case this.paneId + '/SET_THRESHOLD_GIF':
           this.fetchGifByKeyword(mutation.payload.value, mutation.payload.isDeleted)
           break
+        case 'settings/SET_CHART_BACKGROUND_COLOR':
         case this.paneId + '/SET_THRESHOLD_COLOR':
         case this.paneId + '/SET_THRESHOLD_AMOUNT':
         case this.paneId + '/DELETE_THRESHOLD':
@@ -610,7 +611,7 @@ export default class extends Mixins(PaneMixin) {
   position: relative;
   align-items: center;
   height: 1.8em;
-  padding: 0 0.5em 0.2em;
+  padding: 0 0.5em 2px;
 
   &:after {
     content: '';

@@ -180,7 +180,7 @@ export default {
 
       const grdBlack = this.ctx.createLinearGradient(0, 0, width, 0)
       grdBlack.addColorStop(0, `hsl(0, 0%, 50%)`)
-      grdBlack.addColorStop(1, `hsla(0, 0%, 50%, 0)`)
+      grdBlack.addColorStop(1, `hsla(0, 0%, 0%, 0)`)
       this.ctx.fillStyle = grdBlack
       this.ctx.fillRect(0, 0, width, height)
 

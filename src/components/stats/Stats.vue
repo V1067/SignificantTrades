@@ -1,10 +1,10 @@
 <template>
-  <div class="pane-stats">
+  <div class="pane-stats" :class="{ '-large': large }">
     <pane-header :paneId="paneId" />
     <div v-if="enableChart" class="stats-chart" ref="chart"></div>
     <ul class="stats-buckets">
       <li v-for="(bucket, id) in data" :key="id" class="stat-bucket" @click="editStat(id)">
-        <div class="stat-bucket__name" :style="{ color: bucket.color }">{{ bucket.name }}</div>
+        <div class="stat-bucket__name">{{ bucket.name }}</div>
         <div class="stat-bucket__value">{{ bucket.value }}</div>
       </li>
     </ul>
@@ -31,6 +31,7 @@ import PaneHeader from '../panes/PaneHeader.vue'
 })
 export default class extends Mixins(PaneMixin) {
   data = {}
+  large = false
 
   $refs!: {
     chart: HTMLElement
@@ -109,6 +110,8 @@ export default class extends Mixins(PaneMixin) {
     if (this.enableChart) {
       this.createChart()
     }
+
+    this.refreshScale()
   }
 
   beforeDestroy() {
@@ -121,6 +124,10 @@ export default class extends Mixins(PaneMixin) {
     this._onStoreMutation()
 
     this._chart = null
+  }
+
+  refreshScale() {
+    this.large = this.$el.clientWidth > 320
   }
 
   async createChart() {
@@ -295,6 +302,7 @@ export default class extends Mixins(PaneMixin) {
 
   onResize() {
     this.refreshChartDimensions()
+    this.refreshScale()
   }
 }
 </script>
@@ -302,6 +310,12 @@ export default class extends Mixins(PaneMixin) {
 <style lang="scss">
 .pane-stats {
   position: relative;
+
+  font-size: 12px;
+
+  &.-large {
+    font-size: 1rem;
+  }
 }
 
 .stats-chart {
@@ -341,7 +355,6 @@ export default class extends Mixins(PaneMixin) {
   }
 
   &__name {
-    color: rgba(white, 0.5);
     letter-spacing: 0.4px;
     transition: opacity 0.2s $ease-out-expo;
   }
@@ -352,12 +365,6 @@ export default class extends Mixins(PaneMixin) {
     font-family: 'Barlow Semi Condensed';
     z-index: 1;
     flex-grow: 1;
-  }
-
-  &:hover {
-    .custom-stat__name {
-      color: white;
-    }
   }
 }
 </style>

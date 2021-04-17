@@ -1,4 +1,5 @@
 // const WorkerPlugin = require('worker-plugin')
+const TerserPlugin = require('terser-webpack-plugin')
 
 const date = new Date()
 
@@ -10,11 +11,9 @@ process.env.VUE_APP_API_SUPPORTED_PAIRS = process.env.API_SUPPORTED_PAIRS
 
 module.exports = {
   productionSourceMap: false,
-  /* configureWebpack: {
-    plugins: [new WorkerPlugin({ sharedWorker: true })]
-  }, */
-
   chainWebpack: config => {
+    config.optimization.minimizer([new TerserPlugin({ terserOptions: { compress: { drop_console: true } } })])
+
     config.module.rule('js').exclude.add(/\.worker$/)
 
     config.module
