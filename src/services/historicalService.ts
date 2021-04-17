@@ -47,7 +47,7 @@ class HistoricalService extends EventEmitter {
 
           switch (json.format) {
             case 'point':
-              ;({ from, to, data } = this.normalisePoints(data))
+              ;({ from, to, data } = this.normalisePoints(data, markets))
               break
             default:
               break
@@ -78,40 +78,63 @@ class HistoricalService extends EventEmitter {
         })
     })
   }
-  normalisePoints(data) {
+  normalisePoints(data, markets: string[]) {
     if (!data || !data.length) {
       return data
     }
 
     const initialTs = +new Date(data[0].time) / 1000
-    const exchanges = []
+    markets = [...markets]
 
     const refs = {}
 
-    for (let i = data.length - 1; i >= 0; i--) {
+    for (let i = 0; i < data.length; i++) {
       data[i].timestamp = +new Date(data[i].time) / 1000
+
+      if (typeof refs[data[i].market] !== 'number') {
+        refs[data[i].market] = data[i].open
+      }
+
+      if (data[i].timestamp === initialTs) {
+        const marketIndex = markets.indexOf(data[i].market)
+
+        console.log('register ref for market', data[i].market)
+
+        if (marketIndex === -1) {
+          debugger
+        }
+
+        markets.splice(marketIndex, 1)
+      }
 
       const market: string[] = data[i].market.split(':')
       data[i].exchange = market.shift()
       data[i].pair = market.join(':')
       delete data[i].market
-
-      refs[data[i].exchange] = data[i].open
-
-      if (data[i].time === initialTs) {
-        delete refs[data[i].exchange]
-        exchanges.push(data[i].exchange)
-      }
     }
 
-    for (const exchange in refs) {
+    markets.length && console.log('missing markets', markets.join(', '))
+
+    for (const id of markets) {
+      const market: string[] = id.split(':')
+
+      if (!refs[id]) {
+        store.dispatch('app/showNotice', {
+          title: `Server did not send anything about ${id} but client expected it`,
+          type: 'warning'
+        })
+
+        continue
+      }
+
       data.unshift({
         timestamp: initialTs,
-        exchange: exchange,
-        open: refs[exchange],
-        high: refs[exchange],
-        low: refs[exchange],
-        close: refs[exchange],
+        exchange: market.shift(),
+        pair: market.join(':'),
+        open: refs[id],
+        high: refs[id],
+        low: refs[id],
+        close: refs[id],
         vbuy: 0,
         vsell: 0,
         lbuy: 0,
@@ -119,13 +142,10 @@ class HistoricalService extends EventEmitter {
         cbuy: 0,
         csell: 0
       })
-
-      exchanges.push(exchange)
     }
 
     return {
       data,
-      exchanges,
       from: data[0].timestamp,
       to: data[data.length - 1].timestamp
     }

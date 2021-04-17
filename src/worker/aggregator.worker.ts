@@ -405,7 +405,7 @@ class Aggregator {
       const [exchangeId, pair] = parseMarket(market)
 
       if (!exchangeId || !pair) {
-        return
+        return {}
       }
 
       if (!output[exchangeId]) {
@@ -450,10 +450,10 @@ class Aggregator {
     console.log(`[aggregator] disconnect`, markets)
 
     const marketsByExchange = markets.reduce((output, market) => {
-      const [exchangeId, pair] = market.split(':')
+      const [exchangeId, pair] = parseMarket(market)
 
       if (!exchangeId || !pair) {
-        return
+        return {}
       }
 
       if (!output[exchangeId]) {

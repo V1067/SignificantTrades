@@ -1,14 +1,7 @@
 <template>
   <div class="pane-prices" :class="{ [scale]: true, [mode]: true }">
     <pane-header :paneId="paneId" />
-    <transition-group
-      v-if="markets"
-      :name="transitionGroupName"
-      tag="div"
-      class="markets-bar condensed custom-scrollbar pane"
-      @mouseenter="hovering = true"
-      @mouseleave="hovering = false"
-    >
+    <transition-group v-if="markets" :name="transitionGroupName" tag="div" class="markets-bar condensed custom-scrollbar pane">
       <div
         v-for="market in markets"
         :key="market.id"
@@ -25,9 +18,9 @@
 </template>
 
 <script lang="ts">
-import { Component, Mixins } from 'vue-property-decorator'
+import { Component, Mixins, Watch } from 'vue-property-decorator'
 
-import { formatPrice } from '../../utils/helpers'
+import { formatPrice, parseMarket } from '../../utils/helpers'
 
 import aggregatorService from '@/services/aggregatorService'
 import PaneMixin from '@/mixins/paneMixin'
@@ -41,14 +34,29 @@ type MarketsBarMarketStatus = 'pending' | 'idle' | 'up' | 'down' | 'neutral'
   name: 'Prices'
 })
 export default class extends Mixins(PaneMixin) {
-  tradesCount = 0
   mode = '-vertical'
-
-  hovering = false
-  list: string[] = []
   markets: (Market & { price: number; status: MarketsBarMarketStatus })[] = null
 
-  private _onStoreMutation: () => void
+  @Watch('pane.markets')
+  private marketChange(currentMarket, previousMarkets) {
+    for (const id of previousMarkets) {
+      if (currentMarket.indexOf(id) === -1) {
+        this.removeMarketFromList(id)
+      }
+    }
+
+    for (const id of currentMarket) {
+      if (previousMarkets.indexOf(id) === -1) {
+        const [exchange, pair] = parseMarket(id)
+
+        this.addMarketToList({
+          id: exchange + pair,
+          exchange,
+          pair
+        })
+      }
+    }
+  }
 
   get activeExchanges() {
     return this.$store.state.app.activeExchanges
@@ -82,38 +90,21 @@ export default class extends Mixins(PaneMixin) {
     }
   }
 
-  created() {
-    this._onStoreMutation = this.$store.subscribe(mutation => {
-      if (mutation.type === 'app/EXCHANGE_UPDATED' && mutation.payload) {
-        const active = mutation.payload.active
-        const listed = this.list.indexOf(mutation.payload.exchange) !== -1
-        if (active && !listed) {
-          this.list.push(mutation.payload.exchange)
-        } else if (!active && listed) {
-          this.list.splice(this.list.indexOf(mutation.payload.exchange), 1)
-        }
-      }
-    })
-  }
-
   mounted() {
     aggregatorService.on('prices', this.updateExchangesPrices)
   }
 
   beforeDestroy() {
-    this._onStoreMutation()
     aggregatorService.off('prices', this.updateExchangesPrices)
   }
 
   updateExchangesPrices(marketsPrices) {
     if (!this.markets) {
-      this.markets = this.activeMarkets.map(m => ({
-        id: m.exchange + m.pair,
-        exchange: m.exchange.toString(),
-        pair: m.pair.toString(),
-        status: 'pending',
-        price: marketsPrices[m.exchange + m.pair]
-      }))
+      this.markets = []
+
+      for (const market of this.activeMarkets) {
+        this.addMarketToList(market)
+      }
     } else {
       for (const market of this.markets) {
         const price = marketsPrices[market.id]
@@ -136,15 +127,29 @@ export default class extends Mixins(PaneMixin) {
       }
     }
 
-    if (this.hovering) {
-      return
-    }
-
     if (this.mode === '-horizontal') {
       this.markets = this.markets.sort((a, b) => a.price - b.price)
     } else {
       this.markets = this.markets.sort((a, b) => b.price - a.price)
     }
+  }
+
+  removeMarketFromList(market: string) {
+    const index = this.markets.indexOf(this.markets.find(m => m.exchange + ':' + m.pair === market))
+
+    if (index !== -1) {
+      this.markets.splice(index, 1)
+    } else {
+      console.warn(`[prices] unable to remove market from list after panes.markets change: market doesn't exists in list (${market})`)
+    }
+  }
+
+  addMarketToList(market: Market) {
+    this.markets.push({
+      ...market,
+      status: 'pending',
+      price: null
+    })
   }
 
   formatPrice(amount) {

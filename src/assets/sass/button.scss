@@ -172,7 +172,7 @@ a {
 }
 
 #app.-light {
-  .btn {
+  .btn:not(.-outline):not(.-text) {
     color: white;
   }
 }

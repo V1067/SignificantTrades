@@ -18,7 +18,8 @@ import PaneMixin from '@/mixins/paneMixin'
 import PaneHeader from '../panes/PaneHeader.vue'
 import { Trade } from '@/types/test'
 
-const GIFS = {} // gifs from storages, by threshold gif keyword
+const GIFS: { [keyword: string]: string[] } = {} // shared cache for gifs
+const PROMISES_OF_GIFS: { [keyword: string]: Promise<string[]> } = {}
 
 @Component({
   components: { PaneHeader },
@@ -396,13 +397,13 @@ export default class extends Mixins(PaneMixin) {
 
       if (!refresh && storage && +new Date() - storage.timestamp < 1000 * 60 * 60 * 24 * 7) {
         GIFS[threshold.gif] = storage.data
-      } else {
+      } else if (!PROMISES_OF_GIFS[threshold.gif]) {
         this.fetchGifByKeyword(threshold.gif)
       }
     })
   }
 
-  fetchGifByKeyword(keyword, isDeleted = false) {
+  fetchGifByKeyword(keyword: string, isDeleted = false) {
     if (!keyword || !GIFS) {
       return
     }
@@ -419,7 +420,7 @@ export default class extends Mixins(PaneMixin) {
       return
     }
 
-    fetch('https://g.tenor.com/v1/search?q=' + keyword + '&key=LIVDSRZULELA&limit=100&key=DF3B0979C761')
+    PROMISES_OF_GIFS[keyword] = fetch('https://g.tenor.com/v1/search?q=' + keyword + '&key=LIVDSRZULELA&limit=100&key=DF3B0979C761')
       .then(res => res.json())
       .then(res => {
         if (!res.results || !res.results.length) {
@@ -439,6 +440,11 @@ export default class extends Mixins(PaneMixin) {
             data: GIFS[keyword]
           })
         )
+
+        return GIFS[keyword]
+      })
+      .finally(() => {
+        delete PROMISES_OF_GIFS[keyword]
       })
   }
   prepareColorsSteps() {

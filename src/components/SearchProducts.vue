@@ -69,7 +69,7 @@ export default class extends Vue {
   }
 
   get activeMarkets() {
-    return this.$store.state.app.activeMarkets.map(market => market.id)
+    return this.$store.state.app.activeMarkets.map(market => market.exchange + ':' + market.pair)
   }
 
   @Watch('showSearch')

@@ -1,26 +1,30 @@
-.vue-grid-item {
-  > .vue-resizable-handle {
-    background: 0;
-    opacity: 0.2;
-    font-size: 0.8rem;
-    padding: 0.5rem;
-    width: auto;
-    height: auto;
+.vue-grid-layout {
+  .vue-grid-item {
+    > .vue-resizable-handle {
+      width: auto;
+      height: auto;
+      background: 0;
+      opacity: 0.2;
+      font-size: 0.8rem;
+      padding: 0.5rem;
+      width: auto;
+      height: auto;
 
-    &:before {
-      font-family: 'icon';
-      content: $icon-bottom-right;
+      &:before {
+        font-family: 'icon';
+        content: $icon-bottom-right;
+      }
+
+      &:hover {
+        opacity: 1;
+        background-color: rgba(white, 0.2);
+      }
     }
 
-    &:hover {
-      opacity: 1;
-      background-color: rgba(white, 0.2);
+    &.vue-grid-placeholder {
+      background-color: $blue;
+      opacity: 0.4;
     }
-  }
-
-  &.vue-grid-placeholder {
-    background-color: $blue;
-    opacity: 0.4;
   }
 }
 

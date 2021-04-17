@@ -45,7 +45,6 @@ for (const paneId in modules.panes.state.panes) {
 
   if (pane.settings) {
     if (typeof pane.settings === 'object') {
-      debugger
       merge(modules[paneId].state, pane.settings)
     }
 

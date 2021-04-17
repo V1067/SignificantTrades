@@ -97,6 +97,10 @@
     padding: 0;
     transition: width 0.2s $ease-elastic;
 
+    &.btn {
+      border: 0;
+    }
+
     &.active {
       width: 3rem;
       margin-left: -1px;

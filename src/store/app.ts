@@ -304,7 +304,7 @@ const mutations = {
   },
   ADD_ACTIVE_MARKET(state, { exchange, pair }: { exchange: string; pair: string }) {
     state.activeMarkets.push({
-      id: exchange + ':' + pair,
+      id: exchange + pair,
       exchange,
       pair
     })
