@@ -85,9 +85,7 @@ class Exchange extends EventEmitter {
       console.debug(`[${this.id}] couldn't match ${pair}`)
 
       const caseInsencitiveMatch = this.products.filter(
-        (exchangePair) =>
-          exchangePair.toLowerCase().replace(/[^a-z]/g, '') ===
-          pair.toLowerCase().replace(/[^a-z]/g, '')
+        (exchangePair) => exchangePair.toLowerCase().replace(/[^a-z]/g, '') === pair.toLowerCase().replace(/[^a-z]/g, '')
       )
 
       if (caseInsencitiveMatch.length) {
@@ -104,9 +102,7 @@ class Exchange extends EventEmitter {
    * Get exchange ws url
    */
   getUrl() {
-    return typeof this.options.url === 'function'
-      ? this.options.url.apply(this, arguments)
-      : this.options.url
+    return typeof this.options.url === 'function' ? this.options.url.apply(this, arguments) : this.options.url
   }
 
   /**
@@ -152,9 +148,7 @@ class Exchange extends EventEmitter {
     }
 
     if (!api) {
-      return Promise.reject(
-        new Error(`couldn't find active api for pair ${pair} in exchange ${this.id}`)
-      )
+      return Promise.reject(new Error(`couldn't find active api for pair ${pair} in exchange ${this.id}`))
     }
 
     console.debug(`[${this.id}] unlinking ${pair}`)
@@ -219,11 +213,7 @@ class Exchange extends EventEmitter {
         }
 
         if (!/ping|pong/.test(data)) {
-          console.debug(
-            `[${this.id}] sending ${data.substr(0, 64)}${data.length > 64 ? '...' : ''} to ${
-              api.url
-            }`
-          )
+          console.debug(`[${this.id}] sending ${data.substr(0, 64)}${data.length > 64 ? '...' : ''} to ${api.url}`)
         }
 
         api._send.apply(api, [data])
@@ -292,16 +282,10 @@ class Exchange extends EventEmitter {
           const pairsToReconnect = api._pairs.slice(0, api._pairs.length)
 
           for (let pair of api._pairs) {
-            await this.unlink(pair)
+            await this.unlink(this.id + ':' + pair)
           }
 
-          console.log(
-            `[${
-              this.id
-            }] connection closed unexpectedly, schedule reconnection (${pairsToReconnect.join(
-              ','
-            )})`
-          )
+          console.log(`[${this.id}] connection closed unexpectedly, schedule reconnection (${pairsToReconnect.join(',')})`)
 
           this.reconnectionDelay[api.url] = this.schedule(
             () => {
@@ -401,13 +385,13 @@ class Exchange extends EventEmitter {
     console.debug(`[${this.id}] reconnect pairs ${pairsToReconnect.join(',')}`)
 
     for (let pair of pairsToReconnect) {
-      await this.unlink(pair)
+      await this.unlink(this.id + ':' + pair)
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     for (let pair of pairsToReconnect) {
-      await this.link(pair)
+      await this.link(this.id + ':' + pair)
     }
   }
 
@@ -431,7 +415,7 @@ class Exchange extends EventEmitter {
 
       return
     }
-
+    
     for (let pair of pairs) {
       try {
         await this.link(pair)
@@ -454,10 +438,7 @@ class Exchange extends EventEmitter {
       return Promise.resolve()
     }
 
-    let urls =
-      typeof this.endpoints.PRODUCTS === 'function'
-        ? this.endpoints.PRODUCTS()
-        : this.endpoints.PRODUCTS
+    let urls = typeof this.endpoints.PRODUCTS === 'function' ? this.endpoints.PRODUCTS() : this.endpoints.PRODUCTS
 
     if (!Array.isArray(urls)) {
       urls = [urls]
