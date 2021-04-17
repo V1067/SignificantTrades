@@ -425,40 +425,20 @@ class Server extends EventEmitter {
         })
     })
 
-    app.get('/historical/:from/:to/:timeframe?/:markets?*', (req, res) => {
+    app.get('/historical/:from/:to/:timeframe?/:markets([^/]*)?', (req, res) => {
       const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress
       let from = req.params.from
       let to = req.params.to
       let timeframe = req.params.timeframe
+
+      
       let markets = req.params.markets || []
 
-      if (markets && markets.length) {
+      if (typeof markets === 'string') {
         markets = markets
           .split('+')
           .map((a) => a.trim())
           .filter((a) => a.length)
-      }
-
-      if (!markets.length) {
-        markets = [
-          'BITMEX:XBTUSD',
-          'BINANCE:btcusdt',
-          'BITSTAMP:btcusd',
-          'BITFINEX:BTCUSD',
-          'BINANCE_FUTURES:btcusdt',
-          'COINBASE:BTC-USD',
-          'POLONIEX:USDT_BTC',
-          'KRAKEN:XBT/USD',
-          'OKEX:BTC-USDT',
-          'DERIBIT:BTC-PERPETUAL',
-          'HUOBI:btcusdt',
-          'HUOBI:BTC-USD',
-          'HITBTC:BTCUSD',
-          'FTX:BTC-PERP',
-          'BYBIT:BTCUSD',
-          'BITFINEX:BTCF0:USTF0',
-          'OKEX:BTC-USD-SWAP',
-        ]
       }
 
       if (!this.options.api || !this.storages) {
