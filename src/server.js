@@ -425,7 +425,7 @@ class Server extends EventEmitter {
         })
     })
 
-    app.get('/historical/:from/:to/:timeframe?/:markets?', (req, res) => {
+    app.get('/historical/:from/:to/:timeframe?/:markets?*', (req, res) => {
       const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress
       let from = req.params.from
       let to = req.params.to
