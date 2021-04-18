@@ -90,6 +90,14 @@ export function getColorByWeight(a, b, weight) {
   return rgb
 }
 
+export function getAlphaByWeight(a, b, weight) {
+  const p = weight
+  const w = p * 2 - 1
+  const w1 = (w / 1 + 1) / 2
+  const w2 = 1 - w1
+  return b * w1 + a * w2
+}
+
 export function rgbaToRgb(color, backgroundColor) {
   const alpha = 1 - color[3]
 

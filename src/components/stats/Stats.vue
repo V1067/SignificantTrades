@@ -125,7 +125,6 @@ export default class extends Mixins(PaneMixin) {
 
   async createChart() {
     await this.$nextTick()
-    await this.$nextTick()
 
     const chartOptions = getChartOptions(defaultStatsChartOptions)
 
@@ -325,6 +324,11 @@ export default class extends Mixins(PaneMixin) {
     left: 0;
     right: 0;
     bottom: 0;
+  }
+
+  + .stats-buckets .stat-bucket {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

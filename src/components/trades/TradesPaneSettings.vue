@@ -61,7 +61,7 @@
       </a>
     </div>
 
-    <thresholds :paneId="paneId" />
+    <thresholds :paneId="paneId" :show-liquidations-threshold="!this.liquidationsOnly" />
 
     <small v-if="disableAnimations" class="help-text mt8 mb16">
       Animations are disabled globaly ! No gif will be shown.
@@ -186,19 +186,6 @@ export default class extends Vue {
 }
 </script>
 <style scoped lang="scss">
-.checkbox-control {
-  &.-rip input ~ div {
-    &:before,
-    &:after {
-      content: unicode($icon-tomb);
-    }
-
-    &:before {
-      font-size: 1.5em;
-    }
-  }
-}
-
 .multipliers {
   margin: 0 -1rem;
   background-color: lighten($dark, 9%);

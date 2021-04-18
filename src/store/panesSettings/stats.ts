@@ -29,7 +29,7 @@ const getters = {} as GetterTree<StatsPaneState, StatsPaneState>
 const state = {
   granularity: 5000,
   window: 60000,
-  chart: false,
+  enableChart: false,
   buckets: {
     trades: { id: 'trades', name: 'TRADES', input: 'cbuy + csell', enabled: true, color: 'rgba(255, 255, 255, .25)', precision: 2 },
     vold: { id: 'vold', name: 'VOLUME Δ', input: 'vbuy - vsell', enabled: true, color: '#40d745', type: 'area' },

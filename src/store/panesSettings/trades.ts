@@ -13,6 +13,7 @@ export interface Threshold {
 
 export interface TradesPaneState {
   _id?: string
+  liquidations: Threshold
   thresholds: Threshold[]
   showThresholdsAsTable: boolean
   maxRows: number
@@ -22,11 +23,29 @@ export interface TradesPaneState {
   multipliers: { [identifier: string]: number }
 }
 
-const getters = {} as GetterTree<TradesPaneState, TradesPaneState>
+const getters = {
+  getThreshold: state => id => {
+    if (id === 'liquidations') {
+      return state.liquidations
+    }
+
+    for (let i = 0; i < state.thresholds.length; i++) {
+      if (state.thresholds[i].id === id) {
+        return state.thresholds[i]
+      }
+    }
+  }
+} as GetterTree<TradesPaneState, TradesPaneState>
 
 // https://coolors.co/d91f1c-eb1e2f-ef4352-77945c-3bca6d-00ff7f
 
 const state = {
+  liquidations: {
+    id: 'liquidations',
+    amount: 250000,
+    buyColor: 'rgb(103,58,183)',
+    sellColor: 'rgb(255,152,0)'
+  },
   thresholds: [
     {
       id: 'threshold',
@@ -63,7 +82,36 @@ const state = {
   showLogos: true
 } as TradesPaneState
 
-const actions = {} as ActionTree<TradesPaneState, TradesPaneState>
+const actions = {
+  updateThreshold({ state, commit }, { index, prop, value }: { index: number; prop: string; value: any }) {
+    const threshold = state.thresholds[index]
+
+    if (!threshold) {
+      throw new Error('no threshold')
+    }
+
+    let payload = {
+      index
+    } as any
+
+    if (value && typeof value === 'object') {
+      payload = { ...payload, ...value }
+    } else {
+      payload.value = value
+    }
+
+    commit('SET_THRESHOLD_' + prop, payload)
+  },
+  updateLiquidations({ state, commit }, { prop, value }: { prop: string; value: any }) {
+    const threshold = state.liquidations
+
+    if (!threshold) {
+      throw new Error('no liquidation threshold')
+    }
+
+    commit('SET_LIQUIDATIONS_' + prop, value)
+  }
+} as ActionTree<TradesPaneState, TradesPaneState>
 
 const mutations = {
   TOGGLE_TRADES_PAIRS(state) {
@@ -82,7 +130,7 @@ const mutations = {
     state.showThresholdsAsTable = value ? true : false
   },
   SET_THRESHOLD_AMOUNT(state, payload) {
-    const threshold = state.thresholds[payload.index]
+    const threshold = this.getters[state._id + '/getThreshold'](payload.id)
 
     if (threshold) {
       if (typeof payload.value === 'string' && /m|k$/i.test(payload.value)) {
@@ -94,18 +142,18 @@ const mutations = {
       }
       threshold.amount = +payload.value
 
-      Vue.set(state.thresholds, payload.index, threshold)
+      this.commit(state._id + '/UPDATE_THRESHOLD', threshold)
     }
   },
   SET_THRESHOLD_MULTIPLIER(state, { identifier, multiplier }: { identifier: string; multiplier: number }) {
     if (isNaN(multiplier) || multiplier < 0) {
       multiplier = 0
     }
-    console.log(multiplier)
+
     Vue.set(state.multipliers, identifier, multiplier)
   },
   SET_THRESHOLD_GIF(state, payload) {
-    const threshold = state.thresholds[payload.index]
+    const threshold = this.getters[state._id + '/getThreshold'](payload.id)
 
     if (threshold) {
       if (payload.value.trim().length) {
@@ -117,16 +165,14 @@ const mutations = {
         threshold.gif = null
       }
 
-      Vue.set(state.thresholds, payload.index, threshold)
+      this.commit(state._id + '/UPDATE_THRESHOLD', threshold)
     }
   },
   SET_THRESHOLD_COLOR(state, payload) {
-    const threshold = state.thresholds[payload.index]
+    const threshold = this.getters[state._id + '/getThreshold'](payload.id)
 
     if (threshold) {
       threshold[payload.side] = payload.value
-
-      Vue.set(state.thresholds, payload.index, threshold)
     }
   },
   ADD_THRESHOLD(state) {
@@ -139,6 +185,20 @@ const mutations = {
   },
   DELETE_THRESHOLD(state, index) {
     state.thresholds.splice(index, 1)
+  },
+  UPDATE_THRESHOLD(state, threshold: Threshold) {
+    if (threshold.id === 'liquidations') {
+      state.liquidations = threshold
+    } else {
+      const index = state.thresholds.indexOf(state.thresholds.find(t => t.id === threshold.id))
+
+      if (index === -1) {
+        console.warn(`[${state._id}] couldn't update threshold ${threshold.id} (invalid index ${index})`)
+        return
+      }
+
+      Vue.set(state.thresholds, index, threshold)
+    }
   }
 } as MutationTree<TradesPaneState>
 

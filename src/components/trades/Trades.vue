@@ -21,6 +21,23 @@ import { Trade } from '@/types/test'
 const GIFS: { [keyword: string]: string[] } = {} // shared cache for gifs
 const PROMISES_OF_GIFS: { [keyword: string]: Promise<string[]> } = {}
 
+interface ThresholdColorsBySide {
+  threshold?: number
+  range?: number
+  buy: {
+    from: number[]
+    to: number[]
+    fromLuminance: number
+    toLuminance: number
+  }
+  sell: {
+    from: number[]
+    to: number[]
+    fromLuminance: number
+    toLuminance: number
+  }
+}
+
 @Component({
   components: { PaneHeader },
   name: 'Trades'
@@ -31,22 +48,10 @@ export default class extends Mixins(PaneMixin) {
 
   private _onStoreMutation: () => void
 
-  private _colors: {
-    threshold: number
-    range: number
-    buy: {
-      from: number[]
-      to: number[]
-      fromLuminance: number
-      toLuminance: number
-    }
-    sell: {
-      from: number[]
-      to: number[]
-      fromLuminance: number
-      toLuminance: number
-    }
-  }[]
+  private _thresholdsColors: ThresholdColorsBySide[]
+
+  private _liquidationsColor: ThresholdColorsBySide
+
   private _lastTradeTimestamp: number
   private _lastSide: 'buy' | 'sell'
   private _minimumAmount: number
@@ -62,6 +67,10 @@ export default class extends Mixins(PaneMixin) {
 
   get thresholds() {
     return this.$store.state[this.paneId].thresholds
+  }
+
+  get liquidationThreshold() {
+    return this.$store.state[this.paneId].liquidations
   }
 
   get liquidationsOnly() {
@@ -217,13 +226,7 @@ export default class extends Mixins(PaneMixin) {
         }
 
         if (amount >= this._minimumAmount * multiplier) {
-          let liquidationMessage = `<i class="icon-currency"></i> <strong>${formatAmount(amount, 1)}</strong>`
-
-          liquidationMessage += `&nbsp;liq<span class="-large">uidate</span>d <strong>${
-            trade.side === 'buy' ? 'SHORT' : 'LONG'
-          }</strong> @<i class="icon-quote ml4"></i> ${formatPrice(trade.price)}`
-
-          this.appendRow(trade, amount, multiplier, '-liquidation', liquidationMessage)
+          this.appendRow(trade, amount, multiplier, '-liquidation')
         }
         continue
       } else if (this.liquidationsOnly) {
@@ -240,7 +243,7 @@ export default class extends Mixins(PaneMixin) {
     }
   }
 
-  appendRow(trade: Trade, amount, multiplier, classname = '', message = null) {
+  appendRow(trade: Trade, amount, multiplier, classname = '') {
     if (!this.tradesCount) {
       this.$forceUpdate()
     }
@@ -257,59 +260,83 @@ export default class extends Mixins(PaneMixin) {
       li.className += ' -sm'
     }
 
-    if (amount >= this._significantAmount * multiplier) {
-      li.className += ' -significant'
-    }
+    if (trade.liquidation && !this.liquidationsOnly) {
+      const side = document.createElement('div')
+      side.className = 'trade__side icon-skull'
+      li.appendChild(side)
 
-    for (let i = 0; i < this.thresholds.length; i++) {
-      li.className += ' -level-' + i
-
-      if (!this.thresholds[i + 1] || amount < this.thresholds[i + 1].amount * multiplier) {
-        // THIS IS OUR THRESHOLD
-        const color = this._colors[Math.min(this.thresholds.length - 2, i)]
-        const threshold = this.thresholds[i]
-
-        if (!this.disableAnimations && threshold.gif && GIFS[threshold.gif]) {
-          // get random gif for this threshold
-          li.style.backgroundImage = `url('${GIFS[threshold.gif][Math.floor(Math.random() * (GIFS[threshold.gif].length - 1))]}`
-        }
-
-        // percentage to next threshold
-        const percentToNextThreshold = (Math.max(amount, color.threshold) - color.threshold) / color.range
-
-        // 0-255 luminance of nearest color
-        const luminance = color[trade.side][(percentToNextThreshold < 0.5 ? 'from' : 'to') + 'Luminance']
-
-        // background color simple color to color based on percentage of amount to next threshold
-        const backgroundColor = getColorByWeight(color[trade.side].from, color[trade.side].to, percentToNextThreshold)
-        li.style.backgroundColor = 'rgb(' + backgroundColor[0] + ', ' + backgroundColor[1] + ', ' + backgroundColor[2] + ')'
-        if (i >= 1) {
-          // ajusted amount > this._significantAmount
-          // only pure black or pure white foreground
-          li.style.color = luminance < 144 ? 'white' : 'black'
-        } else {
-          // take background color and apply logarithmic shade based on amount to this._significantAmount percentage
-          // darken if luminance of background is high, lighten otherwise
-          const thrs = Math.max(percentToNextThreshold, 0.25)
-          li.style.color = getLogShade(backgroundColor, thrs * (luminance < 144 ? 1.5 : -3))
-        }
-
-        if (this.useAudio && amount >= (this.audioIncludeInsignificants ? this._significantAmount * 0.1 : this._minimumAmount * 1) * multiplier) {
-          sfxService.tradeToSong(amount / (this._significantAmount * multiplier), trade.side, i)
-        }
-
-        break
+      if (
+        !this.disableAnimations &&
+        this.liquidationThreshold.gif &&
+        GIFS[this.liquidationThreshold.gif] &&
+        amount >= this.liquidationThreshold.amount * multiplier
+      ) {
+        // get random gif for this this.liquidationThreshold
+        li.style.backgroundImage = `url('${
+          GIFS[this.liquidationThreshold.gif][Math.floor(Math.random() * (GIFS[this.liquidationThreshold.gif].length - 1))]
+        }`
       }
-    }
 
-    if (!message) {
-      if (trade.side !== this._lastSide) {
+      const intensity = Math.min(1, amount / this.liquidationThreshold.amount)
+
+      const luminance = this._liquidationsColor[trade.side][(intensity < 0.5 ? 'from' : 'to') + 'Luminance']
+      const backgroundColor = this._liquidationsColor[trade.side].to
+      const thrs = Math.max(intensity, 0.25)
+      li.style.color = getLogShade(backgroundColor, thrs * (luminance < 144 ? 1.5 : -3))
+      li.style.backgroundColor = 'rgb(' + backgroundColor[0] + ', ' + backgroundColor[1] + ', ' + backgroundColor[2] + ', ' + intensity + ')'
+    } else {
+      if (trade.liquidation) {
         const side = document.createElement('div')
-        side.className = 'trade__side icon-side'
+        side.className = 'trade__side icon-skull'
         li.appendChild(side)
+      } else {
+        if (trade.side !== this._lastSide) {
+          const side = document.createElement('div')
+          side.className = 'trade__side icon-side'
+          li.appendChild(side)
+          this._lastSide = trade.side
+        }
       }
 
-      this._lastSide = trade.side
+      for (let i = 0; i < this.thresholds.length; i++) {
+        li.className += ' -level-' + i
+
+        if (!this.thresholds[i + 1] || amount < this.thresholds[i + 1].amount * multiplier) {
+          const color = this._thresholdsColors[Math.min(this.thresholds.length - 2, i)]
+          const threshold = this.thresholds[i]
+
+          if (!this.disableAnimations && threshold.gif && GIFS[threshold.gif]) {
+            // get random gif for this threshold
+            li.style.backgroundImage = `url('${GIFS[threshold.gif][Math.floor(Math.random() * (GIFS[threshold.gif].length - 1))]}`
+          }
+
+          // percentage to next threshold
+          const percentToNextThreshold = (Math.max(amount, color.threshold) - color.threshold) / color.range
+
+          // 0-255 luminance of nearest color
+          const luminance = color[trade.side][(percentToNextThreshold < 0.5 ? 'from' : 'to') + 'Luminance']
+
+          // background color simple color to color based on percentage of amount to next threshold
+          const backgroundColor = getColorByWeight(color[trade.side].from, color[trade.side].to, percentToNextThreshold)
+          li.style.backgroundColor = 'rgb(' + backgroundColor[0] + ', ' + backgroundColor[1] + ', ' + backgroundColor[2] + ')'
+          if (i >= 1) {
+            // ajusted amount > this._significantAmount
+            // only pure black or pure white foreground
+            li.style.color = luminance < 144 ? 'white' : 'black'
+          } else {
+            // take background color and apply logarithmic shade based on amount to this._significantAmount percentage
+            // darken if luminance of background is high, lighten otherwise
+            const thrs = Math.max(percentToNextThreshold, 0.25)
+            li.style.color = getLogShade(backgroundColor, thrs * (luminance < 144 ? 1.5 : -3))
+          }
+
+          if (this.useAudio && amount >= (this.audioIncludeInsignificants ? this._significantAmount * 0.1 : this._minimumAmount * 1) * multiplier) {
+            sfxService.tradeToSong(amount / (this._significantAmount * multiplier), trade.side, i)
+          }
+
+          break
+        }
+      }
     }
 
     const exchange = document.createElement('div')
@@ -326,41 +353,34 @@ export default class extends Mixins(PaneMixin) {
       li.appendChild(pair)
     }
 
-    if (message) {
-      const message_div = document.createElement('div')
-      message_div.className = 'trade__message'
-      message_div.innerHTML = message
-      li.appendChild(message_div)
-    } else {
-      const price = document.createElement('div')
-      price.className = 'trade__price'
-      price.innerHTML = `<span class="icon-quote"></span> <span>${formatPrice(trade.price)}</span>`
-      li.appendChild(price)
+    const price = document.createElement('div')
+    price.className = 'trade__price'
+    price.innerText = `${formatPrice(trade.price)}`
+    li.appendChild(price)
 
-      if (this.calculateSlippage === 'price' && Math.abs(trade.slippage) / trade.price > 0.0001) {
-        price.setAttribute(
-          'slippage',
-          (trade.slippage > 0 ? '+' : '') + trade.slippage + document.getElementById('app').getAttribute('data-quote-symbol')
-        )
-      } else if (this.calculateSlippage === 'bps' && trade.slippage) {
-        price.setAttribute('slippage', (trade.slippage > 0 ? '+' : '-') + trade.slippage)
-      }
-
-      const amount_div = document.createElement('div')
-      amount_div.className = 'trade__amount'
-
-      const amount_quote = document.createElement('span')
-      amount_quote.className = 'trade__amount__quote'
-      amount_quote.innerHTML = `<span class="icon-quote"></span> <span>${formatAmount(trade.price * trade.size)}</span>`
-
-      const amount_base = document.createElement('span')
-      amount_base.className = 'trade__amount__base'
-      amount_base.innerHTML = `<span class="icon-base"></span> <span>${formatAmount(trade.size)}</span>`
-
-      amount_div.appendChild(amount_quote)
-      amount_div.appendChild(amount_base)
-      li.appendChild(amount_div)
+    if (this.calculateSlippage === 'price' && Math.abs(trade.slippage) / trade.price > 0.0001) {
+      price.setAttribute(
+        'slippage',
+        (trade.slippage > 0 ? '+' : '') + trade.slippage + document.getElementById('app').getAttribute('data-quote-symbol')
+      )
+    } else if (this.calculateSlippage === 'bps' && trade.slippage) {
+      price.setAttribute('slippage', (trade.slippage > 0 ? '+' : '-') + trade.slippage)
     }
+
+    const amount_div = document.createElement('div')
+    amount_div.className = 'trade__amount'
+
+    const amount_quote = document.createElement('span')
+    amount_quote.className = 'trade__amount__quote'
+    amount_quote.innerHTML = `<span class="icon-quote"></span> <span>${formatAmount(trade.price * trade.size)}</span>`
+
+    const amount_base = document.createElement('span')
+    amount_base.className = 'trade__amount__base'
+    amount_base.innerHTML = `<span class="icon-base"></span> <span>${formatAmount(trade.size)}</span>`
+
+    amount_div.appendChild(amount_quote)
+    amount_div.appendChild(amount_base)
+    li.appendChild(amount_div)
 
     const date = document.createElement('div')
     date.className = 'trade__date'
@@ -450,7 +470,30 @@ export default class extends Mixins(PaneMixin) {
   prepareColorsSteps() {
     const appBackgroundColor = getAppBackgroundColor()
 
-    this._colors = []
+    const liquidationBuy = splitRgba(this.liquidationThreshold.buyColor, appBackgroundColor)
+    const liquidationBuyFrom = [liquidationBuy[0], liquidationBuy[1], liquidationBuy[2], 0]
+    const liquidationBuyTo = [liquidationBuy[0], liquidationBuy[1], liquidationBuy[2], 1]
+    const liquidationSell = splitRgba(this.liquidationThreshold.sellColor, appBackgroundColor)
+    const liquidationSellFrom = [liquidationSell[0], liquidationSell[1], liquidationSell[2], 0]
+    const liquidationSellTo = [liquidationSell[0], liquidationSell[1], liquidationSell[2], 1]
+
+    this._liquidationsColor = {
+      buy: {
+        from: liquidationBuyFrom,
+        to: liquidationBuyTo,
+        fromLuminance: getColorLuminance(liquidationBuyFrom),
+        toLuminance: getColorLuminance(liquidationBuyTo)
+      },
+      sell: {
+        from: liquidationSellFrom,
+        to: liquidationSellTo,
+        fromLuminance: getColorLuminance(liquidationSellFrom),
+        toLuminance: getColorLuminance(liquidationSellTo)
+      }
+    }
+
+    this._thresholdsColors = []
+
     this._minimumAmount = this.thresholds[0].amount
     this._significantAmount = this.thresholds[1].amount
 
@@ -460,7 +503,7 @@ export default class extends Mixins(PaneMixin) {
       const sellFrom = splitRgba(this.thresholds[i].sellColor, appBackgroundColor)
       const sellTo = splitRgba(this.thresholds[i + 1].sellColor, appBackgroundColor)
 
-      this._colors.push({
+      this._thresholdsColors.push({
         threshold: this.thresholds[i].amount,
         range: this.thresholds[i + 1].amount - this.thresholds[i].amount,
         buy: {
@@ -579,13 +622,6 @@ export default class extends Mixins(PaneMixin) {
         background-image: url('../../assets/exchanges/#{$exchange}.svg');
       }
     }
-
-    .-liquidation {
-      .trade__exchange {
-        position: absolute;
-        width: 1em;
-      }
-    }
   }
 
   &:not(.-logos) .trade.-sm {
@@ -597,10 +633,6 @@ export default class extends Mixins(PaneMixin) {
       white-space: normal;
       word-break: break-word;
       line-height: 0.9;
-    }
-
-    &.-liquidation .trade__exchange {
-      max-width: 4em;
     }
   }
 }
@@ -637,6 +669,20 @@ export default class extends Mixins(PaneMixin) {
     &:after {
       display: none;
     }
+  }
+
+  &.-liquidation {
+    .trade__side:after {
+      margin-left: 1rem;
+    }
+
+    /* &.-buy .trade__side:after {
+      content: 'SHORT';
+    }
+
+    &.-sell .trade__side:after {
+      content: 'LONG';
+    } */
   }
 
   &.-sell {
@@ -702,17 +748,6 @@ export default class extends Mixins(PaneMixin) {
 
     small {
       opacity: 0.8;
-    }
-  }
-
-  &.-liquidation {
-    background-color: $pink !important;
-    color: white !important;
-
-    .trade__exchange {
-      flex-grow: 0;
-      flex-basis: auto;
-      margin-left: 0;
     }
   }
 

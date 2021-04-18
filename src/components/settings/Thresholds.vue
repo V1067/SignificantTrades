@@ -2,39 +2,44 @@
   <div class="thresholds" :class="{ '-dragging': dragging, '-rendering': rendering }">
     <table class="thresholds-table" v-if="showThresholdsAsTable">
       <transition-group name="flip-list" tag="tbody">
-        <tr v-for="(threshold, index) in indexedThresholds" :key="threshold.id">
-          <td class="thresholds-table__input">
-            <input
-              type="number"
-              placeholder="Amount*"
-              :value="thresholds[index].amount"
-              @change="
-                $store.commit(paneId + '/SET_THRESHOLD_AMOUNT', {
-                  index: index,
-                  value: $event.target.value
-                })
-              "
-            />
-            <i class="icon icon-currency"></i>
-          </td>
-          <td class="thresholds-table__input">
-            <input
-              type="text"
-              placeholder="Giphy"
-              :value="thresholds[index].gif"
-              @change="
-                $store.commit(paneId + '/SET_THRESHOLD_GIF', {
-                  index: index,
-                  value: $event.target.value
-                })
-              "
-            />
-          </td>
-          <td class="thresholds-table__color" :style="{ backgroundColor: thresholds[index].buyColor }" @click="openPicker('buyColor', index)"></td>
-          <td class="thresholds-table__color" :style="{ backgroundColor: thresholds[index].sellColor }" @click="openPicker('sellColor', index)"></td>
-          <td v-if="thresholds.length > 2" class="thresholds-table__delete" @click="deleteThreshold(index)" title="Remove" v-tippy>
-            <i class="icon-cross" v-if="index > 0"></i>
-          </td>
+        <tr v-for="(threshold, index) in thresholdsRows" :key="threshold.id" :class="{ '-divider': !!threshold.divider }">
+          <template v-if="threshold.divider">
+            <td colspan="100%" v-text="threshold.divider"></td>
+          </template>
+          <template v-else>
+            <td class="thresholds-table__input">
+              <input
+                type="number"
+                placeholder="Amount*"
+                :value="threshold.amount"
+                @change="
+                  $store.commit(paneId + '/SET_THRESHOLD_AMOUNT', {
+                    id: threshold.id,
+                    value: $event.target.value
+                  })
+                "
+              />
+              <i class="icon icon-currency"></i>
+            </td>
+            <td class="thresholds-table__input">
+              <input
+                type="text"
+                placeholder="Giphy"
+                :value="threshold.gif"
+                @change="
+                  $store.commit(paneId + '/SET_THRESHOLD_GIF', {
+                    id: threshold.id,
+                    value: $event.target.value
+                  })
+                "
+              />
+            </td>
+            <td class="thresholds-table__color" :style="{ backgroundColor: threshold.buyColor }" @click="openPicker('buyColor', threshold)"></td>
+            <td class="thresholds-table__color" :style="{ backgroundColor: threshold.sellColor }" @click="openPicker('sellColor', threshold)"></td>
+            <td v-if="thresholds.length > 2" class="thresholds-table__delete" @click="deleteThreshold(index)" title="Remove" v-tippy>
+              <i class="icon-cross" v-if="index > 1"></i>
+            </td>
+          </template>
         </tr>
       </transition-group>
     </table>
@@ -47,19 +52,19 @@
 
       <div class="thresholds-slider__bar" ref="thresholdContainer">
         <div
-          v-for="(threshold, index) in thresholds"
-          :key="`threshold-${index}`"
+          v-for="threshold in thresholds"
+          :key="threshold.id"
           class="thresholds-slider__handler"
-          :class="{ '-selected': selectedIndex === index }"
+          :class="{ '-selected': selectedThresholdId === threshold.id }"
           :data-amount="formatAmount(threshold.amount, 2)"
         ></div>
       </div>
       <div
         class="threshold-panel"
-        v-if="selectedIndex !== null"
+        v-if="selectedThreshold !== null"
         @click="editing = true"
         ref="thresholdPanel"
-        :class="{ '-minimum': selectedIndex === 0 }"
+        :class="{ '-minimum': thresholds.indexOf(selectedThreshold) === 0 }"
         :style="{
           transform: 'translateX(' + this.panelOffsetPosition + 'px)'
         }"
@@ -71,18 +76,18 @@
           }"
         ></div>
         <small class="help-text mb16 d-block">
-          {{ selectedIndex ? 'for trades >' : 'show trades above' }}
+          {{ thresholds.indexOf(selectedThreshold) > 0 ? 'for trades >' : 'show trades above' }}
           <editable
-            :content="thresholds[selectedIndex].amount"
+            :content="selectedThreshold.amount"
             @output="
               $store.commit(paneId + '/SET_THRESHOLD_AMOUNT', {
-                index: selectedIndex,
+                id: selectedThreshold.id,
                 value: $event
               })
             "
           ></editable>
         </small>
-        <a href="#" class="threshold-panel__close icon-cross" @click=";(selectedIndex = null), (editing = false)"></a>
+        <a href="#" class="threshold-panel__close icon-cross" @click=";(selectedThresholdId = null), (editing = false)"></a>
 
         <div class="form-group mb8 threshold-panel__gif">
           <label>Show gif</label>
@@ -94,10 +99,10 @@
           <input
             type="text"
             class="form-control"
-            :value="thresholds[selectedIndex].gif"
+            :value="selectedThreshold.gif"
             @change="
               $store.commit('settings/SET_THRESHOLD_GIF', {
-                index: selectedIndex,
+                id: selectedThreshold.id,
                 value: $event.target.value
               })
             "
@@ -114,10 +119,10 @@
                 picker="square"
                 menuPosition="left"
                 model="rgb"
-                :value="thresholds[selectedIndex].buyColor"
+                :value="selectedThreshold.buyColor"
                 @input="
                   $store.commit(paneId + '/SET_THRESHOLD_COLOR', {
-                    index: selectedIndex,
+                    id: selectedThreshold.id,
                     side: 'buyColor',
                     value: $event
                   })
@@ -132,10 +137,10 @@
                 picker="square"
                 menuPosition="left"
                 model="rgb"
-                :value="thresholds[selectedIndex].sellColor"
+                :value="selectedThreshold.sellColor"
                 @input="
                   $store.commit(paneId + '/SET_THRESHOLD_COLOR', {
-                    index: selectedIndex,
+                    id: selectedThreshold.id,
                     side: 'sellColor',
                     value: $event
                   })
@@ -155,24 +160,27 @@ import { formatAmount, formatPrice, sleep } from '../../utils/helpers'
 
 import dialogService from '@/services/dialogService'
 
-let thresholdIndex = 0
-
 @Component({
   name: 'Thresholds',
   props: {
     paneId: {
       type: String,
       required: true
+    },
+    showLiquidationsThreshold: {
+      type: Boolean,
+      default: true
     }
   }
 })
 export default class extends Vue {
   paneId: string
+  showLiquidationsThreshold: boolean
 
   rendering = true
   dragging = null
   editing = null
-  selectedIndex = null
+  selectedThresholdId = null
   selectedElement = null
   panelCaretPosition = 0
   panelOffsetPosition = 0
@@ -197,6 +205,14 @@ export default class extends Vue {
     return this.$store.state[this.paneId].thresholds
   }
 
+  get liquidationsThreshold() {
+    return this.$store.state[this.paneId].liquidations
+  }
+
+  get selectedThreshold() {
+    return this.$store.getters[this.paneId + '/getThreshold'](this.selectedThresholdId)
+  }
+
   get showThresholdsAsTable() {
     return this.$store.state[this.paneId].showThresholdsAsTable
   }
@@ -205,8 +221,26 @@ export default class extends Vue {
     return this.$store.state.settings.preferQuoteCurrencySize
   }
 
-  get indexedThresholds() {
-    return this.thresholds.map(threshold => (threshold.id ? threshold : { ...threshold, id: ++thresholdIndex }))
+  get thresholdsRows() {
+    let rows: any[] = []
+
+    if (this.showLiquidationsThreshold) {
+      rows = [
+        {
+          id: 'divider-1',
+          divider: 'For liquidations'
+        },
+        this.liquidationsThreshold,
+        {
+          id: 'divider-2',
+          divider: 'For trades by amount'
+        }
+      ]
+    }
+
+    rows = [...rows, ...this.thresholds]
+
+    return rows
   }
 
   $refs!: {
@@ -292,9 +326,9 @@ export default class extends Vue {
       x = event.touches[0].pageX
     }
 
-    this.selectedIndex = Array.prototype.slice.call(event.target.parentNode.children).indexOf(event.target)
+    this.selectedThresholdId = event.target.getAttribute('id')
 
-    if (this.selectedIndex > -1) {
+    if (this.selectedThresholdId) {
       this.selectedElement = event.target
     }
 
@@ -330,10 +364,10 @@ export default class extends Vue {
     let amount = Math.exp(((minLeft + (left / this._width) * (this._width - minLeft)) / this._width) * Math.log(this._maximum + 1)) - 1
 
     if (x < this._offsetLeft) {
-      amount = this.thresholds[this.selectedIndex].amount - (this.thresholds[this.selectedIndex].amount - amount) * 0.1
+      amount = this.selectedThreshold.amount - (this.selectedThreshold.amount - amount) * 0.1
       left = 0
     } else if (x > this._offsetLeft + this._width) {
-      amount = this.thresholds[this.selectedIndex].amount - (this.thresholds[this.selectedIndex].amount - amount) * 0.1
+      amount = this.selectedThreshold.amount - (this.selectedThreshold.amount - amount) * 0.1
       left = this._width
     }
 
@@ -345,18 +379,14 @@ export default class extends Vue {
 
     this.refreshCaretPosition()
 
-    this.thresholds[this.selectedIndex].amount = +formatPrice(amount)
+    this.$store.commit(this.paneId + '/SET_THRESHOLD_AMOUNT', {
+      id: this.selectedThresholdId,
+      value: +formatPrice(amount)
+    })
   }
 
   endDrag() {
     if (this.selectedElement) {
-      if (this.dragging) {
-        this.$store.commit(this.paneId + '/SET_THRESHOLD_AMOUNT', {
-          index: this.selectedIndex,
-          value: this.thresholds[this.selectedIndex].amount
-        })
-      }
-
       this.selectedElement = null
 
       this.reorderThresholds()
@@ -440,21 +470,7 @@ export default class extends Vue {
   }
 
   reorderThresholds() {
-    let selectedThreshold
-
-    if (this.selectedIndex !== null) {
-      selectedThreshold = this.thresholds[this.selectedIndex]
-    }
-
     this.$store.state[this.paneId].thresholds = this.thresholds.sort((a, b) => a.amount - b.amount)
-
-    if (selectedThreshold) {
-      for (let i = 0; i < this.thresholds.length; i++) {
-        if (selectedThreshold.amount === this.thresholds[i].amount && selectedThreshold.gif === this.thresholds[i].gif) {
-          this.selectedIndex = i
-        }
-      }
-    }
   }
 
   deleteThreshold(index) {
@@ -465,18 +481,18 @@ export default class extends Vue {
     this.$store.commit(this.paneId + '/DELETE_THRESHOLD', index)
   }
 
-  openPicker(side, index) {
-    if (!this.thresholds[index][side]) {
+  openPicker(side, threshold) {
+    if (!threshold[side]) {
       this.$store.commit(this.paneId + '/SET_THRESHOLD_COLOR', {
-        index: index,
+        id: threshold.id,
         side: side,
         value: '#ffffff'
       })
     }
 
-    dialogService.openPicker(this.thresholds[index][side], color => {
+    dialogService.openPicker(threshold[side], color => {
       this.$store.commit(this.paneId + '/SET_THRESHOLD_COLOR', {
-        index: index,
+        id: threshold.id,
         side: side,
         value: color
       })
@@ -567,6 +583,16 @@ export default class extends Vue {
   }
 
   tr {
+    &.-divider {
+      td {
+        padding: 1rem 0;
+      }
+
+      + tr .thresholds-table__input {
+        border-top: 0;
+      }
+    }
+
     &:first-child .thresholds-table__input {
       border-top: 0;
     }

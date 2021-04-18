@@ -393,3 +393,8 @@ $iconpath: '../fonts';
     content: $icon-copy-paste;
   }
 }
+.icon-skull {
+  &:before {
+    content: $icon-skull;
+  }
+}
