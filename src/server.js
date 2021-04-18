@@ -51,8 +51,8 @@ class Server extends EventEmitter {
       if (this.options.collect) {
         console.log(
           `\n[server] collect is enabled`,
-          this.options.websocket && this.options.aggr ? '\n\twill aggregate every trades that came on same ms (impact only broadcast)' : '',
-          this.options.websocket && this.options.delay ? `\n\twill broadcast trades every ${this.options.delay}ms` : ''
+          this.options.broadcast && this.options.broadcastAggr ? '\n\twill aggregate every trades that came on same ms (impact only broadcast)' : '',
+          this.options.broadcast && this.options.broadcastDebounce ? `\n\twill broadcast trades every ${this.options.broadcastDebounce}ms` : (this.options.broadcast ? `will broadcast trades instantly` : '')
         )
         console.log(`\tconnect to -> ${this.exchanges.map((a) => a.id).join(', ')}`)
 
@@ -71,14 +71,14 @@ class Server extends EventEmitter {
         }
       }
 
-      if (this.options.api || this.options.websocket) {
+      if (this.options.api || this.options.broadcast) {
         this.createHTTPServer()
       }
 
-      if (this.options.websocket) {
+      if (this.options.broadcast) {
         this.createWSServer()
 
-        if (this.options.aggr) {
+        if (this.options.broadcastAggr) {
           this._broadcastAggregatedTradesInterval = setInterval(this.broadcastAggregatedTrades.bind(this), 50)
         }
       }
@@ -160,7 +160,7 @@ class Server extends EventEmitter {
 
   handleExchangesEvents() {
     this.exchanges.forEach((exchange) => {
-      if (this.options.aggr) {
+      if (this.options.broadcastAggr) {
         exchange.on('trades', this.aggregateTrades.bind(this, exchange.id))
       } else {
         exchange.on('trades', this.dispatchTrades.bind(this, exchange.id))
@@ -247,7 +247,7 @@ class Server extends EventEmitter {
   }
 
   createWSServer() {
-    if (!this.options.websocket) {
+    if (!this.options.broadcast) {
       return
     }
 
@@ -580,7 +580,7 @@ class Server extends EventEmitter {
       this.dumpConnections()
     })
 
-    if (this.options.delay && !this.options.aggr) {
+    if (this.options.broadcastDebounce && !this.options.broadcastAggr) {
       this._broadcastDelayedTradesInterval = setInterval(() => {
         if (!this.delayed.length) {
           return
@@ -589,7 +589,7 @@ class Server extends EventEmitter {
         this.broadcastTrades(this.delayed)
 
         this.delayed = []
-      }, this.options.delay || 1000)
+      }, this.options.broadcastDebounce || 1000)
     }
   }
 
@@ -858,7 +858,7 @@ class Server extends EventEmitter {
       }
     }
 
-    if (!this.options.delay || this.options.aggr) {
+    if (!this.options.broadcastDebounce || this.options.broadcastAggr) {
       this.broadcastTrades(data)
     } else {
       Array.prototype.push.apply(this.delayed, data)

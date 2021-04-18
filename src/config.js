@@ -37,14 +37,6 @@ const DEFAULTS = {
   // default server port
   port: 3000,
 
-  // dont broadcast below ms interval
-  delay: 0,
-
-  // aggregate trades that came within same millisecond before broadcast
-  // (note) saving to storage is NOT impacted
-  // (warning) will add +50ms delay for confirmation that trade actually came on same ms
-  aggr: true,
-
   // restrict origin (now using regex)
   origin: '.*',
 
@@ -55,9 +47,17 @@ const DEFAULTS = {
   admin: 'whitelist',
 
   // enable websocket server (if you only use this for storing trade data set to false)
-  websocket: true,
+  broadcast: false,
 
-  // enable api (historical/{from: timestamp}/{to: timestamp})
+  // separate the broadcasts by n ms (0 = broadcast instantly)
+  broadcastDebounce: 0,
+
+  // aggregate trades that came within same millisecond before broadcast
+  // (note) saving to storage is NOT impacted
+  // (warning) will add +50ms delay for confirmation that trade actually came on same ms
+  broadcastAggr: true,
+
+  // enable api (historical/{from in ms}/{to in ms}/{timesfame in ms}/{markets separated by +})
   api: true,
 
   // storage solution, either
@@ -117,6 +117,9 @@ const DEFAULTS = {
 
   // rate limit max request per rateLimitTimeWindow (default 30)
   rateLimitMax: 30,
+
+  // verbose
+  debug: false
 }
 
 /* Load custom server configuration
@@ -230,7 +233,7 @@ if (config.exchanges && typeof config.exchanges === 'string') {
     .filter((a) => a.length)
 }
 
-if (!config.api && config.websocket) {
+if (!config.api && config.broadcast) {
   console.warn(
     `[warning!] websocket is enabled but api is set to ${config.api}\n\t(ws server require an http server for the initial upgrade handshake)`
   )
@@ -244,22 +247,22 @@ if (!config.collect && !config.api) {
   console.warn(`[warning!] server has no purpose`)
 }
 
-if (!config.storage && !config.collect && (config.websocket || config.api)) {
+if (!config.storage && !config.collect && (config.broadcast || config.api)) {
   console.warn(
     `[warning!] ${
-      config.websocket && config.api ? 'ws and api are' : config.websocket ? 'ws is' : 'api is'
+      config.broadcast && config.api ? 'ws and api are' : config.broadcast ? 'ws is' : 'api is'
     } enabled but neither storage or collect is enabled (may be useless)`
   )
 }
 
-if (config.websocket && !config.collect) {
-  console.warn(
-    `[warning!] collect is disabled but websocket is set to ${config.websocket} (may be useless)`
-  )
+if (config.broadcast && !config.collect) {
+  console.warn(`[warning!] collect is disabled but broadcast is set to ${config.broadcast} (may be useless)`)
 }
 
 if (!config.debug) {
   console.debug = function () {}
+} else {
+  console.debug = console.log
 }
 
 module.exports = config
