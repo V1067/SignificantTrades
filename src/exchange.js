@@ -138,7 +138,7 @@ class Exchange extends EventEmitter {
    * @returns {Promise<void>}
    */
   async unlink(pair) {
-    pair = pair.replace(/.*:/, '')
+    pair = pair.replace(/[^:]*:/, '')
 
     const api = this.getActiveApiByPair(pair)
 
