@@ -154,6 +154,8 @@ class Okex extends Exchange {
       return
     }
 
+    !json.table && console.log(json)
+
     if (!json || !json.data || !json.data.length) {
       return
     }
@@ -165,9 +167,7 @@ class Okex extends Exchange {
         let name = this.id
 
         if (typeof this.specs[trade.instrument_id] !== 'undefined') {
-          size =
-            ((trade.size || trade.qty) * this.specs[trade.instrument_id]) /
-            (this.inversed[trade.instrument_id] ? trade.price : 1)
+          size = ((trade.size || trade.qty) * this.specs[trade.instrument_id]) / (this.inversed[trade.instrument_id] ? trade.price : 1)
           // name += '_futures'
         } else {
           size = trade.size
@@ -186,11 +186,11 @@ class Okex extends Exchange {
   }
 
   onApiBinded(api) {
-    this.startKeepAlive(api)
+    // this.startKeepAlive(api)
   }
 
   onApiUnbinded(api) {
-    this.stopKeepAlive(api)
+    // this.stopKeepAlive(api)
   }
 
   startLiquidationTimer() {
@@ -218,9 +218,7 @@ class Okex extends Exchange {
   }
 
   fetchLatestLiquidations() {
-    const productId = this.liquidationProducts[
-      this._liquidationProductIndex++ % this.liquidationProducts.length
-    ]
+    const productId = this.liquidationProducts[this._liquidationProductIndex++ % this.liquidationProducts.length]
 
     if (!productId) {
       debugger
@@ -232,25 +230,16 @@ class Okex extends Exchange {
     this._liquidationAxiosHandler = axios.CancelToken.source()
 
     axios
-      .get(
-        `https://www.okex.com/api/${productType}/v3/instruments/${productId}/liquidation?status=1&limit=10`
-      )
+      .get(`https://www.okex.com/api/${productType}/v3/instruments/${productId}/liquidation?status=1&limit=10`)
       .then((response) => {
-        if (
-          !this.apis.length ||
-          !response.data ||
-          (response.data.error && response.data.error.length)
-        ) {
+        if (!this.apis.length || !response.data || (response.data.error && response.data.error.length)) {
           console.log('getLiquidations => then => contain error(s)')
           console.error(response.data.error.join('\n'), productType, productId)
           return
         }
 
         const liquidations = response.data.filter((a) => {
-          return (
-            !this.liquidationProductsReferences[productId] ||
-            +new Date(a.created_at) > this.liquidationProductsReferences[productId]
-          )
+          return !this.liquidationProductsReferences[productId] || +new Date(a.created_at) > this.liquidationProductsReferences[productId]
         })
 
         if (!liquidations.length) {

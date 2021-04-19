@@ -3,7 +3,7 @@ const axios = require('axios')
 const WebSocket = require('ws')
 const pako = require('pako')
 
-const { ID } = require('./helper')
+const { ID, getHms } = require('./helper')
 
 require('./typedef')
 
@@ -143,6 +143,7 @@ class Exchange extends EventEmitter {
     const api = this.getActiveApiByPair(pair)
 
     if (this.pairs.indexOf(pair) === -1) {
+      console.debug(`[${this.id}.unlink] "${pair}" does not exist on exchange ${this.id} (resolved immediatly)`)
       return Promise.resolve()
     }
 
@@ -159,6 +160,7 @@ class Exchange extends EventEmitter {
     this.emit('disconnected', pair, api.id)
 
     if (!api._connected.length) {
+      console.debug(`[${this.id}.unlink] ${pair}'s api is now empty (trigger close api)`)
       return this.unbindApi(api)
     } else {
       return Promise.resolve()
@@ -244,6 +246,11 @@ class Exchange extends EventEmitter {
           }
 
           this.lastMessages.push(json)
+
+          const jsonString = JSON.stringify(json)
+          if (/(unrecognized|failure|invalid|error|expired|cannot|exceeded|error)/.test(jsonString)) {
+            console.log(`[${this.id}] error message intercepted\n`, json)
+          }
 
           if (this.lastMessages.length > 10) {
             this.lastMessages.splice(0, this.lastMessages.length - 10)
@@ -394,12 +401,14 @@ class Exchange extends EventEmitter {
     console.debug(`[${this.id}.reconnectPairs] reconnect pairs ${pairsToReconnect.join(',')}`)
 
     for (let pair of pairsToReconnect) {
+      console.debug(`[${this.id}.reconnectPairs] unlinking market ${this.id + ':' + pair}`)
       await this.unlink(this.id + ':' + pair)
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     for (let pair of pairsToReconnect) {
+      console.debug(`[${this.id}.reconnectPairs] linking market ${this.id + ':' + pair}`)
       await this.link(this.id + ':' + pair)
     }
   }
@@ -683,7 +692,11 @@ class Exchange extends EventEmitter {
 
     currentDelay = Math.max(minDelay, currentDelay || 0)
 
+    console.log(`[${this.id}] schedule operation in ${getHms(currentDelay)}`)
+
     this.scheduleTimeout = setTimeout(() => {
+      console.log(`[${this.id}] schedule timer fired`)
+
       delete this.scheduleTimeout
 
       fn()
