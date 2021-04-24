@@ -285,9 +285,9 @@ class Exchange extends EventEmitter {
           delete this.disconnecting[url]
         }
 
-        if (api._connected.length) {
-          const pairsToReconnect = [...api._connecting, ...api._connected]
+        const pairsToReconnect = [...api._connecting, ...api._connected]
 
+        if (pairsToReconnect.length) {
           for (let pair of api._connected) {
             await this.unlink(this.id + ':' + pair)
           }
