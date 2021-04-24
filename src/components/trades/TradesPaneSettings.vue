@@ -83,7 +83,7 @@
 
     <div class="-fill mt16 mb8">THRESHOLD MULTIPLIER ({{ mutipliersCount }})</div>
 
-    <div class="multipliers" v-if="mutipliersCount">
+    <div class="multipliers" v-if="multipliers.length">
       <div v-for="market in multipliers" :key="market.identifier" class="d-flex multipliers-market" :class="{ '-disabled': market.multiplier === 1 }">
         <div
           class="multipliers-market__id"

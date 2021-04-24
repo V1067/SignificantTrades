@@ -125,7 +125,7 @@ export default class extends Vue {
 
     this.$store.dispatch('app/showNotice', {
       type: 'success',
-      title: `${this.indexedProducts.length}'s products refreshed`
+      title: `${this.indexedProducts.length} products refreshed`
     })
   }
 

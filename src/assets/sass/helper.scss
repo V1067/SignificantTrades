@@ -21,6 +21,11 @@ $offset: 4;
 $unit: 'px'; // Feel free to change the unit.
 @mixin list-loop($className, $styleName) {
   $i: 0;
+
+  #{$className + 'auto'} {
+    #{$styleName}: auto !important;
+  }
+
   @while $i <= $max {
     #{$className + $i} {
       @if ($i == 0) {

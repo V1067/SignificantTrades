@@ -46,6 +46,13 @@
     }
   }
 
+  &.-top {
+    .dropdown__options {
+      bottom: 2rem;
+      top: auto;
+    }
+  }
+
   &.-left {
     .dropdown__options {
       right: auto;

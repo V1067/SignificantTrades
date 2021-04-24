@@ -81,7 +81,7 @@ const state = {
   showTradesPairs: false,
   liquidationsOnly: false,
   showLogos: true,
-  monochromeLogos: false
+  monochromeLogos: true
 } as TradesPaneState
 
 const actions = {
@@ -203,7 +203,9 @@ const mutations = {
       sellColor: 'rgb(255, 0, 0)'
     })
   },
-  DELETE_THRESHOLD(state, index) {
+  DELETE_THRESHOLD(state, id: string) {
+    const index = state.thresholds.indexOf(state.thresholds.find(t => t.id === id))
+
     state.thresholds.splice(index, 1)
   },
   UPDATE_THRESHOLD(state, threshold: Threshold) {

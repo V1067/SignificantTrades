@@ -199,17 +199,22 @@
               </div>
               <a href="javascript:void(0);" @click="reset()">reset</a>
               <i class="pipe">|</i>
-              <a
-                target="_blank"
-                href="bitcoin:3PK1bBK8sG3zAjPBPD7g3PL14Ndux3zWEz"
-                v-tippy="{
-                  animateFill: false,
-                  interactive: true,
-                  theme: 'blue'
-                }"
-              >
-                donate
-              </a>
+              <span>
+                <dropdown :options="donationMenu" @output="donationMenu[$event].click()" title="Support the project" class="-top -text-left" v-tippy>
+                  <template v-slot:selection>
+                    <a href="javascript:void(0);">
+                      donate
+                    </a>
+                  </template>
+                  <template v-slot:option="{ value }">
+                    <div style="font-size:1rem;">
+                      <i :class="'icon-' + value.icon" class="-fill"></i>
+
+                      <span class="ml4">{{ value.label }}</span>
+                    </div>
+                  </template>
+                </dropdown>
+              </span>
             </div>
           </div>
         </section>
@@ -231,18 +236,37 @@ import AudioSettings from './AudioSettings.vue'
 import OtherSettings from './OtherSettings.vue'
 import workspacesService from '@/services/workspacesService'
 import { Workspace } from '@/types/test'
+import Dropdown from '../framework/Dropdown.vue'
 
 @Component({
   name: 'Settings',
   components: {
     Exchange,
     AudioSettings,
-    OtherSettings
+    OtherSettings,
+    Dropdown
   }
 })
 export default class extends Vue {
   workspace: Workspace = null
   workspaces: Workspace[] = []
+  donationMenu = [
+    {
+      label: 'with Bitcoin',
+      icon: 'bitcoin',
+      click: () => window.open('bitcoin:3PK1bBK8sG3zAjPBPD7g3PL14Ndux3zWEz')
+    },
+    {
+      label: 'with Monero',
+      icon: 'xmr',
+      click: () => window.open('monero:48NJj3RJDo33zMLaudQDdM8G6MfPrQbpeZU2YnRN2Ep6hbKyYRrS2ZSdiAKpkUXBcjD2pKiPqXtQmSZjZM7fC6YT6CMmoX6')
+    },
+    {
+      label: 'with other coin',
+      icon: 'COINBASE',
+      click: () => window.open('https://commerce.coinbase.com/checkout/c58bd003-5e47-4cfb-ae25-5292f0a0e1e8')
+    }
+  ]
 
   workspaceMenu = [
     {
@@ -486,11 +510,6 @@ export default class extends Vue {
 
     if (name) {
       await workspacesService.renameWorkspace(name)
-    } else if (name !== false) {
-      this.$store.dispatch('app/showNotice', {
-        title: `Cannot rename if you don't type the new name...`,
-        type: 'error'
-      })
     }
 
     this.getWorkspaces()

@@ -36,7 +36,7 @@
             </td>
             <td class="thresholds-table__color" :style="{ backgroundColor: threshold.buyColor }" @click="openPicker('buyColor', threshold)"></td>
             <td class="thresholds-table__color" :style="{ backgroundColor: threshold.sellColor }" @click="openPicker('sellColor', threshold)"></td>
-            <td v-if="thresholds.length > 2" class="thresholds-table__delete" @click="deleteThreshold(index)" title="Remove" v-tippy>
+            <td v-if="thresholds.length > 2" class="thresholds-table__delete" @click="deleteThreshold(threshold.id)" title="Remove" v-tippy>
               <i class="icon-cross" v-if="index > 1"></i>
             </td>
           </template>
@@ -56,12 +56,13 @@
           :key="threshold.id"
           class="thresholds-slider__handler"
           :class="{ '-selected': selectedThresholdId === threshold.id }"
+          :data-id="threshold.id"
           :data-amount="formatAmount(threshold.amount, 2)"
         ></div>
       </div>
       <div
         class="threshold-panel"
-        v-if="selectedThreshold !== null"
+        v-if="selectedThreshold"
         @click="editing = true"
         ref="thresholdPanel"
         :class="{ '-minimum': thresholds.indexOf(selectedThreshold) === 0 }"
@@ -159,6 +160,7 @@ import { Component, Vue } from 'vue-property-decorator'
 import { formatAmount, formatPrice, sleep } from '../../utils/helpers'
 
 import dialogService from '@/services/dialogService'
+import { Threshold } from '@/store/panesSettings/trades'
 
 @Component({
   name: 'Thresholds',
@@ -210,7 +212,10 @@ export default class extends Vue {
   }
 
   get selectedThreshold() {
-    return this.$store.getters[this.paneId + '/getThreshold'](this.selectedThresholdId)
+    const threshold = this.$store.getters[this.paneId + '/getThreshold'](this.selectedThresholdId)
+
+    console.log('GET selected threshold', threshold)
+    return threshold
   }
 
   get showThresholdsAsTable() {
@@ -326,18 +331,20 @@ export default class extends Vue {
       x = event.touches[0].pageX
     }
 
-    this.selectedThresholdId = event.target.getAttribute('id')
+    this.selectedThresholdId = event.target.getAttribute('data-id')
 
     if (this.selectedThresholdId) {
       this.selectedElement = event.target
     }
 
-    setTimeout(this.refreshCaretPosition.bind(this, event.target))
+    this.$nextTick(() => {
+      this.refreshCaretPosition(event.target)
 
-    this._dragReference = {
-      timestamp: +new Date(),
-      position: x
-    }
+      this._dragReference = {
+        timestamp: +new Date(),
+        position: x
+      }
+    })
   }
 
   doDrag(event) {
@@ -473,15 +480,15 @@ export default class extends Vue {
     this.$store.state[this.paneId].thresholds = this.thresholds.sort((a, b) => a.amount - b.amount)
   }
 
-  deleteThreshold(index) {
+  deleteThreshold(id: string) {
     if (this.thresholds.length <= 2) {
       return
     }
 
-    this.$store.commit(this.paneId + '/DELETE_THRESHOLD', index)
+    this.$store.commit(this.paneId + '/DELETE_THRESHOLD', id)
   }
 
-  openPicker(side, threshold) {
+  openPicker(side: string, threshold: Threshold) {
     if (!threshold[side]) {
       this.$store.commit(this.paneId + '/SET_THRESHOLD_COLOR', {
         id: threshold.id,
