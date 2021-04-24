@@ -25,6 +25,10 @@ class Aggregator {
 
     this.bindExchanges()
     this.startPriceInterval()
+
+    ctx.postMessage({
+      op: 'hello'
+    })
   }
 
   bindExchanges() {

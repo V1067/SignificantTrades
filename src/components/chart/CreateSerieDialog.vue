@@ -5,13 +5,7 @@
       <div class="column -center"></div>
     </template>
     <template v-if="inactiveSeries.length">
-      <dropdown
-        class="form-control -left"
-        :options="inactiveSeries"
-        :alwaysShowPlaceholder="true"
-        placeholder="Choose from available series"
-        @output="enableSerie"
-      >
+      <dropdown class="form-control -left" :options="inactiveSeries" :alwaysShowPlaceholder="true" placeholder="Library" @output="enableSerie">
         <template v-slot:option="{ value }">
           <div class="serie-dropdown-control">
             <span>{{ value.name }}</span>
@@ -19,7 +13,7 @@
           </div>
         </template>
       </dropdown>
-      <hr />
+      <div class="divider">Or</div>
     </template>
     <div class="form-group mb16">
       <label>Name</label>
@@ -38,7 +32,6 @@
         @output="priceScaleId = $event"
       ></dropdown>
     </div>
-    <hr />
     <footer>
       <a href="javascript:void(0);" class="btn -text mr16" @click="close(false)">Cancel</a>
       <button class="btn -large" @click="create">Create</button>

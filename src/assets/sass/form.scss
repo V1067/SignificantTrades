@@ -136,10 +136,6 @@
     &:after {
       content: unicode($icon-slippery);
     }
-
-    &:before {
-      font-size: 1.5em;
-    }
   }
 
   &.-rip input ~ div {
@@ -147,16 +143,11 @@
     &:after {
       content: unicode($icon-skull);
     }
-
-    &:before {
-      font-size: 1.5em;
-    }
   }
 
   &.-aggr input ~ div {
     &:before {
       content: unicode($icon-ms);
-      font-size: 1.5em;
     }
 
     &:after {
@@ -275,7 +266,7 @@
 
   > div {
     padding: 0.5rem;
-    border: 1px solid rgba(black, 0.3);
+    border: 1px solid rgba(white, 0.2);
     width: 1em;
     height: 1em;
     border-radius: 3px;

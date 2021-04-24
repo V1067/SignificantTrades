@@ -38,7 +38,6 @@ $icon-plus: '\e920';
 $icon-power-on: '\e91d';
 $icon-power-off: '\e924';
 $icon-cog: '\e90d';
-$icon-sound-wave: '\e909';
 $icon-volume-off: '\e906';
 $icon-volume-low: '\e910';
 $icon-volume-medium: '\e911';
@@ -48,12 +47,11 @@ $icon-info: '\e912';
 $icon-edit: '\e91f';
 $icon-trash: '\e93d';
 $icon-dropper: '\e93a';
-$icon-copy: '\e93e';
 $icon-coin: '\e90f';
 $icon-external-link-square-alt: '\e915';
 $icon-balance: '\e919';
 $icon-magic: '\e91a';
-$icon-tomb: '\e91e';
+$icon-skull: '\e91e';
 $icon-visible: '\e922';
 $icon-hidden: '\e923';
 $icon-ada: '\e92d';
@@ -64,12 +62,9 @@ $icon-bps: '\e935';
 $icon-ms: '\e936';
 $icon-pile: '\e937';
 $icon-search: '\e939';
-$icon-bottom-right: '\e913';
-$icon-settings-lines: '\e914';
-$icon-close-thin: '\e916';
-$icon-bucket: '\e917';
-
+$icon-resize: '\e913';
 $icon-KRAKEN: '\e91b';
+$icon-FTX: '\e942';
 $icon-OKEX: '\e91c';
 $icon-POLONIEX: '\e921';
 $icon-COINEX: '\e926';
@@ -83,17 +78,36 @@ $icon-COINBASE: '\e93b';
 $icon-DERIBIT: '\e93c';
 $icon-BYBIT: '\e93f';
 $icon-BITSTAMP: '\e940';
-
-$icon-expand: '\e941';
-$icon-paint-brush: '\e942';
+$icon-sound-wave: '\e909';
 $icon-menu: '\e943';
-$icon-color-palette: '\e944';
 $icon-stamp: '\e945';
-$icon-upload-setup: '\e946';
 $icon-copy-paste: '\e947';
-$icon-skull: '\e948';
+$icon-download: '\e914';
+$icon-drops: '\e916';
+$icon-upload: '\e917';
+$icon-popup: '\e944';
+$icon-swap: '\e946';
+$icon-dashboard: '\e948';
+$icon-black-and-white: '\e93e';
+$icon-fill: '\e941';
+$icon-more: '\e949';
 
-$exchanges: BITMEX BINANCE BINANCE_FUTURES BITFINEX OKEX HUOBI BITSTAMP COINBASE HITBTC POLONIEX KRAKEN DERIBIT BYBIT FTX;
+$exchanges: (
+  'BITMEX': $icon-BITMEX,
+  'BINANCE': $icon-BINANCE,
+  'BINANCE_FUTURES': $icon-BINANCE_FUTURES,
+  'BITFINEX': $icon-BITFINEX,
+  'OKEX': $icon-OKEX,
+  'HUOBI': $icon-HUOBI,
+  'BITSTAMP': $icon-BITSTAMP,
+  'COINBASE': $icon-COINBASE,
+  'HITBTC': $icon-HITBTC,
+  'POLONIEX': $icon-POLONIEX,
+  'KRAKEN': $icon-KRAKEN,
+  'DERIBIT': $icon-DERIBIT,
+  'BYBIT': $icon-BYBIT,
+  'FTX': $icon-FTX
+);
 
 @function unicode($str) {
   @return unquote('"') + $str + unquote('"');

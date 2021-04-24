@@ -169,11 +169,6 @@ header#header {
     display: inline-flex;
     height: 100%;
     align-items: center;
-
-    &.-volume i {
-      font-size: 16px;
-      line-height: 0.8;
-    }
   }
 
   &:after,

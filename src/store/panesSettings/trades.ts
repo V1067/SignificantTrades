@@ -18,6 +18,7 @@ export interface TradesPaneState {
   showThresholdsAsTable: boolean
   maxRows: number
   showLogos: boolean
+  logosColors: boolean
   showTradesPairs: boolean
   liquidationsOnly: boolean
   multipliers: { [identifier: string]: number }
@@ -79,10 +80,14 @@ const state = {
   maxRows: 100,
   showTradesPairs: false,
   liquidationsOnly: false,
-  showLogos: true
+  showLogos: true,
+  logosColors: false
 } as TradesPaneState
 
 const actions = {
+  async boot() {
+    //
+  },
   updateThreshold({ state, commit }, { index, prop, value }: { index: number; prop: string; value: any }) {
     const threshold = state.thresholds[index]
 
@@ -122,6 +127,9 @@ const mutations = {
   },
   TOGGLE_LOGOS(state, value) {
     state.showLogos = value ? true : false
+  },
+  TOGGLE_LOGOS_COLORS(state, value) {
+    state.logosColors = value ? true : false
   },
   TOGGLE_LIQUIDATIONS_ONLY(state) {
     state.liquidationsOnly = !state.liquidationsOnly

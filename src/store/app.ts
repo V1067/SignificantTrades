@@ -2,8 +2,8 @@ import aggregatorService from '@/services/aggregatorService'
 import { Market } from '@/types/test'
 import { randomString } from '@/utils/helpers'
 import Vue from 'vue'
-import { ActionTree, GetterTree, MutationTree } from 'vuex'
-import { AppModule, ModulesState } from '.'
+import { ActionTree, GetterTree, Module, MutationTree } from 'vuex'
+import { ModulesState } from '.'
 
 export interface Notice {
   id?: string
@@ -80,8 +80,31 @@ const state = {
 } as AppState
 
 const actions = {
-  setBooted({ commit }) {
-    commit('SET_BOOTED')
+  async boot({ commit }) {
+    commit('SET_API_SUPPORTED_PAIRS', process.env.VUE_APP_API_SUPPORTED_PAIRS)
+    commit('SET_VERSION', process.env.VUE_APP_VERSION)
+    commit('SET_BUILD_DATE', process.env.VUE_APP_BUILD_DATE)
+    commit('SET_API_URL', process.env.VUE_APP_API_URL)
+    commit('SET_PROXY_URL', process.env.VUE_APP_PROXY_URL)
+
+    this.dispatch('app/refreshCurrencies')
+
+    aggregatorService.on('connection', ({ exchange, pair }: { exchange: string; pair: string }) => {
+      this.commit('app/ADD_ACTIVE_MARKET', {
+        exchange,
+        pair
+      })
+    })
+
+    aggregatorService.on('disconnection', ({ exchange, pair }: { exchange: string; pair: string }) => {
+      this.commit('app/REMOVE_ACTIVE_MARKET', {
+        exchange,
+        pair
+      })
+    })
+  },
+  setBooted({ commit }, value = true) {
+    commit('SET_BOOTED', value)
   },
   async showNotice({ commit, getters }, notice) {
     if (typeof notice === 'string') {
@@ -230,8 +253,8 @@ const actions = {
 } as ActionTree<AppState, ModulesState>
 
 const mutations = {
-  SET_BOOTED: state => {
-    state.isBooted = true
+  SET_BOOTED: (state, value: boolean) => {
+    state.isBooted = value
   },
   SET_REDIRECT_URL: (state, redirectUrl: string) => {
     if (state.redirectUrl && redirectUrl) {
@@ -346,22 +369,5 @@ export default {
   state,
   getters,
   actions,
-  mutations,
-  boot: store => {
-    store.dispatch('app/refreshCurrencies')
-
-    aggregatorService.on('connection', ({ exchange, pair }: { exchange: string; pair: string }) => {
-      store.commit('app/ADD_ACTIVE_MARKET', {
-        exchange,
-        pair
-      })
-    })
-
-    aggregatorService.on('disconnection', ({ exchange, pair }: { exchange: string; pair: string }) => {
-      store.commit('app/REMOVE_ACTIVE_MARKET', {
-        exchange,
-        pair
-      })
-    })
-  }
-} as AppModule<AppState, ModulesState>
+  mutations
+} as Module<AppState, ModulesState>

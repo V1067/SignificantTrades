@@ -1,6 +1,11 @@
 <template>
   <transition name="scale">
-    <div v-if="open" class="dialog dialog-mask" @click="clickOutside" :class="{ '-open': open, '-medium': medium, '-large': large, '-small': small }">
+    <div
+      v-if="open"
+      class="dialog"
+      @click="clickOutside"
+      :class="{ '-open': open, '-medium': medium, '-large': large, '-small': small, '-mask': mask }"
+    >
       <div ref="dialogContent" class="dialog-content" @click.stop :style="`transform: translate(${delta.x}px, ${delta.y}px)`">
         <header @mousedown="handleDrag" @touchstart="handleDrag">
           <slot name="header"></slot>
@@ -26,7 +31,24 @@ import { getEventCords } from '../../utils/picker'
 
 @Component({
   name: 'Dialog',
-  props: ['open', 'medium', 'large', 'small']
+  props: {
+    open: {
+      type: Boolean
+    },
+    small: {
+      type: Boolean
+    },
+    medium: {
+      type: Boolean
+    },
+    large: {
+      type: Boolean
+    },
+    mask: {
+      type: Boolean,
+      default: true
+    }
+  }
 })
 export default class extends Vue {
   delta = { x: 0, y: 0 }

@@ -47,18 +47,21 @@ const state = {
 } as StatsPaneState
 
 const actions = {
-  createStat({ commit }) {
+  async boot() {
+    //
+  },
+  createBucket({ state, commit }) {
     const otherIds = Object.keys(state.buckets)
     const otherNames = otherIds.map(id => state.buckets[id].name)
 
-    const name = uniqueName('COUNTER', otherNames)
+    const name = uniqueName('Untitled Bucket', otherNames)
     const id = uniqueName(slugify(name), otherIds)
 
     commit('CREATE_BUCKET', { id, name })
 
-    dialogService.open(StatDialog, { id })
+    dialogService.open(StatDialog, { paneId: state._id, bucketId: id })
   },
-  updateStat({ commit, state }, { id, prop, value }) {
+  updateBucket({ commit, state }, { id, prop, value }) {
     if (state.buckets[id][prop] === value) {
       return
     }
@@ -76,7 +79,7 @@ const actions = {
       value
     })
   },
-  renameStat({ commit, state }, { id, name }) {
+  renameBucket({ commit, state }, { id, name }) {
     const otherIds = Object.keys(state.buckets).filter(_id => _id !== id)
     const otherNames = otherIds.map(id => state.buckets[id].name)
 
@@ -154,12 +157,12 @@ const mutations = {
     Vue.set(state.buckets, id, stat)
   },
   CREATE_BUCKET(state, { id, name }) {
-    state.buckets[id] = {
+    Vue.set(state.buckets, id, {
       id,
       name,
       input: 'vbuy + vsell',
-      enabled: true
-    }
+      enabled: false
+    })
   },
   REMOVE_BUCKET(state, id) {
     Vue.delete(state.buckets, id)

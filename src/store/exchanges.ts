@@ -1,8 +1,8 @@
 import aggregatorService from '@/services/aggregatorService'
 import { getProducts } from '@/services/productsService'
 import Vue from 'vue'
-import { ActionTree, GetterTree, MutationTree } from 'vuex'
-import { AppModule, ModulesState } from '.'
+import { ActionTree, GetterTree, Module, MutationTree } from 'vuex'
+import { ModulesState } from '.'
 
 export interface ExchangeSettings {
   disabled?: boolean
@@ -48,6 +48,27 @@ const getters = {
 } as GetterTree<ExchangesState, ModulesState>
 
 const actions = {
+  boot({ state, getters }) {
+    state._exchanges.splice(0, state._exchanges.length)
+
+    for (const id of getters.getExchanges) {
+      state._exchanges.push(id)
+      this.commit('app/EXCHANGE_UPDATED', id)
+    }
+
+    aggregatorService.on('products', async ({ exchange, endpoints }: { exchange: string; endpoints: string[] }, trackingId: string) => {
+      const productsData = await getProducts(exchange, endpoints)
+
+      aggregatorService.dispatch({
+        op: 'products',
+        data: {
+          exchange,
+          data: productsData
+        },
+        trackingId
+      })
+    })
+  },
   async toggleExchange({ commit, state, dispatch }, id: string) {
     commit('TOGGLE_EXCHANGE', id)
 
@@ -106,28 +127,7 @@ const mutations = {
 export default {
   namespaced: true,
   getters,
-  boot: (store, state: ExchangesState) => {
-    state._exchanges.splice(0, state._exchanges.length)
-
-    for (const id of store.getters['exchanges/getExchanges']) {
-      state._exchanges.push(id)
-      store.commit('app/EXCHANGE_UPDATED', id)
-    }
-
-    aggregatorService.on('products', async ({ exchange, endpoints }: { exchange: string; endpoints: string[] }, trackingId: string) => {
-      const productsData = await getProducts(exchange, endpoints)
-
-      aggregatorService.dispatch({
-        op: 'products',
-        data: {
-          exchange,
-          data: productsData
-        },
-        trackingId
-      })
-    })
-  },
   state,
   actions,
   mutations
-} as AppModule<ExchangesState, ModulesState>
+} as Module<ExchangesState, ModulesState>

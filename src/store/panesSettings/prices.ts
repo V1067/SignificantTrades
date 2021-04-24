@@ -15,7 +15,11 @@ const state = {
   showPairs: false
 } as PricesPaneState
 
-const actions = {} as ActionTree<PricesPaneState, PricesPaneState>
+const actions = {
+  async boot() {
+    //
+  }
+} as ActionTree<PricesPaneState, PricesPaneState>
 
 const mutations = {
   TOGGLE_SORT_ANIMATION(state, value) {

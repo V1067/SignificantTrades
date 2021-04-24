@@ -75,4 +75,18 @@ export interface ProductsStorage {
   data: ProductsData
 }
 
+export interface GifsStorage {
+  slug: string
+  keyword: string
+  timestamp?: number
+  data: string[]
+}
+export interface Workspace {
+  createdAt: number
+  updatedAt: number
+  id: string
+  name: string
+  states: { [id: string]: any }
+}
+
 export type ProductsData = string[] | { [prop: string]: any }

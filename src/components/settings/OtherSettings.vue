@@ -20,7 +20,7 @@
       <label class="checkbox-control -animations">
         <input type="checkbox" class="form-control" :checked="disableAnimations" @change="$store.commit('settings/TOGGLE_ANIMATIONS')" />
         <div></div>
-        <span>Animation are {{ disableAnimations ? 'disabled' : 'enabled' }} globaly 🚀</span>
+        <span>Animation are {{ disableAnimations ? 'disabled globally 🚀' : 'enabled ✨' }}</span>
       </label>
     </div>
   </div>

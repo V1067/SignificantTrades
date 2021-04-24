@@ -17,6 +17,7 @@ import sfxService from '../../services/sfxService'
 import PaneMixin from '@/mixins/paneMixin'
 import PaneHeader from '../panes/PaneHeader.vue'
 import { Trade } from '@/types/test'
+import workspacesService from '@/services/workspacesService'
 
 const GIFS: { [keyword: string]: string[] } = {} // shared cache for gifs
 const PROMISES_OF_GIFS: { [keyword: string]: Promise<string[]> } = {}
@@ -83,6 +84,10 @@ export default class extends Mixins(PaneMixin) {
 
   get showLogos() {
     return this.$store.state[this.paneId].showLogos
+  }
+
+  get logosColors() {
+    return this.$store.state[this.paneId].logosColors
   }
 
   get multipliers() {
@@ -341,7 +346,11 @@ export default class extends Mixins(PaneMixin) {
 
     const exchange = document.createElement('div')
     exchange.className = 'trade__exchange'
-    exchange.innerText = trade.exchange.replace('_', ' ')
+
+    if (!this.showLogos) {
+      exchange.innerText = trade.exchange.replace('_', ' ')
+    }
+
     exchange.setAttribute('title', trade.exchange)
     li.appendChild(exchange)
 
@@ -406,24 +415,25 @@ export default class extends Mixins(PaneMixin) {
     }
   }
 
-  retrieveStoredGifs(refresh = false) {
-    this.thresholds.forEach(threshold => {
+  async retrieveStoredGifs(refresh = false) {
+    for (const threshold of this.thresholds) {
       if (!threshold.gif || GIFS[threshold.gif]) {
         return
       }
 
       const slug = slugify(threshold.gif)
-      const storage = localStorage ? JSON.parse(localStorage.getItem('threshold_' + slug + '_gifs')) : null
+
+      const storage = await workspacesService.getGifs(slug)
 
       if (!refresh && storage && +new Date() - storage.timestamp < 1000 * 60 * 60 * 24 * 7) {
         GIFS[threshold.gif] = storage.data
       } else if (!PROMISES_OF_GIFS[threshold.gif]) {
         this.fetchGifByKeyword(threshold.gif)
       }
-    })
+    }
   }
 
-  fetchGifByKeyword(keyword: string, isDeleted = false) {
+  async fetchGifByKeyword(keyword: string, isDeleted = false) {
     if (!keyword || !GIFS) {
       return
     }
@@ -435,14 +445,14 @@ export default class extends Mixins(PaneMixin) {
         delete GIFS[keyword]
       }
 
-      localStorage.removeItem('threshold_' + slug + '_gifs')
+      await workspacesService.deleteGifs(slug)
 
       return
     }
 
-    PROMISES_OF_GIFS[keyword] = fetch('https://g.tenor.com/v1/search?q=' + keyword + '&key=LIVDSRZULELA&limit=100&key=DF3B0979C761')
+    const promise = fetch('https://g.tenor.com/v1/search?q=' + keyword + '&key=LIVDSRZULELA&limit=100&key=DF3B0979C761')
       .then(res => res.json())
-      .then(res => {
+      .then(async res => {
         if (!res.results || !res.results.length) {
           return
         }
@@ -453,19 +463,22 @@ export default class extends Mixins(PaneMixin) {
           GIFS[keyword].push(item.media[0].gif.url)
         }
 
-        localStorage.setItem(
-          'threshold_' + slug + '_gifs',
-          JSON.stringify({
-            timestamp: +new Date(),
-            data: GIFS[keyword]
-          })
-        )
+        await workspacesService.saveGifs({
+          slug,
+          keyword,
+          timestamp: +new Date(),
+          data: GIFS[keyword]
+        })
 
         return GIFS[keyword]
       })
       .finally(() => {
         delete PROMISES_OF_GIFS[keyword]
       })
+
+    PROMISES_OF_GIFS[keyword] = promise
+
+    return promise
   }
   prepareColorsSteps() {
     const appBackgroundColor = getAppBackgroundColor()
@@ -577,11 +590,12 @@ export default class extends Mixins(PaneMixin) {
 
 .pane-trades {
   line-height: 1;
-  overflow: auto;
 
   ul {
     margin: 0;
     padding: 0;
+    overflow: auto;
+    max-height: 100%;
   }
 
   &.-normal ul {
@@ -612,14 +626,35 @@ export default class extends Mixins(PaneMixin) {
 
   &.-logos {
     .trade__exchange {
-      text-indent: -9999px;
       flex-basis: 0;
       flex-grow: 0.4;
+      text-align: center;
+      overflow: visible;
+
+      &:before {
+        font-family: 'icon';
+        display: inline-block;
+        vertical-align: -2px;
+      }
     }
 
-    @each $exchange in $exchanges {
-      .-#{$exchange} .trade__exchange {
-        background-image: url('../../assets/exchanges/#{$exchange}.svg');
+    @each $exchange, $icon in $exchanges {
+      .-#{$exchange} .trade__exchange:before {
+        content: $icon;
+      }
+    }
+
+    &.-logos-colors {
+      .trade__exchange {
+        &:before {
+          display: none;
+        }
+      }
+
+      @each $exchange, $icon in $exchanges {
+        .-#{$exchange} .trade__exchange {
+          background-image: url('../../assets/exchanges/#{$exchange}.svg');
+        }
       }
     }
   }
@@ -727,10 +762,6 @@ export default class extends Mixins(PaneMixin) {
     flex-basis: 1em;
     font-size: 1em;
     position: absolute;
-
-    + .trade__message {
-      margin-left: 0.5em;
-    }
   }
 
   .icon-currency,
@@ -743,8 +774,7 @@ export default class extends Mixins(PaneMixin) {
     background-repeat: no-repeat;
     background-position: center center;
     flex-grow: 0.75;
-    margin-left: 5%;
-    line-height: 1;
+    margin-left: 0.75em;
 
     small {
       opacity: 0.8;
@@ -798,20 +828,6 @@ export default class extends Mixins(PaneMixin) {
     text-align: right;
     flex-basis: 2em;
     flex-grow: 0;
-  }
-
-  .trade__message {
-    flex-grow: 2;
-    text-align: center;
-    font-size: 90%;
-    line-height: 1.5;
-
-    + .trade__date {
-      overflow: visible;
-      flex-basis: auto;
-      font-size: 0.8em;
-      margin-left: -0.2em;
-    }
   }
 }
 

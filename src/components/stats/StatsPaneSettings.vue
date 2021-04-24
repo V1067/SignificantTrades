@@ -28,7 +28,7 @@
     <div class="column">
       <i class="icon-bucket -center mr4"></i>
       <span class="-fill">BUCKETS ({{ buckets.length }})</span>
-      <a href="javascript:void(0);" class="-nowrap" v-tippy title="Add a stat" @click="$store.dispatch(paneId + '/createStat')">
+      <a href="javascript:void(0);" class="-nowrap" v-tippy title="Add a stat" @click="$store.dispatch(paneId + '/createBucket')">
         Add
         <i class="icon-plus ml4 -lower"></i>
       </a>
@@ -41,7 +41,7 @@
             type="checkbox"
             class="form-control"
             :checked="bucket.enabled"
-            @change="$store.dispatch(paneId + '/updateStat', { id: bucket.id, prop: 'enabled', value: $event.target.checked })"
+            @change="$store.dispatch(paneId + '/updateBucket', { id: bucket.id, prop: 'enabled', value: $event.target.checked })"
           />
           <div></div>
         </label>

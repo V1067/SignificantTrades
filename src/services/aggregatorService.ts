@@ -4,6 +4,7 @@ import { parseMarket, randomString } from '@/utils/helpers'
 import EventEmitter from 'eventemitter3'
 
 import Worker from 'worker-loader!@/worker/aggregator.worker'
+import workspacesService from './workspacesService'
 
 class AggregatorService extends EventEmitter {
   public worker: Worker
@@ -15,10 +16,6 @@ class AggregatorService extends EventEmitter {
     this.worker = new Worker()
 
     this.worker.addEventListener('message', event => {
-      if (!/^(bucket-|trades|prices)/.test(event.data.op)) {
-        console.debug(`[service] received message from worker`, event.data)
-      }
-
       this.emit(event.data.op, event.data.data, event.data.trackingId)
     })
 
@@ -26,6 +23,14 @@ class AggregatorService extends EventEmitter {
       this.worker.postMessage({
         op: 'unload'
       })
+    })
+
+    this.once('hello', async () => {
+      await workspacesService.initialize()
+
+      const workspace = await workspacesService.getCurrentWorkspace()
+
+      workspacesService.setWorkspace(workspace)
     })
   }
 
@@ -71,7 +76,7 @@ class AggregatorService extends EventEmitter {
     if (!markets.length) {
       return
     }
-    
+
     await this.dispatchAsync({
       op: 'disconnect',
       data: markets

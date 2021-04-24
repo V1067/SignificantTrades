@@ -14,7 +14,7 @@
           class="form-control"
           :value="name"
           @change="
-            $store.dispatch(paneId + '/updateStat', {
+            $store.dispatch(paneId + '/updateBucket', {
               id: bucketId,
               prop: 'name',
               value: $event.target.value
@@ -29,7 +29,7 @@
           model="rgb"
           :value="color"
           @input="
-            $store.dispatch(paneId + '/updateStat', {
+            $store.dispatch(paneId + '/updateBucket', {
               id: bucketId,
               prop: 'color',
               value: $event
@@ -40,14 +40,17 @@
     </div>
     <div class="column">
       <div class="form-group mb8">
-        <label>Window (m)</label>
+        <label>
+          Window (m)
+          <span class="icon-info" title="Sum over given interval (eg: 30s or 10m or 1h)" v-tippy></span>
+        </label>
         <input
           type="text"
           class="form-control"
           :value="window"
           :placeholder="getHms($store.state[paneId].window) + ' (default)'"
           @change="
-            $store.dispatch(paneId + '/updateStat', {
+            $store.dispatch(paneId + '/updateBucket', {
               id: bucketId,
               prop: 'window',
               value: $event.target.value
@@ -56,13 +59,16 @@
         />
       </div>
       <div class="form-group mb8">
-        <label>Precision</label>
+        <label>
+          Precision
+          <span class="icon-info" title="Decimal precision" v-tippy></span>
+        </label>
         <editable
           class="form-control"
           placeholder="auto"
           :content="precision"
           @output="
-            $store.dispatch(paneId + '/updateStat', {
+            $store.dispatch(paneId + '/updateBucket', {
               id: bucketId,
               prop: 'precision',
               value: $event
@@ -76,7 +82,7 @@
         >Value
         <span
           class="icon-info"
-          title="Javascript syntax, use build in variable such as vbuy/vsell (volume) cbuy/csell (trade count) lbuy/lsell (liquidation volume)"
+          title="/!\Javascript syntax/!\<br>use build in variable such as vbuy/vsell (volume) cbuy/csell (trade count) lbuy/lsell (liquidation volume)"
           v-tippy
         ></span
       ></label>
@@ -85,7 +91,7 @@
         rows="5"
         :value="input"
         @change="
-          $store.dispatch(paneId + '/updateStat', {
+          $store.dispatch(paneId + '/updateBucket', {
             id: bucketId,
             prop: 'input',
             value: $event.target.value
@@ -163,7 +169,7 @@ export default {
       return getHms(value)
     },
     disable(id, event) {
-      this.$store.dispatch(this.paneId + '/updateStat', { id: id, prop: 'enabled', value: event.target.checked })
+      this.$store.dispatch(this.paneId + '/updateBucket', { id: id, prop: 'enabled', value: event.target.checked })
       this.close()
     },
     async remove() {

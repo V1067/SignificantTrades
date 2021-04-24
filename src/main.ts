@@ -4,22 +4,13 @@ import VueTippy, { TippyComponent } from 'vue-tippy'
 import './assets/sass/app.scss'
 import store from './store'
 
-const vueEnv = process.env
-
-for (const key in vueEnv) {
-  const match = key.match(/^VUE_APP_(.*)/)
-  if (match && match[1]) {
-    store.commit(`app/SET_${match[1]}`, vueEnv[key])
-  }
-}
-
 Vue.use(VueTippy, {
   maxWidth: '200px',
-  duration: !store.state.settings.disableAnimations ? 200 : 0,
+  duration: 0,
   arrow: false,
-  animation: !store.state.settings.disableAnimations ? 'scale' : 'none',
+  animation: 'none',
   size: 'small',
-  delay: !store.state.settings.disableAnimations ? 0 : [200, 0],
+  delay: [200, 0],
   animateFill: false,
   theme: 'blue'
 })

@@ -1,7 +1,10 @@
 <template>
-  <Dialog :open="open" @clickOutside="close" class="-picker">
+  <Dialog :open="open" @clickOutside="close" class="-picker" :mask="false">
     <template v-slot:header>
-      <div class="title">{{ currentColor }}</div>
+      <div>
+        <div class="title">{{ title }}</div>
+        <div class="subtitle -no-grab" style="cursor:text;">{{ currentColor }}</div>
+      </div>
     </template>
     <Picker :mode="picker" :alpha="alpha" v-model="currentColor"></Picker>
     <div class="verte__controller">
@@ -97,6 +100,10 @@ export default {
     value: {
       type: String,
       default: '#000'
+    },
+    title: {
+      type: String,
+      default: 'Colorpicker'
     },
     model: {
       type: String,

@@ -2,8 +2,8 @@
   <Dialog :open="open" @clickOutside="close" class="serie-dialog">
     <template v-slot:header>
       <div class="title">
-        <editable :class="{ '-no-grab': renaming }" :content="name" :editable="renaming" @output="name = $event" placeholder="Nom"></editable>
-        <i class="icon-sm -no-grab ml4" style="cursor: pointer" :class="{ 'icon-check': renaming, 'icon-edit': !renaming }" @click="renameSerie"></i>
+        <span v-text="name"></span>
+        <i class="icon-sm -no-grab ml4 icon-edit" style="cursor: pointer" @click="renameSerie"></i>
       </div>
       <div class="column -center"></div>
     </template>
@@ -19,14 +19,14 @@
       ></dropdown>
     </div>
     <div class="form-group mb16">
-      <label for
-        >Value
+      <label for>
+        Value
         <span
           class="icon-info"
-          title="Javascript syntax, use build in variable such as vbuy/vsell (volume) cbuy/csell (trade count) lbuy/lsell (liquidation volume)"
+          title="/!\Javascript syntax/!\<br>use build in variable such as vbuy/vsell (volume by side) cbuy/csell (trade count by side) lbuy/lsell (liquidation volume)"
           v-tippy
-        ></span
-      ></label>
+        ></span>
+      </label>
       <textarea ref="behaveInput" class="form-control" rows="5" :value="input" @blur="setInput($event.target.value)"></textarea>
       <p v-if="error" class="form-feedback"><i class="icon-warning mr16"></i> {{ error }}</p>
     </div>
@@ -38,6 +38,7 @@
           <verte
             picker="square"
             menuPosition="left"
+            :label="option.label"
             model="rgb"
             :value="currentValues[option.key]"
             @input="currentValues[option.key] !== $event && validate(option, $event)"
@@ -46,7 +47,10 @@
       </div>
       <div v-if="otherOptions.length" class=" -fill">
         <div v-for="option in otherOptions" :key="option.key" class="form-group mb16">
-          <label v-if="option.label !== false">{{ option.label }}</label>
+          <label v-if="option.label !== false">
+            {{ option.label }}
+            <i v-if="helps[option.key]" class="icon-info" v-tippy :title="helps[option.key]"></i>
+          </label>
 
           <dropdown
             v-if="option.key === 'lineType'"
@@ -79,11 +83,11 @@
     <div v-if="positionOption" class="column mt16">
       <div class="-fill form-group mr16">
         <div class="form-group mb16">
-          <label>top</label>
+          <label>top <i class="icon-info" v-tippy :title="helps['scaleMargins.top']"></i></label>
           <editable class="form-control" :content="positionOption.value.top" :step="0.01" @output="setScale('top', $event)"></editable>
         </div>
         <div class="form-group">
-          <label>bottom</label>
+          <label>bottom <i class="icon-info" v-tippy :title="helps['scaleMargins.bottom']"></i></label>
           <editable class="form-control" :content="positionOption.value.bottom" :step="0.01" @output="setScale('bottom', $event)"></editable>
         </div>
       </div>
@@ -145,7 +149,7 @@
         </span>
       </label>
       <button class="btn -blue mr16" v-tippy title="Duplicate" @click="duplicateSerie">
-        <i class="icon-copy"></i>
+        <i class="icon-copy-paste"></i>
       </button>
       <button class="btn -red" v-tippy title="Serie will be lost forever" @click="removeSerie">
         <i class="icon-trash"></i>
@@ -170,15 +174,20 @@ export default {
   mixins: [DialogMixin],
   data: () => ({
     editor: null,
-    newName: null,
-    renaming: false,
     currentValues: {},
     // inputOptionsKeys: [],
     otherOptionsKeys: [],
     colorOptionsKeys: [],
     colorOptions: [],
     otherOptions: [],
-    availableTypes: { line: 'Line', area: 'Area', histogram: 'Histogram', candlestick: 'Candlestick', bar: 'Bar' }
+    availableTypes: { line: 'Line', area: 'Area', histogram: 'Histogram', candlestick: 'Candlestick', bar: 'Bar' },
+    helps: {
+      priceScaleId: `ID of the serie's priceScale. Set the same for multiple series in order to align them on the same scale. Use 'right' scale to show serie on right price axis (main scale).`,
+      lastValueVisible: `Show last value on right axis`,
+      priceLineVisible: `Show horizontal line at current value`,
+      'scaleMargins.top': `Top margin of serie (0 = stick at top)`,
+      'scaleMargins.bottom': `Bottom margin of serie (0 = stick to bottom)`
+    }
   }),
   computed: {
     serieSettings: function() {
@@ -464,17 +473,13 @@ export default {
       store.dispatch(this.paneId + '/removeSerie', this.serieId)
     },
     async renameSerie() {
-      if (!this.renaming) {
-        this.renaming = true
-        this.newName = this.name
+      const name = await dialogService.prompt({
+        action: 'Rename',
+        input: this.name
+      })
 
-        return
-      }
-
-      if (this.newName && this.newName.length) {
-        this.serieId = await store.dispatch(this.paneId + '/renameSerie', { id: this.serieId, name: this.newName })
-        this.renaming = false
-        this.newName = null
+      if (name && name !== this.name) {
+        await store.dispatch(this.paneId + '/renameSerie', { id: this.serieId, name })
       }
     },
     async duplicateSerie() {

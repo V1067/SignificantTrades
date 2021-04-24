@@ -1,24 +1,18 @@
 import Vue from 'vue'
 import Vuex, { Module, StoreOptions } from 'vuex'
-import { prepareModules, preparePaneSettings, scheduleSync } from '@/utils/store'
+import { registerModule, scheduleSync } from '@/utils/store'
 
 import app, { AppState } from './app'
 import settings, { SettingsState } from './settings'
 import exchanges, { ExchangesState } from './exchanges'
 import panes, { PanesState } from './panes'
-import panesSettings from './panesSettings'
-import merge from 'lodash.merge'
-
-Vue.use(Vuex)
+import { sleep } from '@/utils/helpers'
+import { Workspace } from '@/types/test'
 
 Vue.use(Vuex)
 
 export interface AppModuleTree<R> {
   [key: string]: Module<any, R>
-}
-
-export interface AppModule<R, M> extends Module<R, M> {
-  boot?: (store: any, state: any) => void
 }
 
 export interface ModulesState {
@@ -28,33 +22,8 @@ export interface ModulesState {
   exchanges: ExchangesState
 }
 
-const modules = prepareModules({
-  app,
-  settings,
-  panes,
-  exchanges
-})
-
-for (const paneId in modules.panes.state.panes) {
-  const pane = modules.panes.state.panes[paneId]
-  const type = pane.type
-
-  if (panesSettings[type]) {
-    modules[paneId] = preparePaneSettings(paneId, panesSettings[type])
-  }
-
-  if (pane.settings) {
-    if (typeof pane.settings === 'object') {
-      merge(modules[paneId].state, pane.settings)
-    }
-
-    delete modules.panes.state.panes[paneId].settings
-  }
-}
-
-const store = new Vuex.Store({
-  modules
-} as StoreOptions<ModulesState>)
+const store = new Vuex.Store({} as StoreOptions<ModulesState>)
+const modules = { app, settings, panes, exchanges } as AppModuleTree<ModulesState>
 
 store.subscribe((mutation, state: any) => {
   const moduleId = mutation.type.split('/')[0]
@@ -66,20 +35,43 @@ store.subscribe((mutation, state: any) => {
   }
 })
 
-export async function boot() {
-  const promises = []
+export async function boot(workspace?: Workspace) {
+  console.log(`[store] booting on workspace "${workspace.name}" (${workspace.id})`)
 
-  for (const id in modules) {
-    const module = modules[id]
+  if (store.state.app) {
+    console.log(`[store] app exists, unload current workspace`)
 
-    if (typeof module.boot === 'function') {
-      promises.push(module.boot(store, module.state))
+    store.dispatch('app/setBooted', false)
+
+    await sleep(500)
+
+    for (const id in store.state) {
+      console.log(`[store] unloading module ${id}`)
+      store.unregisterModule(id)
     }
   }
 
-  await Promise.all(promises)
+  for (const id in modules) {
+    await registerModule(id, modules[id])
+  }
+
+  for (const paneId in modules.panes.state.panes) {
+    await registerModule(paneId, {}, false, modules.panes.state.panes[paneId])
+  }
+
+  const promises = []
+
+  for (const id in store.state) {
+    promises.push(store.dispatch(id + '/boot'))
+  }
 
   store.dispatch('app/setBooted')
+
+  try {
+    await Promise.all(promises)
+  } catch (error) {
+    console.log(error)
+  }
 }
 
 export default store

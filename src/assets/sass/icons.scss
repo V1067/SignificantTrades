@@ -30,6 +30,10 @@ $iconpath: '../fonts';
     position: relative;
     top: -1px;
   }
+
+  &.-large {
+    font-size: 1.5rem;
+  }
 }
 
 .icon-bitcoin {
@@ -137,11 +141,6 @@ $iconpath: '../fonts';
     content: $icon-cog;
   }
 }
-.icon-sound-wave {
-  &:before {
-    content: $icon-sound-wave;
-  }
-}
 .icon-volume-off {
   &:before {
     content: $icon-volume-off;
@@ -187,11 +186,6 @@ $iconpath: '../fonts';
     content: $icon-dropper;
   }
 }
-.icon-copy {
-  &:before {
-    content: $icon-copy;
-  }
-}
 .icon-coin {
   &:before {
     content: $icon-coin;
@@ -212,9 +206,9 @@ $iconpath: '../fonts';
     content: $icon-magic;
   }
 }
-.icon-tomb {
+.icon-skull {
   &:before {
-    content: $icon-tomb;
+    content: $icon-skull;
   }
 }
 .icon-visible {
@@ -267,30 +261,19 @@ $iconpath: '../fonts';
     content: $icon-search;
   }
 }
-.icon-bottom-right {
+.icon-resize {
   &:before {
-    content: $icon-bottom-right;
+    content: $icon-resize;
   }
 }
-.icon-settings-lines {
-  &:before {
-    content: $icon-settings-lines;
-  }
-}
-.icon-close-thin {
-  &:before {
-    content: $icon-close-thin;
-  }
-}
-.icon-bucket {
-  &:before {
-    content: $icon-bucket;
-  }
-}
-
 .icon-KRAKEN {
   &:before {
     content: $icon-KRAKEN;
+  }
+}
+.icon-FTX {
+  &:before {
+    content: $icon-FTX;
   }
 }
 .icon-OKEX {
@@ -358,14 +341,9 @@ $iconpath: '../fonts';
     content: $icon-BITSTAMP;
   }
 }
-.icon-paint-brush {
+.icon-sound-wave {
   &:before {
-    content: $icon-paint-brush;
-  }
-}
-.icon-expand {
-  &:before {
-    content: $icon-expand;
+    content: $icon-sound-wave;
   }
 }
 .icon-menu {
@@ -373,19 +351,9 @@ $iconpath: '../fonts';
     content: $icon-menu;
   }
 }
-.icon-color-palette {
-  &:before {
-    content: $icon-color-palette;
-  }
-}
 .icon-stamp {
   &:before {
     content: $icon-stamp;
-  }
-}
-.icon-upload-setup {
-  &:before {
-    content: $icon-upload-setup;
   }
 }
 .icon-copy-paste {
@@ -393,8 +361,48 @@ $iconpath: '../fonts';
     content: $icon-copy-paste;
   }
 }
-.icon-skull {
+.icon-download {
   &:before {
-    content: $icon-skull;
+    content: $icon-download;
+  }
+}
+.icon-drops {
+  &:before {
+    content: $icon-drops;
+  }
+}
+.icon-upload {
+  &:before {
+    content: $icon-upload;
+  }
+}
+.icon-popup {
+  &:before {
+    content: $icon-popup;
+  }
+}
+.icon-swap {
+  &:before {
+    content: $icon-swap;
+  }
+}
+.icon-dashboard {
+  &:before {
+    content: $icon-dashboard;
+  }
+}
+.icon-black-and-white {
+  &:before {
+    content: $icon-black-and-white;
+  }
+}
+.icon-fill {
+  &:before {
+    content: $icon-fill;
+  }
+}
+.icon-more {
+  &:before {
+    content: $icon-more;
   }
 }

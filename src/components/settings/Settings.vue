@@ -3,6 +3,77 @@
     <div class="stack__scroller" v-background="1">
       <div class="stack__wrapper">
         <a href="#" class="stack__toggler icon-cross" @click="close"></a>
+        <section v-if="workspace">
+          <div class="form-group">
+            <div class="column">
+              <i class="icon-dashboard -center mr16"></i>
+
+              <div class="-fill">
+                <div class="column">
+                  <div class="-center">{{ workspace.name }}</div>
+                  <code class="-center">{{ workspace.id }}</code>
+                  <div class="-fill"></div>
+                </div>
+                <small class="text-muted">created {{ workspace.createdAt }} ago</small>
+              </div>
+
+              <dropdown
+                class="ml8"
+                :options="workspaceMenu"
+                placeholder="Workspaces"
+                @output="workspaceMenu[$event].click()"
+                title="Workspace tools"
+                v-tippy
+              >
+                <template v-slot:selection>
+                  <button class="btn -blue"><i class="icon-menu"></i></button>
+                </template>
+                <template v-slot:option="{ value }">
+                  <div>
+                    <i :class="'icon-' + value.icon"></i>
+
+                    <span>{{ value.label }}</span>
+                  </div>
+                </template>
+              </dropdown>
+            </div>
+
+            <small class="help-text mt8">
+              <dropdown
+                class="-left"
+                v-if="workspaces.length > 1"
+                :options="workspaces"
+                placeholder="Workspaces"
+                @output="loadWorkspace"
+                title="Load another workspace"
+                v-tippy
+              >
+                <template v-slot:selection>
+                  <button type="button" class="btn -blue -small" href="javascript:void(0);">
+                    <i class="icon-search"></i>
+                    <span class="ml4">Load workspaces ({{ workspaces.length }}) </span>
+                  </button>
+                </template>
+                <template v-slot:option="{ value }">
+                  <div>
+                    <i class="icon-trash -action mr16" @click.stop="removeWorkspace(value.id)"></i>
+                    <div class="flex-grow-1">
+                      <div class="dropdown-option__title">
+                        {{ value.name }} <code>{{ value.id }}</code>
+                      </div>
+                      <div class="dropdown-option__description text-muted">last updated {{ ago(value.updatedAt) }} ago</div>
+                    </div>
+                    <i class="icon-external-link-square-alt ml4"></i>
+                  </div>
+                </template>
+              </dropdown>
+            </small>
+          </div>
+
+          <div class="settings__title">
+            Workspace
+          </div>
+        </section>
 
         <section>
           <div v-if="settings.indexOf('list') > -1" class="settings-section settings-trades">
@@ -127,7 +198,7 @@
                 <sup class="version-date">{{ buildDate }}</sup>
               </div>
               <a href="javascript:void(0);" @click="reset()">reset</a>
-              <i class="divider">|</i>
+              <i class="pipe">|</i>
               <a
                 target="_blank"
                 href="bitcoin:3PK1bBK8sG3zAjPBPD7g3PL14Ndux3zWEz"
@@ -139,10 +210,6 @@
               >
                 donate
               </a>
-              <i class="divider">|</i>
-              <a href="javascript:void(0);" @click="exportSettings">export</a>
-              <i class="divider">|</i>
-              <a href="javascript:void(0);" class="settings__browse-import">import<input type="file" @change="confirmImport"/></a>
             </div>
           </div>
         </section>
@@ -154,7 +221,7 @@
 <script lang="ts">
 import { Component, Vue } from 'vue-property-decorator'
 
-import { downloadJson } from '../../utils/helpers'
+import { ago } from '../../utils/helpers'
 
 import Exchange from './Exchange.vue'
 import SettingsImportConfirmation from './ImportConfirmation.vue'
@@ -162,7 +229,8 @@ import SettingsImportConfirmation from './ImportConfirmation.vue'
 import dialogService from '../../services/dialogService'
 import AudioSettings from './AudioSettings.vue'
 import OtherSettings from './OtherSettings.vue'
-import { dumpSettings } from '@/utils/store'
+import workspacesService from '@/services/workspacesService'
+import { Workspace } from '@/types/test'
 
 @Component({
   name: 'Settings',
@@ -173,6 +241,27 @@ import { dumpSettings } from '@/utils/store'
   }
 })
 export default class extends Vue {
+  workspace: Workspace = null
+  workspaces: Workspace[] = []
+
+  workspaceMenu = [
+    {
+      icon: 'trash',
+      label: 'Remove',
+      click: this.removeWorkspace
+    },
+    {
+      icon: 'edit',
+      label: 'Rename',
+      click: this.renameWorkspace
+    },
+    {
+      icon: 'download',
+      label: 'Download',
+      click: this.exportWorkspace
+    }
+  ]
+
   get activeExchanges() {
     return this.$store.state.app.activeExchanges
   }
@@ -213,112 +302,207 @@ export default class extends Vue {
     return this.$store.state.settings.calculateSlippage
   }
 
-  created() {
-    document.body.classList.add('-translate')
+  async created() {
+    await this.getWorkspaces()
   }
 
-  beforeDestroy() {
-    document.body.classList.remove('-translate')
+  mounted() {
+    this.bindDrop()
   }
 
-  reset() {
-    window.localStorage && window.localStorage.clear()
+  bindDrop() {
+    document.body.addEventListener('drop', this.handleDrop)
+    document.body.addEventListener('dragover', this.handleDrop)
+  }
 
-    window.location.reload(true)
+  unbindDrop() {
+    document.body.removeEventListener('drop', this.handleDrop)
+    document.body.removeEventListener('dragover', this.handleDrop)
+  }
+
+  handleDrop(e: DragEvent) {
+    e.preventDefault()
+
+    if (e.type !== 'drop') {
+      return false
+    }
+
+    const files = e.dataTransfer.files
+
+    if (!files || !files.length) {
+      return
+    }
+
+    const reader = new FileReader()
+
+    reader.onload = async ({ target }) => {
+      const workspace = this.validateWorkspaceImport(target.result)
+
+      if (!workspace) {
+        return
+      }
+
+      if (
+        (await workspacesService.getWorkspace(workspace.id)) &&
+        !(await dialogService.confirm({
+          message: `Workspace ${workspace.id} already exists`,
+          ok: 'Import anyway',
+          cancel: 'Annuler'
+        }))
+      ) {
+        return
+      }
+
+      if (
+        await dialogService.openAsPromise(SettingsImportConfirmation, {
+          workspace
+        })
+      ) {
+        this.importWorkspace(workspace)
+      }
+    }
+    reader.readAsText(files[0])
+  }
+
+  async importWorkspace(workspace: Workspace) {
+    await workspacesService.setWorkspace(await workspacesService.importWorkspace(workspace))
+
+    this.getWorkspaces()
+  }
+
+  async getWorkspaces() {
+    const workspaces = await workspacesService.getWorkspaces()
+
+    this.workspaces = workspaces
+
+    const workspace = workspacesService.workspace
+
+    this.workspace = {
+      name: workspace.name,
+      id: workspace.id,
+      updatedAt: ago(workspace.updatedAt),
+      createdAt: ago(workspace.createdAt),
+      states: null
+    }
   }
 
   close() {
     this.$store.commit('app/TOGGLE_SETTINGS')
   }
 
-  exportSettings() {
-    downloadJson(dumpSettings(), 'aggr')
-  }
-
-  confirmImport(event) {
-    const reader = new FileReader()
-
-    reader.onload = async ({ target }) => {
-      event.target.value = ''
-
-      const states = this.validateImport(target.result)
-
-      if (!states) {
-        return
-      }
-
-      if (
-        await dialogService.openAsPromise(SettingsImportConfirmation, {
-          states
-        })
-      ) {
-        this.importSettings(states)
-      }
-    }
-    reader.readAsText(event.target.files[0])
-  }
-
-  validateImport(content) {
-    let states = null
+  validateWorkspaceImport(raw): Workspace {
+    let workspace: Workspace = null
 
     try {
-      states = JSON.parse(content)
+      workspace = JSON.parse(raw)
     } catch (error) {
-      alert('invalid states')
+      this.$store.dispatch('app/showNotice', {
+        type: 'error',
+        title: `The workspace you provided couldn't be parsed<br>${error.message}`
+      })
 
-      return false
+      return
     }
 
-    return states
+    if (!workspace.id) {
+      this.$store.dispatch('app/showNotice', {
+        type: 'error',
+        title: `The workspace you provided has no ID`
+      })
+      return
+    }
+
+    if (!workspace.name) {
+      this.$store.dispatch('app/showNotice', {
+        type: 'error',
+        title: `The workspace you provided has no name`
+      })
+      return
+    }
+
+    if (!workspace.states || Object.keys(workspace.states).length === 0) {
+      this.$store.dispatch('app/showNotice', {
+        type: 'error',
+        title: `The workspace you provided is empty`
+      })
+      return
+    }
+
+    return workspace
   }
 
-  importSettings(states) {
-    for (const id of states) {
-      localStorage.setItem(id, JSON.stringify(states[id]))
+  async loadWorkspace(index: number) {
+    const id = this.workspaces[index].id
+
+    const workspace = await workspacesService.getWorkspace(id)
+
+    await workspacesService.setWorkspace(workspace)
+  }
+
+  async removeWorkspace(id: string) {
+    let workspace: Workspace
+
+    if (id) {
+      workspace = await workspacesService.getWorkspace(id)
+    } else {
+      workspace = this.workspace
     }
 
-    window.location.reload(true)
+    const isCurrent = this.workspace && this.workspace.id === workspace.id
+
+    if (!(await dialogService.confirm(`Delete workspace ${workspace.name} ?`))) {
+      return
+    }
+
+    if (isCurrent) {
+      let nextWorkspace = this.workspaces.find(w => w.id !== workspace.id)
+
+      if (!nextWorkspace) {
+        nextWorkspace = await workspacesService.createWorkspace()
+      }
+
+      await workspacesService.setWorkspace(nextWorkspace)
+    }
+
+    await workspacesService.removeWorkspace(workspace.id)
+
+    this.getWorkspaces()
+  }
+
+  async createWorkspace() {
+    const workspace = await workspacesService.createWorkspace()
+    await workspacesService.setWorkspace(workspace)
+  }
+
+  async exportWorkspace() {
+    workspacesService.downloadWorkspace()
+  }
+
+  async renameWorkspace() {
+    const name = await dialogService.prompt({
+      action: 'Rename',
+      input: this.workspace.name
+    })
+
+    if (name) {
+      await workspacesService.renameWorkspace(name)
+    } else if (name !== false) {
+      this.$store.dispatch('app/showNotice', {
+        title: `Cannot rename if you don't type the new name...`,
+        type: 'error'
+      })
+    }
+
+    this.getWorkspaces()
+  }
+
+  ago(timestamp) {
+    return ago(timestamp)
   }
 }
 </script>
 
 <style lang="scss">
-@media screen and (min-width: 500px) {
-  body {
-    overflow-x: hidden;
-  }
-
-  body.-translate {
-    .stack__container,
-    #app {
-      overflow: visible !important;
-      z-index: 10;
-    }
-
-    #app {
-      transform: translateX(-260px);
-
-      .stack__scroller {
-        transform: translateX(100%);
-      }
-    }
-  }
-}
-
-@media screen and (min-width: 840px) {
-  body.-translate {
-    #app {
-      transform: translateX(-320px);
-    }
-  }
-}
-
-.settings__report {
-  display: block;
-  padding: 7px 6px 6px;
-  background-color: $red;
-}
-
 .settings__title {
   display: flex;
   align-items: center;
@@ -362,13 +546,13 @@ export default class extends Vue {
     position: fixed;
     height: 100%;
     width: 100%;
-    right: 0;
+    left: 0;
 
     .stack__scroller {
       width: 260px;
       height: 100%;
       position: absolute;
-      right: 0;
+      left: 0;
     }
 
     .stack__wrapper {
@@ -440,7 +624,7 @@ export default class extends Vue {
       line-height: 0;
     }
 
-    .divider {
+    .pipe {
       opacity: 0.5;
       margin: 0 0.25rem;
     }

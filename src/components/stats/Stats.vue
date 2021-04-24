@@ -5,7 +5,7 @@
     <ul class="stats-buckets">
       <li v-for="(bucket, id) in data" :key="id" class="stat-bucket" @click="editStat(id)">
         <div class="stat-bucket__name">{{ bucket.name }}</div>
-        <div class="stat-bucket__value" :style="{ color: bucket.color }">{{ bucket.value }}</div>
+        <div class="stat-bucket__value">{{ bucket.value }}</div>
       </li>
     </ul>
   </div>

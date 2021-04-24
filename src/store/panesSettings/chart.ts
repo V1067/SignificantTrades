@@ -35,6 +35,19 @@ const state = {
 } as ChartPaneState
 
 const actions = {
+  async boot({ state }) {
+    if (!Object.keys(state.series).length) {
+      for (const id in defaultChartSeries) {
+        if (defaultChartSeries[id].enabled === false) {
+          continue
+        }
+
+        Vue.set(state.series, id, {})
+      }
+
+      scheduleSync(state)
+    }
+  },
   createSerie({ commit, state }, serie) {
     const seriesIdMap = Object.keys(state.series)
     const id = uniqueName(slugify(serie.name), seriesIdMap)
@@ -208,18 +221,5 @@ export default {
   state,
   getters,
   actions,
-  mutations,
-  boot: (store, state: ChartPaneState) => {
-    if (!Object.keys(state.series).length) {
-      for (const id in defaultChartSeries) {
-        if (defaultChartSeries[id].enabled === false) {
-          continue
-        }
-
-        Vue.set(state.series, id, {})
-      }
-
-      scheduleSync(state)
-    }
-  }
+  mutations
 } as Module<ChartPaneState, ChartPaneState>

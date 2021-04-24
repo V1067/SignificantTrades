@@ -47,27 +47,31 @@ $unit: 'px'; // Feel free to change the unit.
 @include list-loop('.px', 'padding');
 
 .flex-right {
-  justify-content: flex-end;
+  justify-content: flex-end !important;
 }
 
 .flex-left {
-  justify-content: flex-start;
+  justify-content: flex-start !important;
 }
 
 .flex-center {
-  justify-content: center;
+  justify-content: center !important;
 }
 
 .flex-top {
-  align-items: flex-start;
+  align-items: flex-start !important;
 }
 
 .flex-bottom {
-  align-items: flex-end;
+  align-items: flex-end !important;
 }
 
 .flex-middle {
-  align-items: center;
+  align-items: center !important;
+}
+
+.flex-grow-1 {
+  flex-grow: 1 !important;
 }
 
 .text-left {
@@ -187,4 +191,8 @@ $unit: 'px'; // Feel free to change the unit.
 
 .icon-sm {
   font-size: 80%;
+}
+
+.text-muted {
+  opacity: 0.5;
 }

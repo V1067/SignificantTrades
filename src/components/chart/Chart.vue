@@ -11,22 +11,6 @@
         </a>
       </div>
     </div>
-    <div class="chart__controls">
-      <!--<button class="btn -small" @click="refreshChart">Refresh</button>-->
-    </div>
-    <!--<div class="chart__positions">
-      <div>
-        from: {{ visibleRangeFrom }}<br />
-        logicalfrom: {{ visibleRangeLogicalFrom }}
-      </div>
-      <div>
-        {{ scrollPosition }}
-      </div>
-      <div>
-        to: {{ visibleRangeTo }}<br />
-        logicalto: {{ visibleRangeLogicalTo }}
-      </div>
-    </div>-->
   </div>
 </template>
 
@@ -536,7 +520,7 @@ export default class extends Mixins(PaneMixin) {
   top: 2em;
   left: 1em;
   font-family: 'Barlow Semi Condensed';
-  z-index: 2;
+  z-index: 3;
   opacity: 0;
   transition: opacity 0.2s $ease-out-expo;
   display: flex;

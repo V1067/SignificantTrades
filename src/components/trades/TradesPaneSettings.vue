@@ -24,6 +24,19 @@
           <div></div>
         </label>
       </div>
+
+      <div v-if="showLogos" class="form-group -tight" title="Show exchange's logo when available" v-tippy>
+        <label>Couleur</label>
+        <label class="checkbox-control -auto checkbox-control-input flex-right">
+          <input
+            type="checkbox"
+            class="form-control"
+            :checked="logosColors"
+            @change="$store.commit(paneId + '/TOGGLE_LOGOS_COLORS', $event.target.checked)"
+          />
+          <div on="monochrome" off="original"></div>
+        </label>
+      </div>
     </div>
 
     <div class="form-group mb8">
@@ -141,6 +154,10 @@ export default class extends Vue {
     return this.$store.state[this.paneId].showLogos
   }
 
+  get logosColors() {
+    return this.$store.state[this.paneId].logosColors
+  }
+
   get liquidationsOnly() {
     return this.$store.state[this.paneId].liquidationsOnly
   }
@@ -173,7 +190,7 @@ export default class extends Vue {
   }
 
   get mutipliersCount() {
-    return this.multipliers.filter(market => market.multiplier !== -1).length
+    return this.multipliers.filter(market => market.multiplier !== 1).length
   }
 
   get disableAnimations() {
@@ -188,12 +205,15 @@ export default class extends Vue {
 <style scoped lang="scss">
 .multipliers {
   margin: 0 -1rem;
-  background-color: lighten($dark, 9%);
   padding: 0.5rem 0;
 }
 
 .multipliers-market {
-  padding: 0.25rem 1rem;
+  padding: 0.4rem 1rem;
+
+  &:hover {
+    background-color: rgba(white, 0.1);
+  }
 
   &__id {
     min-width: 125px;
@@ -207,28 +227,18 @@ export default class extends Vue {
     cursor: pointer;
   }
 
+  &:not(.-disabled) {
+    background-color: $green;
+  }
+
+  .market-exchange {
+    font-family: 'Barlow Semi Condensed';
+    line-height: 1;
+  }
+
   &.-disabled {
     .multipliers-market__id {
       opacity: 0.5;
-
-      .market-exchange {
-        font-family: 'Barlow Semi Condensed';
-      }
-
-      .market-pair {
-        position: relative;
-
-        /*&:before {
-          content: '';
-          position: absolute;
-          height: 2px;
-          top: calc(50% - 1px);
-          left: -0.2rem;
-          right: -0.2rem;
-
-          background-color: white;
-        }*/
-      }
     }
 
     .market-threshold {

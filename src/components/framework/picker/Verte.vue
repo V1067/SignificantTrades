@@ -19,6 +19,9 @@ export default {
     value: {
       type: String,
       default: '#000'
+    },
+    label: {
+      type: String
     }
   },
   data: () => ({
@@ -37,10 +40,14 @@ export default {
   },
   methods: {
     openPicker() {
-      this.dialogInstance = dialogService.openPicker(this.value, color => {
-        // this.value = color
-        this.$emit('input', color)
-      })
+      this.dialogInstance = dialogService.openPicker(
+        this.value,
+        color => {
+          // this.value = color
+          this.$emit('input', color)
+        },
+        this.label
+      )
     }
   }
 }

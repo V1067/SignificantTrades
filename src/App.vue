@@ -1,5 +1,6 @@
 <template>
   <div
+    v-if="isBooted"
     id="app"
     :data-prefered-sizing-currency="preferedSizingCurrency"
     :data-base="baseCurrency"
@@ -27,7 +28,7 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from 'vue-property-decorator'
+import { Component, Vue, Watch } from 'vue-property-decorator'
 
 import aggregatorService from './services/aggregatorService'
 
@@ -41,7 +42,6 @@ import Panes from '@/components/panes/Panes.vue'
 import upFavicon from './assets/up.png'
 import downFavicon from './assets/down.png'
 
-import { boot } from './store'
 import { formatPrice } from './utils/helpers'
 import { Notice } from './store/app'
 
@@ -72,6 +72,15 @@ export default class extends Vue {
 
   get showSettings() {
     return this.$store.state.app.showSettings
+  }
+
+  get isBooted() {
+    return this.$store.state.app && this.$store.state.app.isBooted
+  }
+
+  @Watch('isBooted')
+  onBoot() {
+    aggregatorService.on('prices', this.updatePrice)
   }
 
   get isLoading() {
@@ -114,12 +123,7 @@ export default class extends Vue {
     return this.$store.state.settings.disableAnimations
   }
 
-  async created() {
-    await boot()
-  }
-
   mounted() {
-    aggregatorService.on('prices', this.updatePrice)
     aggregatorService.on('notice', (notice: Notice) => {
       this.$store.dispatch('app/showNotice', notice)
     })

@@ -19,7 +19,7 @@
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
 
   &.form-control {

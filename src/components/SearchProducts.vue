@@ -221,8 +221,9 @@ export default class extends Vue {
     left: -100%;
     right: -100%;
     bottom: -100%;
-    background: radial-gradient(ellipse at 35% 0%, rgba(black, 0.5) 0%, rgba(black, 0) 40%);
+    background: radial-gradient(ellipse at 35% 0%, rgba(black, 0.9) 0%, rgba(black, 0) 40%);
     background-size: 150%;
+    backdrop-filter: blur(1px);
   }
 
   .autocomplete {

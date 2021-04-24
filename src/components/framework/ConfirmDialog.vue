@@ -5,8 +5,8 @@
     </template>
     <p class="mx0">{{ message }}</p>
     <footer>
-      <a href="javascript:void(0);" class="btn -text" @click="close(false)">Cancel</a>
-      <button class="btn -large" @click="close(true)"><i class="icon-check mr4"></i> OK</button>
+      <a href="javascript:void(0);" class="btn -text" @click="close(false)" v-text="cancel"></a>
+      <button class="btn -large" @click="close(true)"><i class="icon-check mr4"></i> {{ ok }}</button>
     </footer>
   </Dialog>
 </template>
@@ -24,6 +24,14 @@ export default {
     message: {
       type: String,
       required: true
+    },
+    ok: {
+      type: String,
+      default: 'OK'
+    },
+    cancel: {
+      type: String,
+      default: 'Cancel'
     }
   },
   mixins: [DialogMixin],

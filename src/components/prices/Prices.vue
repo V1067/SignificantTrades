@@ -169,7 +169,7 @@ export default class extends Mixins(PaneMixin) {
   height: 30px;
   overflow-x: auto;
 
-  @each $exchange in $exchanges {
+  @each $exchange, $icon in $exchanges {
     .market.-#{$exchange} {
       background-image: url('../../assets/exchanges/#{$exchange}.svg');
     }

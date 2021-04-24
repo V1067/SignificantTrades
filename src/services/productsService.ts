@@ -1,12 +1,13 @@
 import store from '@/store'
 import { ProductsData, ProductsStorage } from '@/types/test'
 import aggregatorService from './aggregatorService'
+import workspacesService from './workspacesService'
 
 export function saveProducts(storage: ProductsStorage) {
   console.log(`[products.${storage.exchange}] saving products`, storage.data)
   storage.timestamp = +new Date()
 
-  localStorage.setItem(storage.exchange, JSON.stringify(storage))
+  workspacesService.saveProducts(storage)
 }
 
 export async function indexProducts(exchangeId: string, productsData: ProductsData) {
@@ -94,15 +95,10 @@ export async function fetchProducts(exchangeId: string, endpoints: string[]): Pr
 }
 
 export async function getProducts(exchangeId: string, endpoints?: string[]): Promise<ProductsData> {
-  let storage: ProductsStorage
   let productsData: ProductsData
 
-  try {
-    console.debug(`[products.${exchangeId}] reading products`)
-    storage = JSON.parse(localStorage.getItem(exchangeId))
-  } catch (error) {
-    console.error(`[products.${exchangeId}] invalid exchange storage`)
-  }
+  console.debug(`[products.${exchangeId}] reading stored products`)
+  const storage = await workspacesService.getProducts(exchangeId)
 
   if (storage && +new Date() - storage.timestamp < 1000 * 60 * 60 * 24 * 7) {
     console.debug(`[products.${exchangeId}] using products exchange storage`)

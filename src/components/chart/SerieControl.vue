@@ -11,7 +11,7 @@
         <button class="btn -small" @click="edit" v-tippy title="Edit"><i class="icon-edit"></i></button>
         <button class="btn -small" @click="remove" v-tippy title="Disable"><i class="icon-cross"></i></button>
       </div>
-      <div class="serie__legend" :style="'color: ' + color">{{ legend }}</div>
+      <div class="serie__legend" v-text="legend"></div>
     </template>
     <template v-else>
       <i class="icon-warning ml4 mr8"></i>
@@ -42,13 +42,6 @@ export default {
     },
     visible: function() {
       return !this.serie.options || typeof this.serie.options.visible === 'undefined' ? true : this.serie.options.visible
-    },
-    color: function() {
-      if (!this.serie.options) {
-        return null
-      }
-
-      return this.serie.options.color || this.serie.options.lineColor || this.serie.options.upColor
     },
     error: function() {
       return this.$store.state[this.paneId].activeSeriesErrors[this.serieId]
@@ -122,12 +115,12 @@ export default {
     }
 
     > .btn {
-      background-color: rgba(lighten($dark, 4%), 0.8);
+      background-color: rgba($dark, 0.8);
       color: white;
       border-radius: 0;
 
       &:hover {
-        background-color: $dark;
+        background-color: lighten($dark, 2%);
       }
 
       &:first-child {
@@ -156,10 +149,10 @@ export default {
     text-shadow: none;
   }
   .serie__controls > .btn {
-    background-color: rgba($green, 0.5);
+    background-color: rgba($green, 0.8);
 
     &:hover {
-      background-color: $green;
+      background-color: lighten($green, 2%);
     }
   }
 }

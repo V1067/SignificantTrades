@@ -3,6 +3,7 @@ import store from '@/store'
 
 import VerteDialog from '@/components/framework/picker/VerteDialog.vue'
 import ConfirmDialog from '@/components/framework/ConfirmDialog.vue'
+import PromptDialog from '@/components/framework/PromptDialog.vue'
 
 class DialogService {
   mountedComponents = {}
@@ -62,9 +63,10 @@ class DialogService {
     return !!this.mountedComponents[name]
   }
 
-  openPicker(initialColor, cb) {
+  openPicker(initialColor, cb, title?: string) {
     const dialog = this.open(VerteDialog, {
-      value: initialColor
+      value: initialColor,
+      title
     })
 
     if (typeof cb === 'function') {
@@ -90,6 +92,24 @@ class DialogService {
     }
 
     return this.openAsPromise(ConfirmDialog, options)
+  }
+
+  async prompt(options: any) {
+    if (!options) {
+      return
+    }
+
+    if (typeof options === 'string') {
+      options = {
+        action: options
+      }
+    }
+
+    if (!options.action) {
+      return
+    }
+
+    return this.openAsPromise(PromptDialog, options)
   }
 }
 

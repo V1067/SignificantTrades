@@ -5,20 +5,23 @@
       height: auto;
       background: 0;
       opacity: 0.2;
-      font-size: 0.8rem;
+      font-size: 1rem;
       padding: 0.5rem;
-      width: auto;
-      height: auto;
+      width: 2rem;
+      height: 2rem;
 
       &:before {
         font-family: 'icon';
-        content: $icon-bottom-right;
+        content: $icon-resize;
       }
 
       &:hover {
-        opacity: 1;
         background-color: rgba(white, 0.2);
       }
+    }
+
+    &:hover > .vue-resizable-handle {
+      opacity: 1;
     }
 
     &.vue-grid-placeholder {

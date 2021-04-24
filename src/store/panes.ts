@@ -1,10 +1,10 @@
 import aggregatorService from '@/services/aggregatorService'
 import { getProducts, showIndexedProductsCount } from '@/services/productsService'
 import { capitalizeFirstLetter, getBucketId, slugify, uniqueName } from '@/utils/helpers'
-import { preparePaneSettings } from '@/utils/store'
+import { registerModule } from '@/utils/store'
 import Vue from 'vue'
-import { MutationTree, ActionTree, GetterTree } from 'vuex'
-import { AppModule, ModulesState } from '.'
+import { MutationTree, ActionTree, GetterTree, Module } from 'vuex'
+import { ModulesState } from '.'
 import panesSettings from './panesSettings'
 
 export type PaneType = 'trades' | 'chart' | 'stats' | 'counters' | 'prices'
@@ -24,6 +24,7 @@ export interface Pane {
   id: string
   name: string
   markets?: string[]
+  settings?: any
 }
 
 export interface PanesState {
@@ -146,6 +147,14 @@ const state = {
 } as PanesState
 
 const actions = {
+  async boot({ dispatch, state }) {
+    state.marketsListeners = {}
+
+    await Promise.all(this.getters['exchanges/getExchanges'].map(id => getProducts(id)))
+    await dispatch('refreshMarketsListeners')
+
+    showIndexedProductsCount()
+  },
   async addPane({ commit, dispatch, state }, options: Pane & { settings?: any }) {
     if (!options || !options.type) {
       this.dispatch('app/showNotice', {
@@ -177,17 +186,7 @@ const actions = {
       pane.markets = Object.keys(state.marketsListeners)
     }
 
-    const module = preparePaneSettings(id, panesSettings[pane.type]) as AppModule<any, any>
-
-    if (options.settings) {
-      module.state = { ...module.state, ...options.settings }
-    }
-
-    this.registerModule(id, module)
-
-    if (typeof module.boot === 'function') {
-      await module.boot(this, module.state)
-    }
+    await registerModule(id, {}, true, pane)
 
     commit('ADD_PANE', pane)
     dispatch('appendPaneGridItem', { id: pane.id, type: pane.type })
@@ -234,11 +233,12 @@ const actions = {
   async refreshMarketsListeners({ commit, state }) {
     const marketsListeners = {}
     const buckets = {}
-
+    console.log(state.panes)
     for (const id in state.panes) {
       const markets = state.panes[id].markets
 
       if (!markets) {
+        console.log('! err no markets for pane', id)
         continue
       }
 
@@ -262,9 +262,16 @@ const actions = {
     const allUniqueMarkets = Object.keys(marketsListeners)
       .concat(Object.keys(state.marketsListeners))
       .filter((v, i, a) => a.indexOf(v) === i)
+    console.log('!allUniqueMarke', allUniqueMarkets)
 
     const toConnect = []
     const toDisconnect = []
+
+    console.debug(
+      `[panes] refreshMarketsListeners` +
+        (toConnect.length ? `\n\tto connect : ${toConnect.join(', ')}` : '') +
+        (toDisconnect.length ? `\n\tto disconnect : ${toDisconnect.join(', ')}` : '')
+    )
 
     for (const market of allUniqueMarkets) {
       if (!state.marketsListeners[market] && marketsListeners[market]) {
@@ -383,7 +390,7 @@ const mutations = {
     Vue.delete(state.panes, id)
   },
   ADD_GRID_ITEM: (state, gridItem: GridItem) => {
-    state.layout.push(gridItem)
+    state.layout.unshift(gridItem)
   },
   REMOVE_GRID_ITEM: (state, index: number) => {
     state.layout.splice(index, 1)
@@ -413,13 +420,5 @@ export default {
   state,
   getters,
   actions,
-  mutations,
-  async boot(store, state: PanesState) {
-    state.marketsListeners = {}
-
-    await Promise.all(store.getters['exchanges/getExchanges'].map(id => getProducts(id)))
-    await store.dispatch('panes/refreshMarketsListeners')
-
-    showIndexedProductsCount()
-  }
-} as AppModule<PanesState, ModulesState>
+  mutations
+} as Module<PanesState, ModulesState>

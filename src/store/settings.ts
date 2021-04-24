@@ -1,8 +1,8 @@
-import { ActionTree, MutationTree } from 'vuex'
+import { ActionTree, Module, MutationTree } from 'vuex'
 
 import DEFAULTS_STATE from './defaultSettings.json'
 import { getColorLuminance, splitRgba } from '@/utils/colors'
-import { AppModule, ModulesState } from '.'
+import { ModulesState } from '.'
 import { SlippageMode } from '@/types/test'
 import aggregatorService from '@/services/aggregatorService'
 
@@ -10,7 +10,6 @@ export interface SettingsState {
   preferQuoteCurrencySize?: boolean
   calculateSlippage?: SlippageMode
   aggregateTrades?: boolean
-  showLogos?: boolean
   showChart?: boolean
   theme?: string
   backgroundColor?: string
@@ -34,6 +33,22 @@ const state = Object.assign(
 ) as SettingsState
 
 const actions = {
+  async boot({ state }) {
+    aggregatorService.dispatch({
+      op: 'settings.calculateSlippage',
+      data: state.calculateSlippage
+    })
+
+    aggregatorService.dispatch({
+      op: 'settings.aggregateTrades',
+      data: state.aggregateTrades
+    })
+
+    aggregatorService.dispatch({
+      op: 'settings.preferQuoteCurrencySize',
+      data: state.preferQuoteCurrencySize
+    })
+  },
   addRecentColor({ commit, state }, newColor) {
     if (state.recentColors.includes(newColor)) {
       return
@@ -153,23 +168,7 @@ const mutations = {
 
 export default {
   namespaced: true,
-  boot: store => {
-    aggregatorService.dispatch({
-      op: 'settings.calculateSlippage',
-      data: store.state.settings.calculateSlippage
-    })
-
-    aggregatorService.dispatch({
-      op: 'settings.aggregateTrades',
-      data: store.state.settings.aggregateTrades
-    })
-
-    aggregatorService.dispatch({
-      op: 'settings.preferQuoteCurrencySize',
-      data: store.state.settings.preferQuoteCurrencySize
-    })
-  },
   state,
   actions,
   mutations
-} as AppModule<SettingsState, ModulesState>
+} as Module<SettingsState, ModulesState>
