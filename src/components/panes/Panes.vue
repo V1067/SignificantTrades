@@ -87,7 +87,7 @@ export default class extends Vue {
     }
 
     if (event) {
-      this._resizeTimeout = window.setTimeout(this.calculateRowHeight.bind(this), 1000)
+      this._resizeTimeout = window.setTimeout(this.calculateRowHeight.bind(this), 200)
     } else {
       this._resizeTimeout = null
 

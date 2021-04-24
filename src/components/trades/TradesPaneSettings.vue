@@ -31,8 +31,8 @@
           <input
             type="checkbox"
             class="form-control"
-            :checked="logosColors"
-            @change="$store.commit(paneId + '/TOGGLE_LOGOS_COLORS', $event.target.checked)"
+            :checked="monochromeLogos"
+            @change="$store.commit(paneId + '/TOGGLE_MONOCHROME_LOGOS', $event.target.checked)"
           />
           <div on="monochrome" off="original"></div>
         </label>
@@ -154,8 +154,8 @@ export default class extends Vue {
     return this.$store.state[this.paneId].showLogos
   }
 
-  get logosColors() {
-    return this.$store.state[this.paneId].logosColors
+  get monochromeLogos() {
+    return this.$store.state[this.paneId].monochromeLogos
   }
 
   get liquidationsOnly() {

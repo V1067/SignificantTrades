@@ -66,12 +66,16 @@ export default class extends Vue {
     this.isOpen = true
 
     this.bindClickOutside()
+
+    this.$emit('open')
   }
 
   hide() {
     this.isOpen = false
 
     this.unbindClickOutside()
+
+    this.$emit('close')
   }
 
   bindClickOutside() {

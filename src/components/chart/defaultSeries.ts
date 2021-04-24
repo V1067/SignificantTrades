@@ -24,23 +24,6 @@ export const defaultChartSeries = {
     name: 'PRICE',
     type: 'area',
     description: 'Price',
-    input: 'avg_close(bar)',
-    axisLabelVisible: true,
-    options: {
-      priceScaleId: 'price',
-      lineWidth: 1,
-      lineStyle: 0,
-      priceLineVisible: true,
-      lastValueVisible: true,
-      topColor: 'rgba(65, 51, 122,0.26)',
-      lineColor: '#6EA4BF',
-      bottomColor: 'rgba(65, 51, 122,0)'
-    }
-  },
-  price_ohlc: {
-    name: 'Candlesticks',
-    type: 'area',
-    description: 'Price',
     input: 'avg_ohlc(bar)',
     axisLabelVisible: true,
     options: {

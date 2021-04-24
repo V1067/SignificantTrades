@@ -18,7 +18,7 @@ export interface TradesPaneState {
   showThresholdsAsTable: boolean
   maxRows: number
   showLogos: boolean
-  logosColors: boolean
+  monochromeLogos: boolean
   showTradesPairs: boolean
   liquidationsOnly: boolean
   multipliers: { [identifier: string]: number }
@@ -81,7 +81,7 @@ const state = {
   showTradesPairs: false,
   liquidationsOnly: false,
   showLogos: true,
-  logosColors: false
+  monochromeLogos: false
 } as TradesPaneState
 
 const actions = {
@@ -128,8 +128,8 @@ const mutations = {
   TOGGLE_LOGOS(state, value) {
     state.showLogos = value ? true : false
   },
-  TOGGLE_LOGOS_COLORS(state, value) {
-    state.logosColors = value ? true : false
+  TOGGLE_MONOCHROME_LOGOS(state, value) {
+    state.monochromeLogos = value ? true : false
   },
   TOGGLE_LIQUIDATIONS_ONLY(state) {
     state.liquidationsOnly = !state.liquidationsOnly
@@ -138,6 +138,10 @@ const mutations = {
     state.showThresholdsAsTable = value ? true : false
   },
   SET_THRESHOLD_AMOUNT(state, payload) {
+    if (typeof this.getters[state._id + '/getThreshold'] !== 'function') {
+      console.log(this.getters, state._id + '/getThreshold')
+      debugger
+    }
     const threshold = this.getters[state._id + '/getThreshold'](payload.id)
 
     if (threshold) {
@@ -161,6 +165,10 @@ const mutations = {
     Vue.set(state.multipliers, identifier, multiplier)
   },
   SET_THRESHOLD_GIF(state, payload) {
+    if (typeof this.getters[state._id + '/getThreshold'] !== 'function') {
+      console.log(this.getters, state._id + '/getThreshold')
+      debugger
+    }
     const threshold = this.getters[state._id + '/getThreshold'](payload.id)
 
     if (threshold) {
@@ -177,6 +185,10 @@ const mutations = {
     }
   },
   SET_THRESHOLD_COLOR(state, payload) {
+    if (typeof this.getters[state._id + '/getThreshold'] !== 'function') {
+      console.log(this.getters, state._id + '/getThreshold')
+      debugger
+    }
     const threshold = this.getters[state._id + '/getThreshold'](payload.id)
 
     if (threshold) {

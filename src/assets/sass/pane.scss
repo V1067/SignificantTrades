@@ -1,14 +1,15 @@
 .vue-grid-layout {
   .vue-grid-item {
     > .vue-resizable-handle {
+      display: none;
       width: auto;
       height: auto;
       background: 0;
-      opacity: 0.2;
       font-size: 1rem;
       padding: 0.5rem;
       width: 2rem;
       height: 2rem;
+      opacity: 0.2;
 
       &:before {
         font-family: 'icon';
@@ -16,17 +17,30 @@
       }
 
       &:hover {
+        opacity: 1;
         background-color: rgba(white, 0.2);
       }
     }
 
     &:hover > .vue-resizable-handle {
-      opacity: 1;
+      display: block;
     }
 
     &.vue-grid-placeholder {
       background-color: $blue;
       opacity: 0.4;
+    }
+
+    &.-highlight {
+      z-index: 1;
+
+      .pane {
+        z-index: 4;
+
+        .pane-header {
+          display: flex;
+        }
+      }
     }
   }
 }
@@ -69,10 +83,6 @@
 
   .dropdown {
     align-self: stretch;
-
-    .dropdown__selected {
-      padding-bottom: 4px;
-    }
 
     .options {
       position: absolute;

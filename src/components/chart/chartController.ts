@@ -924,12 +924,16 @@ export default class ChartController {
     this.replaceData(computedSeries)
 
     if (this.activeRenderer) {
+      console.log('active renderer before', this.activeRenderer.bar.open, formatTime(this.activeRenderer.timestamp))
+
       for (const id in temporaryRenderer.series) {
         this.activeRenderer.series[id] = temporaryRenderer.series[id]
       }
     } else {
       this.activeRenderer = temporaryRenderer
     }
+
+    console.log('active renderer after', this.activeRenderer.bar.open, formatTime(this.activeRenderer.timestamp))
   }
 
   /**

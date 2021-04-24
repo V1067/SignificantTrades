@@ -9,7 +9,7 @@
           <template v-else>
             <td class="thresholds-table__input">
               <input
-                type="number"
+                type="text"
                 placeholder="Amount*"
                 :value="threshold.amount"
                 @change="

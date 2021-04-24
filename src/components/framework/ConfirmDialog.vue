@@ -3,7 +3,7 @@
     <template v-slot:header>
       <div class="title">{{ title }}</div>
     </template>
-    <p class="mx0">{{ message }}</p>
+    <p class="mx0" v-html="message"></p>
     <footer>
       <a href="javascript:void(0);" class="btn -text" @click="close(false)" v-text="cancel"></a>
       <button class="btn -large" @click="close(true)"><i class="icon-check mr4"></i> {{ ok }}</button>

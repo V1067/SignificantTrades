@@ -17,6 +17,12 @@ body {
     }
   }
 
+  &.-picking-color {
+    .dialog.-mask {
+      background: 0;
+    }
+  }
+
   &.-no-animations {
     animation: none !important;
     transition: none !important;
@@ -223,7 +229,7 @@ body {
   display: flex;
   align-items: center;
   text-transform: uppercase;
-  opacity: .5;
+  opacity: 0.5;
 
   &:before,
   &:after {

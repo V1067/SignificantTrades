@@ -64,6 +64,8 @@ export async function registerModule(id, module: Module<any, any>, boot?: boolea
   if (pane) {
     module = { ...panesSettings[pane.type], state: JSON.parse(JSON.stringify(panesSettings[pane.type].state)) }
 
+    module.state._id = id
+
     console.debug(`[store] module created using pane's type "${pane.type}"`)
 
     if (typeof pane.settings === 'object') {

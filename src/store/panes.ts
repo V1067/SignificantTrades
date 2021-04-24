@@ -86,10 +86,8 @@ const state = {
   _id: 'panes',
   layout: [
     { x: 0, y: 0, w: 15, h: 24, i: 'pane-chart-1', type: 'chart' },
-    { x: 15, y: 0, w: 3, h: 4, i: 'spot-stats', type: 'stats' },
-    { x: 18, y: 0, w: 3, h: 4, i: 'perp-stats', type: 'stats' },
-    { x: 15, y: 4, w: 3, h: 20, i: 'spot-trades', type: 'trades' },
-    { x: 18, y: 4, w: 3, h: 20, i: 'perp-trades', type: 'trades' },
+    { x: 15, y: 0, w: 3, h: 24, i: 'spot-trades', type: 'trades' },
+    { x: 18, y: 0, w: 3, h: 24, i: 'perp-trades', type: 'trades' },
     { x: 21, y: 0, w: 3, h: 24, i: 'liquidations', type: 'trades' }
   ],
   panes: {
@@ -98,18 +96,6 @@ const state = {
       name: 'Pane chart 1',
       type: 'chart',
       markets: [...defaultMarkets.spot, ...defaultMarkets.perp]
-    },
-    'spot-stats': {
-      id: 'spot-stats',
-      name: 'STATS (SPOT)',
-      type: 'stats',
-      markets: defaultMarkets.spot
-    },
-    'perp-stats': {
-      id: 'perp-stats',
-      name: 'STATS (PERP)',
-      type: 'stats',
-      markets: defaultMarkets.perp
     },
     'spot-trades': {
       id: 'spot-trades',
@@ -137,7 +123,30 @@ const state = {
         liquidationsOnly: true,
         thresholds: [
           {
-            amount: 10000
+            id: 'threshold',
+            amount: 10000,
+            buyColor: 'rgba(236,64,122,0.5)',
+            sellColor: 'rgba(255,152,0,0.5)'
+          },
+          {
+            id: 'significant',
+            amount: 25000,
+            buyColor: 'rgba(236,64,122,0.6)',
+            sellColor: 'rgba(255,152,0,0.7)'
+          },
+          {
+            id: 'huge',
+            amount: 100000,
+            gif: 'rekt',
+            buyColor: 'rgba(236,64,122,0.7)',
+            sellColor: 'rgba(255,152,0,0.8)'
+          },
+          {
+            id: 'rare',
+            amount: 1000000,
+            gif: 'explosion',
+            buyColor: 'rgb(236,64,122)',
+            sellColor: 'rgb(255,152,0)'
           }
         ]
       }

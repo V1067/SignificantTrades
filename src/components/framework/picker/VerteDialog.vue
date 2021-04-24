@@ -151,6 +151,9 @@ export default {
     currentModel: '',
     internalColorHistory: []
   }),
+  beforeDestroy() {
+    document.getElementById('app').classList.remove('-picking-color')
+  },
   computed: {
     colors: () => PALETTE,
     historySource() {
@@ -206,6 +209,8 @@ export default {
   created() {
     this.selectColor(this.value || '#000', true)
     this.currentModel = this.model
+
+    document.getElementById('app').classList.add('-picking-color')
   },
   methods: {
     selectColor(color, muted = false) {

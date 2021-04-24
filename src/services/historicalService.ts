@@ -119,10 +119,7 @@ class HistoricalService extends EventEmitter {
       const market: string[] = id.split(':')
 
       if (!refs[id]) {
-        store.dispatch('app/showNotice', {
-          title: `Server did not send anything about ${id} but client expected it`,
-          type: 'warning'
-        })
+        console.warn(`Server did not send anything about ${id} but client expected it (check if server is tracking this market)`)
 
         continue
       }

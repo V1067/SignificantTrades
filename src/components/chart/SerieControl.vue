@@ -74,6 +74,10 @@ export default {
   white-space: nowrap;
   height: 14px;
 
+  i {
+    line-height: 1.35;
+  }
+
   &.-error {
     color: $red;
   }

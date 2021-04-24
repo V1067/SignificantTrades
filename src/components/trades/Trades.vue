@@ -1,5 +1,8 @@
 <template>
-  <div class="pane-trades custom-scrollbar" :class="{ [scale]: true, '-logos': this.showLogos, '-slippage': this.calculateSlippage }">
+  <div
+    class="pane-trades custom-scrollbar"
+    :class="{ [scale]: true, '-logos': this.showLogos, '-logos-colors': !this.monochromeLogos, '-slippage': this.calculateSlippage }"
+  >
     <pane-header :paneId="paneId" />
     <ul ref="tradesContainer"></ul>
     <div v-if="!tradesCount" class="trade -empty">Nothing to show, yet.</div>
@@ -86,8 +89,8 @@ export default class extends Mixins(PaneMixin) {
     return this.$store.state[this.paneId].showLogos
   }
 
-  get logosColors() {
-    return this.$store.state[this.paneId].logosColors
+  get monochromeLogos() {
+    return this.$store.state[this.paneId].monochromeLogos
   }
 
   get multipliers() {
@@ -646,6 +649,8 @@ export default class extends Mixins(PaneMixin) {
 
     &.-logos-colors {
       .trade__exchange {
+        height: 1em;
+
         &:before {
           display: none;
         }

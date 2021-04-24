@@ -496,6 +496,19 @@ export default class extends Vue {
     this.getWorkspaces()
   }
 
+  async reset() {
+    if (
+      await dialogService.confirm({
+        title: 'Reset ?',
+        message: `This will remove all <strong>${this.workspaces.length} workspace${this.workspaces.length > 1 ? 's' : ''}</strong> you had.`
+      })
+    ) {
+      await workspacesService.reset()
+
+      window.location.reload()
+    }
+  }
+
   ago(timestamp) {
     return ago(timestamp)
   }

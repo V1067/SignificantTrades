@@ -1,7 +1,7 @@
 import { boot } from '@/store'
 import { GifsStorage, ProductsStorage, Workspace } from '@/types/test'
 import { downloadJson, randomString, slugify, uniqueName } from '@/utils/helpers'
-import { openDB, DBSchema, IDBPDatabase } from 'idb'
+import { openDB, DBSchema, IDBPDatabase, deleteDB } from 'idb'
 
 interface AggrDB extends DBSchema {
   products: {
@@ -252,6 +252,16 @@ class WorkspacesService {
 
   deleteGifs(slug: string) {
     return this.db.delete('gifs', slug)
+  }
+
+  async reset() {
+    this.db.close()
+    this.db = null
+    this.workspace = null
+
+    localStorage.removeItem('workspace')
+
+    await deleteDB('aggr')
   }
 }
 

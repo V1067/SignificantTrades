@@ -5,7 +5,8 @@ import { getHms, randomString } from './helpers/utils'
 
 interface Api extends WebSocket {
   _id: string
-  _pairs: string[]
+  _connected: string[]
+  _connecting: string[]
   _timestamp: number
 }
 
@@ -143,7 +144,7 @@ class Exchange extends EventEmitter {
 
     this.pairs.splice(this.pairs.indexOf(pair), 1)
 
-    if (!api._pairs.length) {
+    if (!api._connected.length) {
       return this.unbindApi(api)
     } else {
       return Promise.resolve()
@@ -185,7 +186,8 @@ class Exchange extends EventEmitter {
 
       api.binaryType = 'arraybuffer'
 
-      api._pairs = []
+      api._connected = []
+      api._connecting = [pair]
 
       this.apis.push(api)
 
@@ -203,22 +205,22 @@ class Exchange extends EventEmitter {
 
         this.markLoadingAsCompleted(this.connecting, url, true)
 
-        this.onOpen(event, api._pairs)
+        this.onOpen(event, api._connected)
       }
 
       api.onclose = event => {
         this.markLoadingAsCompleted(this.connecting, url, false)
 
-        this.onClose(event, api._pairs)
+        this.onClose(event, api._connected)
 
         this.markLoadingAsCompleted(this.disconnecting, url, true)
 
-        if (api._pairs.length) {
-          const pairsToReconnect = api._pairs.slice(0, api._pairs.length)
+        if (api._connected.length) {
+          const pairsToReconnect = [...api._connecting, ...api._connected]
 
           console.log(`[${this.id}] connection closed unexpectedly, schedule reconnection (${pairsToReconnect.join(',')})`)
 
-          Promise.all(api._pairs.map(pair => this.unlink(pair))).then(() => {
+          Promise.all(api._connected.map(pair => this.unlink(pair))).then(() => {
             const delay = this.reconnectionDelay[api.url] || 0
 
             setTimeout(() => {
@@ -232,7 +234,7 @@ class Exchange extends EventEmitter {
       }
 
       api.onerror = event => {
-        this.onError(event, api._pairs)
+        this.onError(event, api._connected)
       }
 
       this.connecting[url] = {}
@@ -247,6 +249,8 @@ class Exchange extends EventEmitter {
         this.onApiBinded(api)
       }
     } else {
+      api._connecting.push(pair)
+
       if (this.connecting[api.url]) {
         console.debug(`[${this.id}] attach ${pair} to connecting api ${api.url}`)
         toResolve = this.connecting[api.url].promise
@@ -267,7 +271,7 @@ class Exchange extends EventEmitter {
   unbindApi(api): Promise<void> {
     console.debug(`[${this.id}] unbind api ${api.url}`)
 
-    if (api._pairs.length) {
+    if (api._connected.length) {
       throw new Error(`cannot unbind api that still has pairs linked to it`)
     }
 
@@ -305,9 +309,9 @@ class Exchange extends EventEmitter {
    * @param {WebSocket} api
    */
   reconnectApi(api) {
-    console.debug(`[${this.id}] reconnect api (url: ${api.url}, apiPairs: ${api._pairs.join(', ')})`)
+    console.debug(`[${this.id}] reconnect api (url: ${api.url}, apiPairs: ${api._connected.join(', ')})`)
 
-    this.reconnectPairs(api._pairs)
+    this.reconnectPairs(api._connected)
   }
 
   /**
@@ -403,13 +407,10 @@ class Exchange extends EventEmitter {
    * @param {string} pair
    */
   async subscribe(api, pair): Promise<unknown> {
-    const index = api._pairs.indexOf(pair)
-
-    if (index !== -1) {
-      return
+    if (!this.markPairAsConnected(api, pair)) {
+      // pair is already attached
+      return false
     }
-
-    api._pairs.push(pair)
 
     this.emit('subscribed', pair, api._id)
   }
@@ -420,13 +421,10 @@ class Exchange extends EventEmitter {
    * @param {string} pair
    */
   async unsubscribe(api, pair): Promise<unknown> {
-    const index = api._pairs.indexOf(pair)
-
-    if (index === -1) {
-      return
+    if (!this.markPairAsDisconnected(api, pair)) {
+      // pair is already detached
+      return false
     }
-
-    api._pairs.splice(index, 1)
 
     this.emit('unsubscribed', pair, api._id)
   }
@@ -533,6 +531,46 @@ class Exchange extends EventEmitter {
     }
 
     return Promise.all(promises)
+  }
+
+  markPairAsConnected(api, pair) {
+    const connectingIndex = api._connecting.indexOf(pair)
+
+    if (connectingIndex !== -1) {
+      console.debug(`[${this.id}.markPairAsConnected] ${pair} was connecting indeed. move from _connecting to _connected`)
+
+      api._connecting.splice(connectingIndex, 1)
+    } else {
+      console.debug(`[${this.id}.markPairAsConnected] ${pair} appears to be NOT connecting anymore`)
+    }
+
+    const connectedIndex = api._connected.indexOf(pair)
+
+    if (connectedIndex !== -1) {
+      console.debug(`[${this.id}.markPairAsConnected] ${pair} is already in the _connected list -> prevent double subscription`)
+      return false
+    }
+
+    api._connected.push(pair)
+
+    console.debug(`[${this.id}.markPairAsConnected] ${pair} added to _connected list at index ${api._connected.length - 1}`)
+
+    return true
+  }
+
+  markPairAsDisconnected(api, pair) {
+    const connectedIndex = api._connected.indexOf(pair)
+
+    if (connectedIndex === -1) {
+      console.debug(`[${this.id}.markPairAsDisconnected] ${pair} was NOT found in in the _connected list -> prevent double unsubscription`)
+      return false
+    }
+
+    api._connected.splice(connectedIndex, 1)
+
+    console.debug(`[${this.id}.markPairAsDisconnected] ${pair} removed from _connected list (current length after remove : ${api._connected.length})`)
+
+    return true
   }
 }
 

@@ -19,7 +19,7 @@
         <span class="icon-cog"></span>
       </button>
 
-      <dropdown :options="menu" @output="menu[$event].click()" class="-text-left">
+      <dropdown :options="menu" @output="menu[$event].click()" class="-text-left" @open="highlightPane(true)" @close="highlightPane(false)">
         <template v-slot:option="{ value }">
           <div>
             <i :class="'icon-' + value.icon"></i>
@@ -28,7 +28,7 @@
           </div>
         </template>
         <template v-slot:selection>
-          <i class="icon-menu"></i>
+          <i class="icon-more"></i>
         </template>
       </dropdown>
     </div>
@@ -79,19 +79,9 @@ export default class extends Vue {
   }
   menu = [
     {
-      icon: 'copy',
+      icon: 'copy-paste',
       label: 'Duplicate pane',
       click: this.duplicatePane
-    },
-    {
-      icon: 'copy-paste',
-      label: 'Copy pane settings',
-      click: this.copySettings
-    },
-    {
-      icon: 'stamp',
-      label: 'Paste settings',
-      click: this.pasteSettings
     },
     {
       icon: 'trash',
@@ -146,6 +136,10 @@ export default class extends Vue {
 
   copySettings() {
     this.$store.dispatch('panes/copySettings', this.paneId)
+  }
+
+  highlightPane(value: boolean) {
+    this.$el.parentElement.parentElement.classList[value ? 'add' : 'remove']('-highlight')
   }
 
   pasteSettings() {
